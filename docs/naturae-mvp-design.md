@@ -56,11 +56,13 @@ De BirdID app van Nord University dient als belangrijke inspiratiebron. Zie [doc
 - Flashcard interface:
   - Foto/audio op voorkant
   - Nederlandse naam op achterkant
-  - Drie knoppen: "Ken ik niet" / "Twijfel" / "Ken ik"
-- Basis spaced repetition:
-  - "Ken ik niet" → kaart komt direct terug
-  - "Twijfel" → kaart komt na 1 dag terug
-  - "Ken ik" → kaart komt later terug (1, 3, 7, 14 dagen)
+  - Drie knoppen: "Opnieuw" / "Moeilijk" / "Goed"
+- FSRS spaced repetition algoritme (ts-fsrs):
+  - "Opnieuw" → kaart komt direct terug in sessie
+  - "Moeilijk" → kort interval
+  - "Goed" → optimaal interval (FSRS berekend)
+  - Intervallen worden dynamisch berekend op basis van geheugensterkte
+  - Je kunt altijd oefenen, ongeacht de geplande review datum
 - Simpel voortgangsdashboard
 - Inline audiospeler voor geluidskaarten
 
@@ -151,7 +153,7 @@ De BirdID app van Nord University dient als belangrijke inspiratiebron. Zie [doc
 **Doel**: Verhoog engagement en retention
 
 **Features:**
-- Uitgebreide spaced repetition (FSRS algoritme)
+- Voortgangstracking en statistieken dashboard
 - Meerdere foto's per kaart
 - Audio + foto combinaties
 - Basis notificaties/reminders (PWA push)
@@ -175,7 +177,7 @@ Eén leerset (deck) kan op verschillende manieren worden geoefend:
 
 | Modus | Beschrijving | MVP | Later |
 |-------|--------------|-----|-------|
-| **Flashcards** | Self-grading met "Ken ik niet" / "Twijfel" / "Ken ik" | ✅ | - |
+| **Flashcards** | Self-grading met "Opnieuw" / "Moeilijk" / "Goed" (FSRS) | ✅ | - |
 | **Quiz** | Multiple choice, systeem beoordeelt | ❌ | v2 |
 | **Typing** | Typ het antwoord, systeem controleert | ❌ | v3+ |
 
@@ -185,8 +187,8 @@ Voor MVP implementeren we uitsluitend de flashcard modus:
 - Gebruiker ziet vraag (foto/audio)
 - Gebruiker bedenkt antwoord
 - Gebruiker draait kaart om
-- Gebruiker beoordeelt zichzelf (3 knoppen)
-- Spaced repetition bepaalt wanneer kaart terugkomt
+- Gebruiker beoordeelt zichzelf (3 knoppen: Opnieuw/Moeilijk/Goed)
+- FSRS algoritme bepaalt wanneer kaart terugkomt
 
 ### Later: Quiz Modus
 

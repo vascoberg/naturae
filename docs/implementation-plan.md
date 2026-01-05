@@ -177,14 +177,14 @@ Zie [MVP Design - Startcontent](naturae-mvp-design.md#startcontent) voor de twee
 - [x] Supabase project aangemaakt (bmkxhnktszwqiuiywwbz)
 - [x] Environment variables ingevuld (.env.local)
 - [x] Email confirmatie - blijft aan (test met eigen email)
-- [ ] SQL script uitvoeren ← **ACTIEF**
-- [ ] Alle tabellen aangemaakt
-- [ ] RLS policies ingesteld
-- [ ] Indexes aangemaakt
-- [ ] Triggers geconfigureerd
-- [ ] Storage buckets aangemaakt
-- [ ] TypeScript types gegenereerd
-- [ ] Seed data voorbereid
+- [x] SQL script uitgevoerd
+- [x] Alle tabellen aangemaakt (9 tabellen)
+- [x] RLS policies ingesteld
+- [x] Indexes aangemaakt
+- [x] Triggers geconfigureerd
+- [x] Storage buckets aangemaakt (avatars, media)
+- [x] TypeScript types gegenereerd
+- [ ] Seed data voorbereid (later, voor nu verder met Fase 3)
 
 ---
 
@@ -231,18 +231,20 @@ export const config = {
 Bij signup wordt automatisch een profile aangemaakt via database trigger. Zie [Database Architectuur - Triggers](database-architecture.md).
 
 ### Checklist Fase 3
-- [ ] Supabase clients geconfigureerd
-- [ ] Middleware voor auth
-- [ ] Login pagina
-- [ ] Signup pagina
-- [ ] Onboarding flow (username)
-- [ ] Protected routes
-- [ ] Auth state management
-- [ ] Logout functionaliteit
+- [x] Supabase clients geconfigureerd (al gedaan in Fase 1)
+- [x] Middleware voor auth (al gedaan in Fase 1)
+- [x] Login pagina
+- [x] Signup pagina (met email confirmatie flow)
+- [x] Onboarding flow (username kiezen)
+- [x] Protected routes (middleware + dashboard check)
+- [x] Auth state management
+- [x] Logout functionaliteit
+- [x] Homepage met links naar login/signup
+- [x] **GETEST EN WERKEND**
 
 ---
 
-## Fase 4: Core Features
+## Fase 4: Core Features ← **ACTIEF**
 
 ### 4.1 Dashboard
 
