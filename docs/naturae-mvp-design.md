@@ -44,27 +44,33 @@ De BirdID app van Nord University dient als belangrijke inspiratiebron. Zie [doc
 
 ## Development Roadmap
 
-### Sprint 1: Absolute MVP (Week 1-2)
+### Sprint 1: Absolute MVP (Week 1-2) ✅ AFGEROND
 **Doel**: Test Value Hypothesis - willen mensen flashcards voor natuurstudie gebruiken?
 
 **Features:**
-- Email/password authenticatie (Supabase)
-- Username kiezen tijdens onboarding
+- Email/password authenticatie (Supabase) ✅
+- Username kiezen tijdens onboarding ✅
 - Twee voorgebouwde leersets:
-  - "Nederlandse Amfibieën" (16 soorten, foto's + geluiden)
-  - "Nederlandse Sprinkhanen" (48 soorten, foto's + geluiden)
-- Flashcard interface:
+  - "Nederlandse Amfibieën" (16 soorten, foto's + geluiden) ⏳ Content nog toe te voegen
+  - "Nederlandse Sprinkhanen" (48 soorten, foto's + geluiden) ⏳ Content nog toe te voegen
+- Flashcard interface: ✅
   - Foto/audio op voorkant
   - Nederlandse naam op achterkant
   - Drie knoppen: "Opnieuw" / "Moeilijk" / "Goed"
-- FSRS spaced repetition algoritme (ts-fsrs):
+- FSRS spaced repetition algoritme (ts-fsrs): ✅
   - "Opnieuw" → kaart komt direct terug in sessie
   - "Moeilijk" → kort interval
   - "Goed" → optimaal interval (FSRS berekend)
   - Intervallen worden dynamisch berekend op basis van geheugensterkte
   - Je kunt altijd oefenen, ongeacht de geplande review datum
-- Simpel voortgangsdashboard
-- Inline audiospeler voor geluidskaarten
+- Simpel voortgangsdashboard ✅
+- Inline audiospeler voor geluidskaarten ✅
+
+**Geïmplementeerde technische details:**
+- FSRS via `ts-fsrs` library met standaard parameters
+- Keyboard shortcuts: Spatie/Enter om te flippen, 1/2/3 voor rating
+- Sessie statistieken (bekeken, correct, opnieuw)
+- Kaarten sortering: due cards eerst, dan nieuwe, dan op positie
 
 **Metrics:**
 - Daily Active Users (DAU)
@@ -79,10 +85,10 @@ De BirdID app van Nord University dient als belangrijke inspiratiebron. Zie [doc
 - 50% gebruikers voltooit hele set binnen 14 dagen
 
 **Tech stack:**
-- Next.js 14+ met App Router
-- TypeScript
-- Tailwind CSS
-- Supabase (auth + database + storage)
+- Next.js 16+ met App Router ✅
+- TypeScript ✅
+- Tailwind CSS v4 ✅
+- Supabase (auth + database + storage) ✅
 - Vercel (hosting)
 - PWA setup voor mobile
 

@@ -303,8 +303,9 @@ CREATE TABLE user_progress (
 ```
 
 **Notities:**
-- FSRS velden zijn voorbereid maar we starten simpel (SM-2 variant)
-- `state` enum: New → Learning → Review (met Relearning bij fouten)
+- FSRS algoritme is geïmplementeerd via `ts-fsrs` library
+- `state` enum: 0=New → 1=Learning → 2=Review → 3=Relearning (bij fouten)
+- Alle FSRS velden (stability, difficulty, elapsed_days, etc.) worden actief gebruikt
 
 ---
 
