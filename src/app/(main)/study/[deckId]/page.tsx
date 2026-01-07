@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useRef, Suspense } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
@@ -9,6 +9,17 @@ import { Flashcard } from "@/components/flashcard/flashcard";
 import { RatingButtons, Rating } from "@/components/flashcard/rating-buttons";
 import { getStudyCards, recordAnswer, type StudyMode } from "@/lib/actions/study";
 import { ArrowLeft, CheckCircle2 } from "lucide-react";
+
+function LoadingSpinner() {
+  return (
+    <div className="min-h-screen flex items-center justify-center">
+      <div className="text-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
+        <p className="text-muted-foreground">Kaarten laden...</p>
+      </div>
+    </div>
+  );
+}
 
 interface StudyCard {
   id: string;
@@ -30,13 +41,36 @@ interface StudyCard {
   } | null;
 }
 
-
+// Wrapper component met Suspense voor useSearchParams
 export default function StudyPage() {
+  return (
+    <Suspense fallback={<LoadingSpinner />}>
+      <StudyPageContent />
+    </Suspense>
+  );
+}
+
+// Deze component leest URL params en forceert een volledige remount via key
+function StudyPageContent() {
   const params = useParams();
-  const router = useRouter();
   const searchParams = useSearchParams();
   const deckId = params.deckId as string;
   const mode = (searchParams.get("mode") as StudyMode) || "smart";
+
+  // Key forceert volledige remount van StudySession bij navigatie
+  const sessionKey = `${deckId}-${mode}`;
+
+  return <StudySession key={sessionKey} deckId={deckId} mode={mode} />;
+}
+
+// Alle state leeft hier - wordt volledig gereset bij key change
+interface StudySessionProps {
+  deckId: string;
+  mode: StudyMode;
+}
+
+function StudySession({ deckId, mode }: StudySessionProps) {
+  const router = useRouter();
 
   const [cards, setCards] = useState<StudyCard[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -63,26 +97,31 @@ export default function StudyPage() {
     smart: "Slim leren",
   };
 
-  const loadCards = useCallback(async () => {
-    try {
-      setIsLoading(true);
-      const studyCards = await getStudyCards(deckId, mode);
-
-      setCards(studyCards);
-
-      if (studyCards.length === 0) {
-        setSessionComplete(true);
-      }
-    } catch (error) {
-      console.error("Error loading cards:", error);
-    } finally {
-      setIsLoading(false);
-    }
-  }, [deckId, mode]);
+  // Use ref to prevent double-fetch in React Strict Mode
+  const hasLoadedRef = useRef(false);
 
   useEffect(() => {
+    if (hasLoadedRef.current) return;
+    hasLoadedRef.current = true;
+
+    async function loadCards() {
+      try {
+        setIsLoading(true);
+        const studyCards = await getStudyCards(deckId, mode);
+        setCards(studyCards);
+
+        if (studyCards.length === 0) {
+          setSessionComplete(true);
+        }
+      } catch (error) {
+        console.error("Error loading cards:", error);
+      } finally {
+        setIsLoading(false);
+      }
+    }
+
     loadCards();
-  }, [loadCards]);
+  }, [deckId, mode]);
 
   // Laad deck titel
   useEffect(() => {
@@ -144,10 +183,13 @@ export default function StudyPage() {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (sessionComplete || isLoading) return;
 
-      if (!isFlipped && (e.key === " " || e.key === "Enter")) {
+      // Spatiebalk en Enter toggle altijd de kaart (voor- en achterkant)
+      if (e.key === " " || e.key === "Enter") {
         e.preventDefault();
         handleFlip();
-      } else if (isFlipped) {
+      }
+      // Rating shortcuts alleen als kaart geflipped is
+      if (isFlipped) {
         if (e.key === "1") handleRate("again");
         else if (e.key === "2") handleRate("hard");
         else if (e.key === "3") handleRate("good");
@@ -159,14 +201,7 @@ export default function StudyPage() {
   }, [isFlipped, sessionComplete, isLoading, currentCard]);
 
   if (isLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
-          <p className="text-muted-foreground">Kaarten laden...</p>
-        </div>
-      </div>
-    );
+    return <LoadingSpinner />;
   }
 
   if (sessionComplete) {
@@ -260,6 +295,7 @@ export default function StudyPage() {
           {currentCard && (
             <>
               <Flashcard
+                key={currentCard.id}
                 cardId={currentCard.id}
                 frontText={currentCard.front_text}
                 backText={currentCard.back_text}

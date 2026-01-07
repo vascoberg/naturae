@@ -403,44 +403,54 @@ Zie [Data Flow Architectuur - SRS Server Action](data-flow-architecture.md#serve
 
 ---
 
-## Fase 4c: Sessie-modi (Sprint 2)
+## Fase 4c: Sessie-modi (Sprint 2) ✅ AFGEROND
 
 ### 4c.1 Sessie-modus Keuze
 
-**Route:** `/study/[deckId]` (modal/scherm vóór sessie start)
+**Route:** `/study/[deckId]?mode={order|shuffle|smart}`
+
+**Componenten:**
+- `SessionModeSelector` - Modal met 3 selecteerbare kaarten
+- `StartStudyButton` - Knop die modal opent op deck pagina
 
 **Modi:**
 | Modus | Beschrijving |
 |-------|--------------|
-| **Op volgorde** | Kaarten in deck volgorde, alle kaarten |
-| **Shuffle** | Willekeurige volgorde, alle kaarten 1x |
-| **Spaced Repetition** | FSRS scheduling (huidige implementatie) |
+| **Volgorde** | Kaarten in deck volgorde, alle kaarten |
+| **Shuffle** | Willekeurige volgorde (Fisher-Yates), alle kaarten 1x |
+| **Slim leren** | FSRS scheduling, alleen due cards |
 
 ### 4c.2 Implementatie
 
 **UI:**
-- Modus selectie vóór sessie start (3 knoppen/cards)
-- Toon korte uitleg per modus
-- Default: Spaced Repetition
-- Onthoud laatst gekozen modus per deck (localStorage)
+- Modus selectie via dialog vóór sessie start
+- 3 clickable cards met iconen (ListOrdered, Shuffle, Brain)
+- Toon aantal kaarten per modus
+- Geen default - gebruiker moet altijd kiezen
 
 **Logica:**
-- "Op volgorde": sorteer op `position`, geen filtering
-- "Shuffle": Fisher-Yates shuffle, geen filtering
-- "Spaced Repetition": huidige `getStudyCards()` logica
+- "Volgorde": sorteer op `position`, alle kaarten
+- "Shuffle": Fisher-Yates shuffle, alle kaarten
+- "Slim leren": filter op due cards, FSRS scheduling
 
 **Rating gedrag:**
-- Bij alle modi: rating knoppen actief voor stats tracking
-- Bij "Op volgorde" en "Shuffle": "Opnieuw" voegt kaart NIET toe aan einde
-- Bij "Spaced Repetition": huidige gedrag (kaart komt terug)
+- Alle modi: rating knoppen actief voor sessie stats
+- "Volgorde" en "Shuffle": voortgang wordt NIET opgeslagen in database
+- "Slim leren": voortgang wordt opgeslagen via FSRS
+
+**Technische details:**
+- Mode via URL search param (`?mode=shuffle`)
+- Key-based remount voor schone state bij navigatie
+- useRef pattern om dubbele fetch in React Strict Mode te voorkomen
 
 ### Checklist Fase 4c
-- [ ] Sessie-modus selectie UI
-- [ ] "Op volgorde" modus implementatie
-- [ ] "Shuffle" modus implementatie (Fisher-Yates)
-- [ ] Modus voorkeur onthouden (localStorage)
-- [ ] Sessie stats per modus
-- [ ] Test alle drie modi
+- [x] Sessie-modus selectie UI (SessionModeSelector component)
+- [x] "Volgorde" modus implementatie
+- [x] "Shuffle" modus implementatie (Fisher-Yates)
+- [x] Modus voorkeur onthouden - **NIET NODIG** (gebruiker kiest elke keer)
+- [x] Sessie stats per modus (bekeken, correct, opnieuw)
+- [x] Test alle drie modi
+- [x] Bug fix: dubbele fetch in Strict Mode veroorzaakte kaart-flits
 
 ---
 
@@ -530,18 +540,19 @@ interface DeckExport {
 ```
 
 ### Checklist Fase 5
-- [ ] Error handling & toasts
-- [ ] Loading states
+- [x] Error handling & toasts (Sonner toast systeem geïntegreerd)
+- [x] Loading states (al aanwezig in study page, import, etc.)
 - [ ] Responsive design getest
-- [ ] Keyboard navigatie
+- [x] Keyboard navigatie (1/2/3 voor rating, spatie voor flip)
 - [ ] Analytics basis
 - [x] Vercel deployment
 - [x] Environment variables
 - [ ] Custom domain (optioneel)
 - [ ] Test op echte telefoon
 - [ ] Seed data in productie
-- [ ] JSON Export API route
-- [ ] Export knop op deck pagina
+- [x] JSON Export API route (`/api/decks/[id]/export`)
+- [x] Export knop op deck pagina (ExportButton component)
+- [x] Export bug fix (kolom mismatch card_media)
 
 ---
 
@@ -557,11 +568,161 @@ Na voltooiing van alle fasen, valideer tegen de [MVP metrics](naturae-mvp-design
 
 ---
 
-## Volgende Stappen (Post-MVP)
+## Fase 6: Sprint 3 - Sharing & Network Effects
 
-Na succesvolle MVP launch, ga door naar Sprint 2:
-- User Generated Content (eigen leersets maken)
-- Zie [MVP Design - Sprint 2](naturae-mvp-design.md#sprint-2-user-generated-content-week-3-4)
+### 6.1 Publiek/Privé Toggle
+
+**Route:** `/decks/[id]/edit` (bestaande pagina)
+
+**Functionaliteit:**
+- Toggle switch om deck publiek te maken
+- Waarschuwing dat publieke decks zichtbaar zijn voor iedereen
+- Automatisch share_token genereren bij publicatie
+
+### 6.2 Ontdek Pagina
+
+**Route:** `/discover`
+
+**Componenten:**
+- PublicDeckGrid - Grid van publieke decks
+- SearchBar - Zoeken op titel
+- TagFilter - Filteren op tags
+- SortSelect - Sorteren (populariteit, datum, rating)
+
+**Data fetching:**
+```typescript
+// Publieke decks ophalen met statistieken
+const { data: decks } = await supabase
+  .from("decks")
+  .select(`
+    id, title, description, card_count, created_at,
+    profiles!user_id (username, avatar_url),
+    deck_tags (tags (slug, names))
+  `)
+  .eq("is_public", true)
+  .is("deleted_at", null)
+  .order("created_at", { ascending: false });
+```
+
+### 6.3 Ster-systeem (Ratings)
+
+**Componenten:**
+- StarRating - 5-sterren input component
+- AverageRating - Gemiddelde rating weergave
+- RatingCount - Aantal ratings
+
+**Database:** `deck_stars` tabel is al voorbereid in schema.
+
+### 6.4 Kopieer naar Eigen Collectie
+
+**Functionaliteit:**
+- "Kopieer naar mijn collectie" knop op publieke deck pagina
+- Maakt een kopie van het deck (zonder media bestanden te dupliceren)
+- `copied_from_deck_id` tracking voor attributie
+
+### 6.5 Gastgebruik (Zonder Account)
+
+**Functionaliteit:**
+- Publieke decks bekijken en leren via directe link
+- Sessie voortgang in browser (verloren bij sluiten)
+- "Probeer zonder account" knop op publieke deck pagina
+- Soft prompt na X sessies om account aan te maken
+
+**Technische implementatie:**
+- LocalStorage voor tijdelijke voortgang
+- Geen database writes zonder auth
+- Banner/prompt voor account registratie
+
+### 6.6 Private Sharing (Share Token)
+
+**Functionaliteit:**
+- Unieke share link genereren voor private decks
+- Share token in URL: `/decks/share/{token}`
+- Toegang tot private deck via token
+
+### Checklist Fase 6
+- [ ] Publiek/privé toggle implementatie
+- [ ] Share token generatie
+- [ ] Ontdek pagina UI
+- [ ] Zoeken en filteren
+- [ ] Sorteren (datum, populariteit)
+- [ ] Ster-rating systeem
+- [ ] Gemiddelde rating berekening
+- [ ] Kopieer functie
+- [ ] Gastgebruik (lokale sessie)
+- [ ] Account prompt na X sessies
+- [ ] Private sharing via token
+
+---
+
+## MVP+ Features (Toekomstig)
+
+> Features die na de MVP core sprints geïmplementeerd kunnen worden.
+
+### Analytics
+
+**Vercel Analytics** (aanbevolen):
+- Zero-config setup met `@vercel/analytics`
+- Web Vitals tracking (LCP, FID, CLS)
+- Page views en custom events
+- Privacy-friendly (geen cookies nodig voor basis tracking)
+- Gratis tier beschikbaar
+
+**Installatie:**
+```bash
+npm install @vercel/analytics
+```
+
+```typescript
+// app/layout.tsx
+import { Analytics } from '@vercel/analytics/react';
+
+export default function RootLayout({ children }) {
+  return (
+    <html>
+      <body>
+        {children}
+        <Analytics />
+      </body>
+    </html>
+  );
+}
+```
+
+**Custom events voor Naturae:**
+```typescript
+import { track } from '@vercel/analytics';
+
+// Study sessie events
+track('study_session_start', { deckId, mode: 'shuffle' });
+track('card_rated', { rating: 'good', deckId });
+track('study_session_complete', { cardsStudied: 20, duration: 300 });
+
+// Deck events
+track('deck_created', { cardCount: 15 });
+track('deck_exported', { format: 'json' });
+```
+
+### Andere MVP+ Features
+- Responsive design optimalisatie
+- PWA install prompt
+- Push notificaties
+- Offline mode
+- Custom domain setup
+
+---
+
+## Volgende Stappen
+
+**Huidige status:** Sprint 2 (User Generated Content) afgerond.
+
+**Volgende sprint:** Sprint 3 - Sharing & Network Effects
+- Publiek maken van decks
+- Ontdek pagina voor publieke sets
+- Rating systeem
+- Gastgebruik zonder account
+
+Zie [MVP Design - Sprint 3](naturae-mvp-design.md#sprint-3-sharing--network-effects-week-5-6) voor volledige feature beschrijving.
 
 ---
 

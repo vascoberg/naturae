@@ -235,11 +235,12 @@ Bij het starten van een leersessie kan de gebruiker kiezen hoe kaarten worden ge
 | **Shuffle** | Willekeurige volgorde, elke kaart 1x per sessie | ✅ | - |
 | **Spaced Repetition** | FSRS algoritme bepaalt welke kaarten en wanneer | ✅ | - |
 
-**MVP Implementatie:**
-- Keuze-scherm vóór start sessie (of in deck instellingen)
-- Default: Spaced Repetition (huidige implementatie)
-- Bij "Op volgorde" en "Shuffle": alle kaarten in sessie, geen FSRS scheduling
-- Rating knoppen blijven beschikbaar voor voortgang tracking
+**MVP Implementatie:** ✅ GEÏMPLEMENTEERD
+- Keuze-dialog vóór start sessie via "Start met leren" knop
+- Geen default - gebruiker kiest altijd expliciet een modus
+- Bij "Volgorde" en "Shuffle": alle kaarten in sessie, voortgang wordt NIET opgeslagen
+- Bij "Slim leren": alleen due cards, voortgang wordt opgeslagen via FSRS
+- Sessie stats (bekeken, correct, opnieuw) worden getoond na afloop
 
 ### Toekomstige Sessie-uitbreidingen (v2+)
 
@@ -273,7 +274,7 @@ Zie [Quiz Modus (v2)](#quiz-modus-v2) hieronder voor de geplande uitbreiding.
 
 > De leerset pagina moet intuïtief tonen welke leermodi beschikbaar zijn.
 
-**Huidige MVP:** Simpele pagina met "Start met leren" knop (alleen flashcards).
+**Huidige MVP:** ✅ Deck pagina met "Start met leren" knop die modus-selectie dialog opent.
 
 **Toekomstige UI-organisatie:**
 - Duidelijke sectie voor leerset info (titel, beschrijving, statistieken)

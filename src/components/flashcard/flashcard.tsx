@@ -152,6 +152,9 @@ export function Flashcard({ cardId, frontText, backText, frontMedia, backMedia, 
               </div>
             )}
             <p className="text-2xl font-semibold text-primary">{backText}</p>
+            <p className="text-sm text-muted-foreground mt-6">
+              Klik of druk op spatie om om te draaien
+            </p>
           </CardContent>
         </Card>
       </div>

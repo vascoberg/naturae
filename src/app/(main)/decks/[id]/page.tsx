@@ -7,6 +7,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { CardGridView } from "@/components/deck/card-grid-view";
 import { StartStudyButton } from "@/components/deck/start-study-button";
+import { ExportButton } from "@/components/deck/export-button";
 
 interface DeckPageProps {
   params: Promise<{ id: string }>;
@@ -124,7 +125,7 @@ export default async function DeckPage({ params }: DeckPageProps) {
           </div>
 
           {/* Action buttons */}
-          <div className="flex gap-3">
+          <div className="flex flex-wrap gap-3">
             <StartStudyButton
               deckId={deck.id}
               totalCards={totalCards}
@@ -139,6 +140,7 @@ export default async function DeckPage({ params }: DeckPageProps) {
                 </Link>
               </Button>
             )}
+            <ExportButton deckId={deck.id} deckTitle={deck.title} />
           </div>
         </div>
 
