@@ -89,8 +89,8 @@ De BirdID app van Nord University dient als belangrijke inspiratiebron. Zie [doc
 - TypeScript ✅
 - Tailwind CSS v4 ✅
 - Supabase (auth + database + storage) ✅
-- Vercel (hosting)
-- PWA setup voor mobile
+- Vercel (hosting) ⏳ Geconfigureerd, deployment debugging later
+- PWA setup voor mobile ✅
 
 ---
 
@@ -103,7 +103,26 @@ De BirdID app van Nord University dient als belangrijke inspiratiebron. Zie [doc
   - Titel + beschrijving
   - Upload foto's en audio
   - Voor/achterkant tekst invullen
-  - Media attributie (fotograaf, bron, licentie)
+  - Media attributie (bronvermelding als één veld)
+- **Bulk Import functionaliteit:**
+  - Drag & drop meerdere audiobestanden (MP3, WAV)
+  - Automatische metadata extractie uit bestandsnamen:
+    - Naamconventie: `{nummer}. {groep} - {subgroep} - {naam} - {wetenschappelijke naam}.mp3`
+  - ID3 tag parsing voor rijke metadata:
+    - Auteur (TPE1), Copyright (WCOP), Bron URL (WOAF)
+    - Embedded afbeeldingen (APIC tag) automatisch extracten
+    - XC-referenties en locatiedata uit comments
+  - Preview van te importeren kaarten
+  - Deck titel en beschrijving instellen
+  - Eén-klik import naar nieuwe leerset
+- **WYSIWYG kaart bewerken:**
+  - Bewerk-interface toont kaart zoals in leermodus
+  - Direct visuele feedback bij aanpassingen
+  - Media preview op voor- en/of achterkant zichtbaar
+- **Media beheer:**
+  - Bronvermelding achteraf bewerken
+  - Positie wijzigen (voorkant/achterkant/beide)
+  - Media vervangen zonder verwijderen
 - Tags toevoegen aan leersets (meertalig systeem):
   - Topic tags (vogels, planten, insecten)
   - Regio tags (Nederland, Europa)
@@ -139,6 +158,20 @@ De BirdID app van Nord University dient als belangrijke inspiratiebron. Zie [doc
   - Sorteren op populariteit/datum
 - Simpel ster-systeem (1-5 rating)
 - "Kopieer naar mijn collectie" functie
+- **Clone deck functie:**
+  - Leerset kopiëren naar eigen account voor aanpassing
+  - Alleen mogelijk als originele eigenaar dit toestaat (optie per deck)
+  - Teller tonen: "X keer gekopieerd" naast sterrenaantal
+  - Clone behoudt attributie naar origineel
+- **Gastgebruik zonder account:**
+  - Publieke decks bekijken en leren via directe link
+  - Sessie voortgang in browser (verloren bij sluiten)
+  - "Probeer zonder account" knop op publieke deck pagina
+  - Soft prompt na X sessies: "Maak account om voortgang op te slaan"
+- **JSON Export:**
+  - Exporteer leerset als JSON (metadata + kaarten + media info)
+  - Optie: JSON + media bestanden als ZIP
+  - Data ownership: gebruikers kunnen hun data downloaden
 
 **Metrics:**
 - Share rate (% gebruikers dat deelt)
@@ -165,6 +198,11 @@ De BirdID app van Nord University dient als belangrijke inspiratiebron. Zie [doc
 - Basis notificaties/reminders (PWA push)
 - Persoonlijke statistieken dashboard
 - Tag suggesties bij aanmaken leerset
+- **Leerinstellingen per leerset:**
+  - Gebruiksvriendelijke UI bovenop FSRS algoritme
+  - Intuïtieve slider/opties voor herhalingsintensiteit (bijv. "Relaxed" → "Intensief")
+  - Achterliggend: `request_retention` (0.8-0.95), `maximum_interval`, etc.
+  - Preset profielen: "Snel leren", "Op je gemak", "Examenvoorbereiding"
 
 **Metrics:**
 - Verbetering in retention rates
@@ -175,7 +213,7 @@ De BirdID app van Nord University dient als belangrijke inspiratiebron. Zie [doc
 
 ## Leermodi Architectuur
 
-> Een deck ondersteunt meerdere manieren van leren. Voor MVP focussen we op één modus.
+> Een deck ondersteunt meerdere manieren van leren en verschillende sessie-modi.
 
 ### Concept
 
@@ -187,6 +225,37 @@ Eén leerset (deck) kan op verschillende manieren worden geoefend:
 | **Quiz** | Multiple choice, systeem beoordeelt | ❌ | v2 |
 | **Typing** | Typ het antwoord, systeem controleert | ❌ | v3+ |
 
+### Sessie-modi (Kaart Volgorde)
+
+Bij het starten van een leersessie kan de gebruiker kiezen hoe kaarten worden gepresenteerd:
+
+| Sessie-modus | Beschrijving | MVP | Later |
+|--------------|--------------|-----|-------|
+| **Op volgorde** | Kaarten in de volgorde zoals ze in de deck staan | ✅ | - |
+| **Shuffle** | Willekeurige volgorde, elke kaart 1x per sessie | ✅ | - |
+| **Spaced Repetition** | FSRS algoritme bepaalt welke kaarten en wanneer | ✅ | - |
+
+**MVP Implementatie:**
+- Keuze-scherm vóór start sessie (of in deck instellingen)
+- Default: Spaced Repetition (huidige implementatie)
+- Bij "Op volgorde" en "Shuffle": alle kaarten in sessie, geen FSRS scheduling
+- Rating knoppen blijven beschikbaar voor voortgang tracking
+
+### Toekomstige Sessie-uitbreidingen (v2+)
+
+**Sessie instellingen:**
+- Aantal kaarten per sessie limiet (bijv. max 20 kaarten)
+- Alleen nieuwe kaarten / alleen review / mix
+- Timer per kaart (optioneel, voor snelheidstraining)
+
+**Extra sessie-modi:**
+- **Moeilijke kaarten** - Focus op kaarten met lage success rate
+- **Omgekeerd** - Antwoord tonen, vraag raden (handig voor vogelgeluiden: geluid horen → naam raden vs. naam zien → geluid herkennen)
+- **Alleen audio** - Geen tekst/afbeelding tonen, puur op gehoor
+
+**Progress tracking per modus:**
+- Aparte stats voor "ken ik op gehoor" vs "ken ik op beeld"
+
 ### MVP: Alleen Flashcards
 
 Voor MVP implementeren we uitsluitend de flashcard modus:
@@ -194,11 +263,24 @@ Voor MVP implementeren we uitsluitend de flashcard modus:
 - Gebruiker bedenkt antwoord
 - Gebruiker draait kaart om
 - Gebruiker beoordeelt zichzelf (3 knoppen: Opnieuw/Moeilijk/Goed)
-- FSRS algoritme bepaalt wanneer kaart terugkomt
+- FSRS algoritme bepaalt wanneer kaart terugkomt (bij Spaced Repetition modus)
 
 ### Later: Quiz Modus
 
 Zie [Quiz Modus (v2)](#quiz-modus-v2) hieronder voor de geplande uitbreiding.
+
+### Leerset Pagina UI (v2+)
+
+> De leerset pagina moet intuïtief tonen welke leermodi beschikbaar zijn.
+
+**Huidige MVP:** Simpele pagina met "Start met leren" knop (alleen flashcards).
+
+**Toekomstige UI-organisatie:**
+- Duidelijke sectie voor leerset info (titel, beschrijving, statistieken)
+- Visuele knoppen/kaarten per leermodus (Flashcards, Quiz, etc.)
+- Elke modus toont eigen voortgang
+- Bewerken-knop alleen zichtbaar voor eigenaar
+- Consistente layout voor eigen én publieke leersets
 
 ---
 
@@ -206,6 +288,7 @@ Zie [Quiz Modus (v2)](#quiz-modus-v2) hieronder voor de geplande uitbreiding.
 
 ### Species Book (v2)
 > Database infrastructuur is voorbereid, maar UI wordt later gebouwd.
+> **Timing:** Na Sprint 4, wanneer basis engagement features werken. Geïnspireerd door BirdID's "Species Info" scherm.
 
 - Gedeelde species database (wetenschappelijke naam als identifier)
 - Rijke informatie per soort:
@@ -215,7 +298,8 @@ Zie [Quiz Modus (v2)](#quiz-modus-v2) hieronder voor de geplande uitbreiding.
   - Feiten (afmetingen, gewicht)
   - Externe links (waarneming.nl, xeno-canto)
 - Cards kunnen linken naar species
-- "Bekijk in Species Book" knop vanuit flashcard
+- "Bekijk in Species Book" knop vanuit flashcard (📖 icoon)
+- Vanuit leermodus: klik op boekje → modal/pagina met soortinfo
 
 ### Quiz Modus (v2)
 > Geïnspireerd door BirdID
@@ -229,11 +313,33 @@ Zie [Quiz Modus (v2)](#quiz-modus-v2) hieronder voor de geplande uitbreiding.
 - Systeem beoordeelt antwoorden (i.p.v. self-grading)
 
 ### Premium Features (Freemium model)
-- AI-gestuurde leermodules
+
+**Gratis tier:**
+- Basis bulk import (bestandsnaam parsing, ID3 tags, embedded images)
+- Handmatig kaarten aanmaken
+- Onbeperkt leren
+
+**Premium tier - AI-Assisted Import:**
+| Feature | Beschrijving | AI Model |
+|---------|--------------|----------|
+| **Auto-categorisatie** | AI herkent soort uit audio/foto en vult metadata aan | Vision + Audio model |
+| **Kwaliteitscheck** | AI beoordeelt of audio/foto geschikt is voor leren | Vision model |
+| **Auto-tagging** | AI suggereert tags (habitat, gedrag, seizoen) | LLM |
+| **Moeilijkheidsschatting** | AI voorspelt hoe moeilijk een soort te herkennen is | LLM |
+| **Vergelijkbare soorten** | AI linkt naar verwarringssoorten | Embedding similarity |
+| **Beschrijving genereren** | AI schrijft herkenningshints | LLM |
+
+**Business model opties:**
+- X imports gratis per maand, daarna premium
+- Credits systeem voor AI calls
+- Maandelijks abonnement voor onbeperkt AI gebruik
+
+**Overige premium features:**
 - Geavanceerde quiz modi
 - Offline synchronisatie
 - Certificaten/badges
 - Expert-geverifieerde sets
+- Prioriteit support
 
 ### Community Features
 - Comments op sets
@@ -241,6 +347,97 @@ Zie [Quiz Modus (v2)](#quiz-modus-v2) hieronder voor de geplande uitbreiding.
 - Volg systeem
 - Challenges/competities
 - Vergelijkbare soorten ("Similar Species" zoals BirdID)
+
+### Foto Annotatie Editor (v3+)
+> Geïnspireerd door BirdID's annotated species photos (zie [research/Reference/BirdID-04-SpeciesExplanation1.PNG](research/Reference/BirdID-04-SpeciesExplanation1.PNG))
+
+**Probleem:** Voor effectief leren van soortherkenning zijn foto's met visuele annotaties essentieel - labels die wijzen naar specifieke kenmerken (bijv. "brown", "Heavy streaking", "lead-grey"). Gebruikers moeten nu foto's extern bewerken voordat ze uploaden.
+
+**Oplossing:** In-app foto-editor waarmee gebruikers geüploade foto's kunnen annoteren:
+- Tekst labels toevoegen
+- Lijntjes/pijlen trekken van label naar kenmerk
+- Cirkels/ellipsen voor het markeren van gebieden
+- Kleuren kiezen voor contrast
+- Annotaties opslaan als overlay (originele foto blijft intact)
+
+**Te onderzoeken:**
+- Canvas-gebaseerde editors (Fabric.js, Konva.js)
+- SVG overlays op afbeeldingen
+- Touch-friendly drawing op mobile
+- Opslag: annotaties als JSON + SVG overlay of samengevoegde afbeelding?
+- Performance op grote afbeeldingen
+
+### Import/Export
+> Voorkomt vendor lock-in en maakt migratie mogelijk.
+
+**Fasering:**
+
+| Feature | Sprint | Prioriteit | Status |
+|---------|--------|------------|--------|
+| Bulk Audio Import (MP3/WAV + ID3 tags) | Sprint 2 | ✅ Hoog | Gepland |
+| JSON Export (volledige deck backup) | Sprint 3 | ✅ Hoog | Gepland |
+| JSON Import (Naturae backup restore) | Sprint 4 | Medium | Gepland |
+| CSV Export (universeel, tekst-only) | Sprint 4 | Medium | Gepland |
+| CSV Import (basis import) | Sprint 4+ | Medium | Gepland |
+| Anki Export (.apkg) | Post-MVP | Laag | Onderzoek nodig |
+| Anki Import (.apkg) | Post-MVP | Laag | Onderzoek nodig |
+| Quizlet Import | Post-MVP | Laag | Via API, onderzoek nodig |
+
+**JSON Export (Sprint 3):**
+```json
+{
+  "version": "1.0",
+  "exported_at": "2025-01-06T12:00:00Z",
+  "deck": {
+    "title": "Nederlandse Trekvogels",
+    "description": "98 soorten met geluid en foto",
+    "is_public": false,
+    "tags": ["vogels", "Nederland", "geluid"]
+  },
+  "cards": [
+    {
+      "front_text": null,
+      "back_text": "Gierzwaluw",
+      "position": 1,
+      "media": [
+        {
+          "type": "audio",
+          "filename": "gierzwaluw.mp3",
+          "position": "front",
+          "attribution": "Dean McDonnell",
+          "source_url": "https://xeno-canto.org/738385"
+        },
+        {
+          "type": "image",
+          "filename": "gierzwaluw.jpg",
+          "position": "front",
+          "attribution": "Dean McDonnell"
+        }
+      ]
+    }
+  ],
+  "media_files": ["gierzwaluw.mp3", "gierzwaluw.jpg"]
+}
+```
+
+**Export opties:**
+- JSON alleen (metadata, zonder media bestanden)
+- JSON + media (ZIP met JSON + alle bestanden)
+
+### Gastgebruik (v2)
+> Geïnspireerd door Anki's "geen account nodig" aanpak.
+
+**Wat kan zonder account:**
+- Publieke decks bekijken en leren via directe link
+- Sessie voortgang (in browser, verloren bij sluiten)
+
+**Wat vereist account:**
+- Eigen decks aanmaken
+- Voortgang opslaan (spaced repetition)
+- Decks markeren als favoriet
+- Delen en community features
+
+**Implementatie:** "Probeer zonder account" knop op publieke deck pagina, soft prompt na X sessies.
 
 ---
 
@@ -288,23 +485,29 @@ Zie [docs/database-architecture.md](database-architecture.md) voor het complete 
 
 ## Startcontent
 
-Voor Sprint 1 maken we twee voorgebouwde leersets:
+Voorgebouwde leersets voor lancering:
 
 ### 1. Nederlandse Amfibieën
 - 16 soorten
 - Foto's (met attributie)
 - Geluiden (met attributie)
 - Bron: eigen materiaal + waarneming.nl + xeno-canto
+- Status: ⏳ Content nog toe te voegen
 
 ### 2. Nederlandse Sprinkhanen
-- 48 soorten
-- Foto's (met attributie)
-- Geluiden (bestaande Spotify collectie omzetten)
-- Bron: eigen materiaal
+- 41 soorten (3 groepen: Sabelsprinkhanen, Krekels, Veldsprinkhanen)
+- Geluiden (WAV/MP3 met xeno-canto attributie)
+- Bron: lokale collectie met ID3 metadata
+- Naamconventie: `{nr}. {groep} - {wetenschappelijke naam} - {Nederlandse naam}.wav`
+- Status: ✅ Dataset beschikbaar, import via Bulk Import UI
 
-### Toekomstig: Trekvogels
-- Geluiden + foto's
-- Bestaande lokale afspeellijst beschikbaar
+### 3. Nederlandse Trekvogels
+- 98 soorten (categorieën: Zangvogels, diverse families)
+- Geluiden (MP3 met embedded JPEG foto's ~128KB per bestand)
+- Rijke metadata: auteur, locatie, datum, xeno-canto URL
+- Naamconventie: `{nr}. {groep} - {familie} - {Nederlandse naam} - {wetenschappelijke naam}.mp3`
+- Bron: xeno-canto via ID3 tags
+- Status: ✅ Dataset beschikbaar, import via Bulk Import UI
 
 ---
 

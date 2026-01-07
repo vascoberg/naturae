@@ -310,16 +310,137 @@ Zie [Data Flow Architectuur - SRS Server Action](data-flow-architecture.md#serve
 - Link naar originele bron indien beschikbaar
 
 ### Checklist Fase 4
-- [ ] Dashboard pagina
-- [ ] Deck overzicht pagina
-- [ ] Flashcard component
-- [ ] Card flip animatie (CSS)
-- [ ] Audio player component
-- [ ] Rating buttons
-- [ ] Spaced repetition logic (Server Action)
-- [ ] Session progress tracking
-- [ ] Session complete scherm
-- [ ] Media attributie weergave
+- [x] Dashboard pagina
+- [x] Deck overzicht pagina
+- [x] Flashcard component (met CSS flip animatie)
+- [x] Card flip animatie (CSS)
+- [x] Audio player component
+- [x] Rating buttons (3-knops: again, hard, good)
+- [x] Spaced repetition logic (FSRS via ts-fsrs)
+- [x] Session progress tracking
+- [x] Session complete scherm
+- [x] Media attributie weergave (bronvermelding)
+- [x] Keyboard shortcuts (1, 2, 3 en spatie)
+- [x] Media upload (foto's en audio)
+- [x] Media positie (front, back, both)
+
+---
+
+## Fase 4b: Bulk Import (Sprint 2) ✅ AFGEROND
+
+### 4b.1 Bulk Import UI
+
+**Route:** `/decks/import` (nieuwe deck) + `/decks/[id]/edit` (bestaande deck)
+
+**Componenten:**
+- FileDropzone (drag & drop voor audio bestanden)
+- ImportPreview (lijst van te importeren kaarten)
+- MetadataExtractor (bestandsnaam + ID3 parsing)
+- DeckConfigForm (titel, beschrijving)
+- ImportProgress (voortgang indicator)
+
+### 4b.2 Bestandsnaam Parsing
+
+**Ondersteunde naamconventies:**
+```
+{nr}. {groep} - {subgroep} - {naam} - {wetenschappelijke naam}.mp3
+{nr}. {groep} - {wetenschappelijke naam} - {naam}.wav
+```
+
+**Extractie:**
+- Volgnummer → `position`
+- Nederlandse naam → `back_text`
+- Wetenschappelijke naam → metadata (toekomst: species link)
+- Groep/subgroep → potentiële tags
+
+### 4b.3 ID3 Tag Parsing
+
+**Ondersteunde tags (MP3):**
+| Tag | Veld | Gebruik |
+|-----|------|---------|
+| TPE1 | Artist | `attribution` auteur |
+| WCOP | Copyright | `attribution` copyright |
+| WOAF | URL | `source_url` (xeno-canto link) |
+| COMM | Comment | Extra metadata (locatie, datum) |
+| APIC | Picture | Embedded afbeelding extracten |
+
+**Library:** `music-metadata` (npm package)
+
+### 4b.4 Media Upload Flow
+
+1. Gebruiker dropt bestanden
+2. Client-side: parse bestandsnamen en ID3 tags
+3. Preview tonen met geëxtraheerde data
+4. Gebruiker vult deck titel/beschrijving in
+5. "Importeren" → Server Action:
+   - Maak deck aan
+   - Per bestand:
+     - Upload audio naar Storage (`{user_id}/{deck_id}/{unique_id}-{filename}`)
+     - Extract embedded image → upload naar Storage
+     - Maak card aan met media links
+   - Update deck `card_count`
+
+### Checklist Fase 4b
+- [x] FileDropzone component
+- [x] Bestandsnaam parser (regex)
+- [x] ID3 metadata extractie (music-metadata)
+- [x] Embedded image extractie (APIC tag)
+- [x] Import preview UI
+- [x] Deck configuratie form
+- [x] Server Action voor batch import
+- [x] Storage upload voor audio
+- [x] Storage upload voor images
+- [x] Progress indicator
+- [x] Error handling per bestand
+- [x] Bulk import naar bestaande deck (via edit pagina)
+- [x] Unieke bestandsnamen (timestamp + random ID)
+- [x] Storage folder structuur per deck (`{user_id}/{deck_id}/`)
+- [x] Audio player fix (unieke keys per kaart)
+- [x] Kaart terug kunnen draaien (toggle flip)
+- [x] Kaarten zichtbaar na bulk import (page reload)
+- [ ] Test met Sprinkhanen dataset (41 bestanden)
+- [x] Test met Trekvogels dataset (98 bestanden met embedded images)
+
+---
+
+## Fase 4c: Sessie-modi (Sprint 2)
+
+### 4c.1 Sessie-modus Keuze
+
+**Route:** `/study/[deckId]` (modal/scherm vóór sessie start)
+
+**Modi:**
+| Modus | Beschrijving |
+|-------|--------------|
+| **Op volgorde** | Kaarten in deck volgorde, alle kaarten |
+| **Shuffle** | Willekeurige volgorde, alle kaarten 1x |
+| **Spaced Repetition** | FSRS scheduling (huidige implementatie) |
+
+### 4c.2 Implementatie
+
+**UI:**
+- Modus selectie vóór sessie start (3 knoppen/cards)
+- Toon korte uitleg per modus
+- Default: Spaced Repetition
+- Onthoud laatst gekozen modus per deck (localStorage)
+
+**Logica:**
+- "Op volgorde": sorteer op `position`, geen filtering
+- "Shuffle": Fisher-Yates shuffle, geen filtering
+- "Spaced Repetition": huidige `getStudyCards()` logica
+
+**Rating gedrag:**
+- Bij alle modi: rating knoppen actief voor stats tracking
+- Bij "Op volgorde" en "Shuffle": "Opnieuw" voegt kaart NIET toe aan einde
+- Bij "Spaced Repetition": huidige gedrag (kaart komt terug)
+
+### Checklist Fase 4c
+- [ ] Sessie-modus selectie UI
+- [ ] "Op volgorde" modus implementatie
+- [ ] "Shuffle" modus implementatie (Fisher-Yates)
+- [ ] Modus voorkeur onthouden (localStorage)
+- [ ] Sessie stats per modus
+- [ ] Test alle drie modi
 
 ---
 
@@ -382,17 +503,45 @@ vercel
 - Test audio playback
 - Test in verschillende browsers (Safari, Chrome)
 
+### 5.8 JSON Export
+
+**Route:** `/api/decks/[id]/export`
+
+**Functionaliteit:**
+- Export deck metadata + alle kaarten + media info als JSON
+- Optioneel: ZIP met JSON + media bestanden
+- Alleen eigen decks of publieke decks exporteren
+
+**Implementatie:**
+```typescript
+// API Route: /api/decks/[id]/export
+// Query params: ?format=json | ?format=zip
+
+interface DeckExport {
+  version: "1.0";
+  exported_at: string;
+  deck: { title, description, is_public, tags };
+  cards: Array<{
+    front_text, back_text, position,
+    media: Array<{ type, filename, position, attribution, source_url }>
+  }>;
+  media_files: string[]; // alleen bij ZIP
+}
+```
+
 ### Checklist Fase 5
 - [ ] Error handling & toasts
 - [ ] Loading states
 - [ ] Responsive design getest
 - [ ] Keyboard navigatie
 - [ ] Analytics basis
-- [ ] Vercel deployment
-- [ ] Environment variables
+- [x] Vercel deployment
+- [x] Environment variables
 - [ ] Custom domain (optioneel)
 - [ ] Test op echte telefoon
 - [ ] Seed data in productie
+- [ ] JSON Export API route
+- [ ] Export knop op deck pagina
 
 ---
 

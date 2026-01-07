@@ -127,7 +127,19 @@ export async function recordAnswer(cardId: string, rating: UserRating) {
   };
 }
 
-export async function getStudyCards(deckId: string) {
+export type StudyMode = "order" | "shuffle" | "smart";
+
+// Fisher-Yates shuffle algorithm
+function shuffleArray<T>(array: T[]): T[] {
+  const shuffled = [...array];
+  for (let i = shuffled.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+  }
+  return shuffled;
+}
+
+export async function getStudyCards(deckId: string, mode: StudyMode = "smart") {
   const supabase = await createClient();
 
   const { data: { user } } = await supabase.auth.getUser();
@@ -159,7 +171,7 @@ export async function getStudyCards(deckId: string) {
     throw new Error("Kon kaarten niet ophalen");
   }
 
-  // Get progress
+  // Get progress (needed for smart mode filtering and stats)
   const { data: progress } = await supabase
     .from("user_progress")
     .select("card_id, next_review, times_seen, state")
@@ -169,8 +181,8 @@ export async function getStudyCards(deckId: string) {
   const progressMap = new Map(progress?.map(p => [p.card_id, p]) || []);
   const now = new Date();
 
-  // Sort cards: due cards first (by due date), then new cards
-  const sortedCards = cards?.map(card => {
+  // Add progress info to cards
+  const cardsWithProgress = cards?.map(card => {
     const cardProgress = progressMap.get(card.id);
     const isDue = cardProgress?.next_review
       ? new Date(cardProgress.next_review) <= now
@@ -183,19 +195,29 @@ export async function getStudyCards(deckId: string) {
       isNew,
       progress: cardProgress,
     };
-  }).sort((a, b) => {
-    // First: due cards that have been seen (review cards)
-    if (a.isDue && !a.isNew && (!b.isDue || b.isNew)) return -1;
-    if (b.isDue && !b.isNew && (!a.isDue || a.isNew)) return 1;
+  }) || [];
 
-    // Then: new cards
-    if (a.isNew && !b.isNew) return 1;
-    if (b.isNew && !a.isNew) return -1;
+  // Apply mode-specific sorting/filtering
+  switch (mode) {
+    case "order":
+      // Return all cards in deck order (already sorted by position)
+      return cardsWithProgress;
 
-    // Otherwise: by position
-    return a.position - b.position;
-  });
+    case "shuffle":
+      // Return all cards in random order
+      return shuffleArray(cardsWithProgress);
 
-  return sortedCards || [];
+    case "smart":
+    default:
+      // Filter to only due cards, then sort: review cards first, then new cards
+      const dueCards = cardsWithProgress.filter(card => card.isDue);
+      return dueCards.sort((a, b) => {
+        // First: due cards that have been seen (review cards)
+        if (!a.isNew && b.isNew) return -1;
+        if (a.isNew && !b.isNew) return 1;
+        // Otherwise: by position
+        return a.position - b.position;
+      });
+  }
 }
 

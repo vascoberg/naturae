@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Inter, Geist_Mono } from "next/font/google";
 import "./globals.css";
 
@@ -16,6 +16,28 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "Naturae",
   description: "Leer soortherkenning met flashcards",
+  manifest: "/manifest.json",
+  themeColor: "#3b82f6",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
+    title: "Naturae",
+  },
+  formatDetection: {
+    telephone: false,
+  },
+  icons: {
+    icon: "/icons/icon-192x192.svg",
+    apple: "/icons/icon-192x192.svg",
+  },
+};
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
+  themeColor: "#3b82f6",
 };
 
 export default function RootLayout({

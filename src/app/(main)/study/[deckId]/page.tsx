@@ -1,13 +1,13 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Flashcard } from "@/components/flashcard/flashcard";
 import { RatingButtons, Rating } from "@/components/flashcard/rating-buttons";
-import { getStudyCards, recordAnswer } from "@/lib/actions/study";
+import { getStudyCards, recordAnswer, type StudyMode } from "@/lib/actions/study";
 import { ArrowLeft, CheckCircle2 } from "lucide-react";
 
 interface StudyCard {
@@ -19,7 +19,7 @@ interface StudyCard {
     id: string;
     type: string;
     url: string;
-    position: number;
+    position: "front" | "back" | "both";
   }[];
   isDue: boolean;
   isNew: boolean;
@@ -34,7 +34,9 @@ interface StudyCard {
 export default function StudyPage() {
   const params = useParams();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const deckId = params.deckId as string;
+  const mode = (searchParams.get("mode") as StudyMode) || "smart";
 
   const [cards, setCards] = useState<StudyCard[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -51,12 +53,21 @@ export default function StudyPage() {
     incorrect: 0,
   });
 
+  // Bepaal of voortgang moet worden opgeslagen (alleen bij slim leren)
+  const shouldSaveProgress = mode === "smart";
+
+  // Mode labels voor UI
+  const modeLabels: Record<StudyMode, string> = {
+    order: "Volgorde",
+    shuffle: "Shuffle",
+    smart: "Slim leren",
+  };
+
   const loadCards = useCallback(async () => {
     try {
       setIsLoading(true);
-      const studyCards = await getStudyCards(deckId);
+      const studyCards = await getStudyCards(deckId, mode);
 
-      // Toon alle kaarten - geen filtering, je kunt altijd oefenen
       setCards(studyCards);
 
       if (studyCards.length === 0) {
@@ -67,7 +78,7 @@ export default function StudyPage() {
     } finally {
       setIsLoading(false);
     }
-  }, [deckId]);
+  }, [deckId, mode]);
 
   useEffect(() => {
     loadCards();
@@ -92,7 +103,7 @@ export default function StudyPage() {
   const currentCard = cards[currentIndex];
 
   const handleFlip = () => {
-    setIsFlipped(true);
+    setIsFlipped((prev) => !prev); // Toggle: kan nu ook terug draaien
   };
 
   const handleRate = async (rating: Rating) => {
@@ -101,7 +112,10 @@ export default function StudyPage() {
     setIsSubmitting(true);
 
     try {
-      await recordAnswer(currentCard.id, rating);
+      // Sla voortgang alleen op bij "slim leren" modus
+      if (shouldSaveProgress) {
+        await recordAnswer(currentCard.id, rating);
+      }
 
       // Update session stats
       setSessionStats((prev) => ({
@@ -110,25 +124,13 @@ export default function StudyPage() {
         incorrect: rating === "again" ? prev.incorrect + 1 : prev.incorrect,
       }));
 
-      // Als "again", voeg kaart toe aan het einde van de queue
-      if (rating === "again") {
-        setCards((prev) => {
-          const newCards = [...prev];
-          const card = newCards[currentIndex];
-          newCards.splice(currentIndex, 1);
-          newCards.push(card);
-          return newCards;
-        });
+      // Ga naar volgende kaart (ongeacht rating)
+      if (currentIndex < cards.length - 1) {
+        setCurrentIndex((prev) => prev + 1);
         setIsFlipped(false);
       } else {
-        // Ga naar volgende kaart
-        if (currentIndex < cards.length - 1) {
-          setCurrentIndex((prev) => prev + 1);
-          setIsFlipped(false);
-        } else {
-          // Alle kaarten bekeken
-          setSessionComplete(true);
-        }
+        // Alle kaarten bekeken
+        setSessionComplete(true);
       }
     } catch (error) {
       console.error("Error recording answer:", error);
@@ -217,7 +219,8 @@ export default function StudyPage() {
   }
 
   const progress = ((currentIndex + 1) / cards.length) * 100;
-  const frontMedia = currentCard?.card_media?.filter((m) => m.position === 0);
+  const frontMedia = currentCard?.card_media?.filter((m) => m.position === "front" || m.position === "both");
+  const backMedia = currentCard?.card_media?.filter((m) => m.position === "back" || m.position === "both");
 
   return (
     <div className="min-h-screen flex flex-col">
@@ -230,9 +233,14 @@ export default function StudyPage() {
               Stoppen
             </Link>
           </Button>
-          <span className="text-sm text-muted-foreground">
-            {deckTitle || "Laden..."}
-          </span>
+          <div className="text-center">
+            <span className="text-sm text-muted-foreground block">
+              {deckTitle || "Laden..."}
+            </span>
+            <span className="text-xs text-muted-foreground/70">
+              {modeLabels[mode]}
+            </span>
+          </div>
           <span className="text-sm font-medium">
             {currentIndex + 1} / {cards.length}
           </span>
@@ -252,9 +260,14 @@ export default function StudyPage() {
           {currentCard && (
             <>
               <Flashcard
+                cardId={currentCard.id}
                 frontText={currentCard.front_text}
                 backText={currentCard.back_text}
                 frontMedia={frontMedia?.map((m) => ({
+                  type: m.type as "image" | "audio",
+                  url: m.url,
+                }))}
+                backMedia={backMedia?.map((m) => ({
                   type: m.type as "image" | "audio",
                   url: m.url,
                 }))}

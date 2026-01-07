@@ -1,9 +1,12 @@
 import { notFound, redirect } from "next/navigation";
 import Link from "next/link";
+import { Pencil } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { CardGridView } from "@/components/deck/card-grid-view";
+import { StartStudyButton } from "@/components/deck/start-study-button";
 
 interface DeckPageProps {
   params: Promise<{ id: string }>;
@@ -44,10 +47,21 @@ export default async function DeckPage({ params }: DeckPageProps) {
     notFound();
   }
 
-  // Haal kaarten op
+  // Haal kaarten op met media
   const { data: cards } = await supabase
     .from("cards")
-    .select("id, front_text, back_text, position")
+    .select(`
+      id,
+      front_text,
+      back_text,
+      position,
+      card_media (
+        id,
+        type,
+        url,
+        position
+      )
+    `)
     .eq("deck_id", id)
     .is("deleted_at", null)
     .order("position", { ascending: true });
@@ -71,18 +85,8 @@ export default async function DeckPage({ params }: DeckPageProps) {
   const isOwner = deck.user_id === user.id;
 
   return (
-    <div className="min-h-screen bg-background">
-      {/* Header */}
-      <header className="border-b">
-        <div className="container mx-auto px-4 py-4">
-          <Link href="/dashboard" className="text-sm text-muted-foreground hover:text-foreground">
-            ← Terug naar dashboard
-          </Link>
-        </div>
-      </header>
-
-      <main className="container mx-auto px-4 py-8">
-        {/* Deck Header */}
+    <div className="container mx-auto px-4 py-8">
+      {/* Deck Header */}
         <div className="mb-8">
           <div className="flex items-start justify-between mb-4">
             <div>
@@ -92,7 +96,7 @@ export default async function DeckPage({ params }: DeckPageProps) {
               )}
             </div>
             <div className="flex gap-2">
-              {deck.is_public && <Badge variant="secondary">Publiek</Badge>}
+              {deck.is_public && <Badge variant="secondary">Openbaar</Badge>}
               {isOwner && <Badge>Mijn deck</Badge>}
             </div>
           </div>
@@ -119,42 +123,27 @@ export default async function DeckPage({ params }: DeckPageProps) {
             </Card>
           </div>
 
-          {/* Action button */}
-          <Button size="lg" asChild>
-            <Link href={`/study/${deck.id}`}>
-              {cardsSeen === 0 ? "Start met leren" : "Ga verder met leren"}
-            </Link>
-          </Button>
+          {/* Action buttons */}
+          <div className="flex gap-3">
+            <StartStudyButton
+              deckId={deck.id}
+              totalCards={totalCards}
+              dueCards={cardsDue + newCards}
+              hasStarted={cardsSeen > 0}
+            />
+            {isOwner && (
+              <Button variant="outline" size="lg" asChild>
+                <Link href={`/decks/${deck.id}/edit`}>
+                  <Pencil className="w-4 h-4 mr-2" />
+                  Bewerken
+                </Link>
+              </Button>
+            )}
+          </div>
         </div>
 
-        {/* Card list preview */}
-        <section>
-          <h2 className="text-lg font-medium mb-4">
-            Kaarten ({totalCards})
-          </h2>
-          <div className="space-y-2">
-            {cards?.map((card, index) => (
-              <Card key={card.id}>
-                <CardContent className="py-3">
-                  <div className="flex items-center gap-4">
-                    <span className="text-sm text-muted-foreground w-8">
-                      {index + 1}.
-                    </span>
-                    <div className="flex-1 min-w-0">
-                      <p className="truncate">
-                        {card.front_text || "(Geen tekst - media kaart)"}
-                      </p>
-                    </div>
-                    <span className="text-sm text-muted-foreground">
-                      → {card.back_text}
-                    </span>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        </section>
-      </main>
+{/* Card grid/list view */}
+        <CardGridView cards={cards || []} />
     </div>
   );
 }

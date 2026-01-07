@@ -1,0 +1,106 @@
+import { notFound, redirect } from "next/navigation";
+import Link from "next/link";
+import { ArrowLeft } from "lucide-react";
+import { createClient } from "@/lib/supabase/server";
+import { DeckEditor } from "@/components/deck/deck-editor";
+
+interface EditDeckPageProps {
+  params: Promise<{ id: string }>;
+}
+
+export default async function EditDeckPage({ params }: EditDeckPageProps) {
+  const { id } = await params;
+  const supabase = await createClient();
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    redirect("/login");
+  }
+
+  // Haal deck op
+  const { data: deck, error } = await supabase
+    .from("decks")
+    .select("id, title, description, is_public, user_id")
+    .eq("id", id)
+    .is("deleted_at", null)
+    .single();
+
+  if (error || !deck) {
+    notFound();
+  }
+
+  // Check ownership
+  if (deck.user_id !== user.id) {
+    notFound();
+  }
+
+  // Haal kaarten op
+  const { data: cards } = await supabase
+    .from("cards")
+    .select(
+      `
+      id,
+      front_text,
+      back_text,
+      position,
+      card_media (
+        id,
+        type,
+        url,
+        position,
+        display_order,
+        attribution_name,
+        attribution_source,
+        license
+      )
+    `
+    )
+    .eq("deck_id", id)
+    .is("deleted_at", null)
+    .order("position", { ascending: true });
+
+  return (
+    <div className="container mx-auto px-4 py-8 max-w-4xl">
+      <div className="mb-6">
+        <Link
+          href={`/decks/${id}`}
+          className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground"
+        >
+          <ArrowLeft className="w-4 h-4 mr-1" />
+          Terug naar leerset
+        </Link>
+      </div>
+
+      <DeckEditor
+        deck={{
+          id: deck.id,
+          title: deck.title,
+          description: deck.description || "",
+          isPublic: deck.is_public,
+        }}
+        cards={
+          cards?.map((card) => ({
+            id: card.id,
+            frontText: card.front_text || "",
+            backText: card.back_text || "",
+            position: card.position,
+            media:
+              card.card_media?.map((m) => ({
+                id: m.id,
+                type: m.type as "image" | "audio",
+                url: m.url,
+                position: m.position as "front" | "back",
+                displayOrder: m.display_order,
+                attributionName: m.attribution_name,
+                attributionSource: m.attribution_source,
+                license: m.license,
+              })) || [],
+          })) || []
+        }
+      />
+    </div>
+  );
+}

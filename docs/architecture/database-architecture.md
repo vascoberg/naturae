@@ -227,7 +227,7 @@ CREATE TABLE card_media (
 
   -- Constraints
   CONSTRAINT valid_type CHECK (type IN ('image', 'audio')),
-  CONSTRAINT valid_position CHECK (position IN ('front', 'back')),
+  CONSTRAINT valid_position CHECK (position IN ('front', 'back', 'both')),
   CONSTRAINT has_parent CHECK (card_id IS NOT NULL OR species_id IS NOT NULL)
 );
 ```
