@@ -6,7 +6,6 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
@@ -37,15 +36,37 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4">
-      <Card className="w-full max-w-md">
-        <CardHeader className="text-center">
-          <CardTitle className="text-2xl">Welkom terug</CardTitle>
-          <CardDescription>
-            Log in op je Naturae account
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
+    <div className="min-h-screen flex flex-col">
+      {/* Header */}
+      <header className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+        <div className="container mx-auto px-4 py-4 flex items-center justify-between">
+          <Link href="/" className="text-xl font-semibold text-primary">
+            Naturae
+          </Link>
+          <nav className="flex items-center gap-4">
+            <Link
+              href="/discover"
+              className="text-sm text-muted-foreground hover:text-foreground transition-colors"
+            >
+              Ontdek
+            </Link>
+            <Button size="sm" asChild>
+              <Link href="/signup">Registreren</Link>
+            </Button>
+          </nav>
+        </div>
+      </header>
+
+      {/* Login form */}
+      <main className="flex-1 flex items-center justify-center p-4">
+        <div className="w-full max-w-sm">
+          <div className="text-center mb-8">
+            <h1 className="text-2xl font-bold mb-2">Welkom terug</h1>
+            <p className="text-muted-foreground">
+              Log in op je account
+            </p>
+          </div>
+
           <form onSubmit={handleLogin} className="space-y-4">
             <div className="space-y-2">
               <label htmlFor="email" className="text-sm font-medium">
@@ -85,14 +106,23 @@ export default function LoginPage() {
             </Button>
           </form>
 
-          <p className="text-center text-sm text-muted-foreground mt-4">
+          <p className="text-center text-sm text-muted-foreground mt-6">
             Nog geen account?{" "}
             <Link href="/signup" className="text-primary hover:underline">
               Registreer
             </Link>
           </p>
-        </CardContent>
-      </Card>
+        </div>
+      </main>
+
+      {/* Footer */}
+      <footer className="border-t py-6">
+        <div className="container mx-auto px-4">
+          <p className="text-center text-sm text-muted-foreground">
+            Naturae - Leer de natuur kennen
+          </p>
+        </div>
+      </footer>
     </div>
   );
 }

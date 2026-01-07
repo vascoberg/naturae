@@ -150,28 +150,32 @@ De BirdID app van Nord University dient als belangrijke inspiratiebron. Zie [doc
 **Doel**: Test Growth Hypothesis - delen gebruikers sets?
 
 **Features:**
-- Publiek/privé toggle voor leersets
-- Deel-functionaliteit (unieke link + share token voor private sharing)
-- "Ontdek" pagina met publieke sets:
-  - Filteren op tags
-  - Zoeken op titel
-  - Sorteren op populariteit/datum
-- Simpel ster-systeem (1-5 rating)
-- "Kopieer naar mijn collectie" functie
-- **Clone deck functie:**
+- Publiek/privé toggle voor leersets ✅
+- Deel-functionaliteit (unieke link + share token voor private sharing) ⏳
+- "Ontdek" pagina met publieke sets: ✅
+  - Filteren op tags ⏳
+  - Zoeken op titel ✅
+  - Sorteren op populariteit/datum ✅
+- Simpel ster-systeem (1-5 rating) ⏳
+- "Kopieer naar mijn collectie" functie ⏳
+- **Clone deck functie:** ⏳
   - Leerset kopiëren naar eigen account voor aanpassing
   - Alleen mogelijk als originele eigenaar dit toestaat (optie per deck)
   - Teller tonen: "X keer gekopieerd" naast sterrenaantal
   - Clone behoudt attributie naar origineel
-- **Gastgebruik zonder account:**
-  - Publieke decks bekijken en leren via directe link
-  - Sessie voortgang in browser (verloren bij sluiten)
-  - "Probeer zonder account" knop op publieke deck pagina
-  - Soft prompt na X sessies: "Maak account om voortgang op te slaan"
-- **JSON Export:**
-  - Exporteer leerset als JSON (metadata + kaarten + media info)
-  - Optie: JSON + media bestanden als ZIP
-  - Data ownership: gebruikers kunnen hun data downloaden
+- **Gastgebruik zonder account:** ✅
+  - Publieke decks bekijken en leren via directe link ✅
+  - Sessie voortgang in browser (verloren bij sluiten) ✅
+  - "Probeer zonder account" knop op publieke deck pagina ✅
+- **JSON Export:** ✅
+  - Exporteer leerset als JSON (metadata + kaarten + media info) ✅
+  - Optie: JSON + media bestanden als ZIP ⏳
+  - Data ownership: gebruikers kunnen hun data downloaden ✅
+- **Landing page voor gasten:** ✅
+  - Publieke homepage met populaire leersets ✅
+  - Thumbnails tonen op deck cards ✅
+  - Zoekbalk naar discover pagina ✅
+  - Header/footer met navigatie ✅
 
 **Metrics:**
 - Share rate (% gebruikers dat deelt)

@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Plus } from "lucide-react";
+import { Plus, Heart } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { Button } from "@/components/ui/button";
 import {
@@ -25,6 +25,48 @@ export default async function MyDecksPage() {
     .is("deleted_at", null)
     .order("updated_at", { ascending: false });
 
+  // Haal favoriete decks op (decks die user heeft geliked)
+  const { data: likedDecks } = await supabase
+    .from("deck_likes")
+    .select(`
+      deck_id,
+      decks!inner (
+        id,
+        title,
+        description,
+        card_count,
+        like_count,
+        user_id,
+        is_public
+      )
+    `)
+    .eq("user_id", user!.id)
+    .eq("decks.is_public", true)
+    .is("decks.deleted_at", null);
+
+  // Haal auteur profielen op voor favorieten
+  const authorProfiles = new Map<string, { username: string; display_name: string | null }>();
+  if (likedDecks && likedDecks.length > 0) {
+    const userIds = [...new Set(likedDecks.map((l) => {
+      const deck = l.decks as unknown as { user_id: string };
+      return deck.user_id;
+    }))];
+
+    const { data: profiles } = await supabase
+      .from("profiles")
+      .select("id, username, display_name")
+      .in("id", userIds);
+
+    if (profiles) {
+      for (const profile of profiles) {
+        authorProfiles.set(profile.id, {
+          username: profile.username,
+          display_name: profile.display_name,
+        });
+      }
+    }
+  }
+
   return (
     <div className="container mx-auto px-4 py-8">
       <div className="flex items-center justify-between mb-8">
@@ -42,50 +84,122 @@ export default async function MyDecksPage() {
         </Link>
       </div>
 
-      {decks && decks.length > 0 ? (
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {decks.map((deck) => (
-            <Link key={deck.id} href={`/decks/${deck.id}`}>
-              <Card className="h-full hover:border-primary/50 transition-colors cursor-pointer">
-                <CardHeader>
-                  <div className="flex items-start justify-between">
-                    <CardTitle className="text-base">{deck.title}</CardTitle>
-                    {deck.is_public && (
-                      <span className="text-xs bg-primary/10 text-primary px-2 py-0.5 rounded">
-                        Openbaar
-                      </span>
+      {/* Eigen leersets */}
+      <section className="mb-12">
+        <h2 className="text-lg font-semibold mb-4">Mijn leersets</h2>
+        {decks && decks.length > 0 ? (
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+            {decks.map((deck) => (
+              <Link key={deck.id} href={`/decks/${deck.id}`}>
+                <Card className="h-full hover:border-primary/50 transition-colors cursor-pointer">
+                  <CardHeader>
+                    <div className="flex items-start justify-between">
+                      <CardTitle className="text-base">{deck.title}</CardTitle>
+                      {deck.is_public && (
+                        <span className="text-xs bg-primary/10 text-primary px-2 py-0.5 rounded">
+                          Openbaar
+                        </span>
+                      )}
+                    </div>
+                    {deck.description && (
+                      <CardDescription className="line-clamp-2">
+                        {deck.description}
+                      </CardDescription>
                     )}
-                  </div>
-                  {deck.description && (
-                    <CardDescription className="line-clamp-2">
-                      {deck.description}
-                    </CardDescription>
-                  )}
-                </CardHeader>
-                <CardContent>
-                  <p className="text-sm text-muted-foreground">
-                    {deck.card_count} kaarten
-                  </p>
-                </CardContent>
-              </Card>
-            </Link>
-          ))}
+                  </CardHeader>
+                  <CardContent>
+                    <p className="text-sm text-muted-foreground">
+                      {deck.card_count} kaarten
+                    </p>
+                  </CardContent>
+                </Card>
+              </Link>
+            ))}
+          </div>
+        ) : (
+          <Card>
+            <CardContent className="py-12 text-center">
+              <p className="text-muted-foreground mb-4">
+                Je hebt nog geen leersets gemaakt.
+              </p>
+              <Link href="/decks/new">
+                <Button>
+                  <Plus className="w-4 h-4 mr-2" />
+                  Maak je eerste leerset
+                </Button>
+              </Link>
+            </CardContent>
+          </Card>
+        )}
+      </section>
+
+      {/* Favorieten */}
+      <section>
+        <div className="flex items-center gap-2 mb-4">
+          <Heart className="w-5 h-5 text-red-500" />
+          <h2 className="text-lg font-semibold">Mijn favorieten</h2>
         </div>
-      ) : (
-        <Card>
-          <CardContent className="py-12 text-center">
-            <p className="text-muted-foreground mb-4">
-              Je hebt nog geen leersets gemaakt.
-            </p>
-            <Link href="/decks/new">
-              <Button>
-                <Plus className="w-4 h-4 mr-2" />
-                Maak je eerste leerset
-              </Button>
-            </Link>
-          </CardContent>
-        </Card>
-      )}
+        {likedDecks && likedDecks.length > 0 ? (
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+            {likedDecks.map((like) => {
+              const deck = like.decks as unknown as {
+                id: string;
+                title: string;
+                description: string | null;
+                card_count: number;
+                like_count: number;
+                user_id: string;
+              };
+              const profile = authorProfiles.get(deck.user_id);
+              const authorName = profile?.display_name || profile?.username;
+
+              return (
+                <Link key={deck.id} href={`/decks/${deck.id}`}>
+                  <Card className="h-full hover:border-primary/50 transition-colors cursor-pointer">
+                    <CardHeader>
+                      <CardTitle className="text-base">{deck.title}</CardTitle>
+                      {deck.description && (
+                        <CardDescription className="line-clamp-2">
+                          {deck.description}
+                        </CardDescription>
+                      )}
+                    </CardHeader>
+                    <CardContent>
+                      <div className="flex items-center justify-between text-sm text-muted-foreground">
+                        <div className="flex items-center gap-3">
+                          <span>{deck.card_count} kaarten</span>
+                          {deck.like_count > 0 && (
+                            <span className="flex items-center gap-1">
+                              <Heart className="w-3 h-3" />
+                              {deck.like_count}
+                            </span>
+                          )}
+                        </div>
+                        {authorName && <span>door {authorName}</span>}
+                      </div>
+                    </CardContent>
+                  </Card>
+                </Link>
+              );
+            })}
+          </div>
+        ) : (
+          <Card>
+            <CardContent className="py-8 text-center">
+              <p className="text-muted-foreground mb-2">
+                Je hebt nog geen favorieten.
+              </p>
+              <p className="text-sm text-muted-foreground">
+                Geef een hartje aan leersets die je leuk vindt op de{" "}
+                <Link href="/discover" className="text-primary hover:underline">
+                  Ontdek
+                </Link>{" "}
+                pagina.
+              </p>
+            </CardContent>
+          </Card>
+        )}
+      </section>
     </div>
   );
 }

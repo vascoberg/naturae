@@ -1,7 +1,6 @@
 "use client";
 
 import { ReactNode } from "react";
-import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { SidebarProvider } from "./sidebar-context";
 import { Sidebar } from "./sidebar";
@@ -14,13 +13,12 @@ interface AppShellProps {
 }
 
 export function AppShell({ children, username, displayName }: AppShellProps) {
-  const router = useRouter();
   const supabase = createClient();
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
-    router.push("/login");
-    router.refresh();
+    // Full page reload to clear session and go to landing page
+    window.location.href = "/";
   };
 
   return (

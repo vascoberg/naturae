@@ -570,28 +570,50 @@ Na voltooiing van alle fasen, valideer tegen de [MVP metrics](naturae-mvp-design
 
 ## Fase 6: Sprint 3 - Sharing & Network Effects
 
-### 6.1 Publiek/Privé Toggle
+### 6.1 Openbaar/Privé Toggle ✅ AL AFGEROND
 
-**Route:** `/decks/[id]/edit` (bestaande pagina)
+De toggle zit al in de deck editor (`/decks/[id]/edit`).
 
-**Functionaliteit:**
-- Toggle switch om deck publiek te maken
-- Waarschuwing dat publieke decks zichtbaar zijn voor iedereen
-- Automatisch share_token genereren bij publicatie
+### 6.2 Tag Systeem
 
-### 6.2 Ontdek Pagina
+**Database:** Tabellen `tags` en `deck_tags` bestaan al.
+
+**Tags tabel:**
+- `slug`: unieke identifier (bijv. "vogels")
+- `names`: meertalig JSON (bijv. `{"nl": "Vogels", "en": "Birds"}`)
+- `type`: "topic" | "region" | "language" | "content-type"
+
+**UX Flow:**
+
+1. **Bij deck bewerken:** Tag selector met autocomplete
+   - Bestaande tags zoeken/selecteren
+   - Nieuwe tags aanmaken
+   - Max 5 tags per deck
+
+2. **Op Ontdek pagina:** Tag filters
+   - Clickable tag chips
+   - Meerdere tags selecteerbaar (AND filter)
+   - URL params: `/discover?tags=vogels,nederland`
+
+3. **Op deck pagina:** Tags als badges weergeven
+
+**Componenten:**
+- `TagSelector` - Autocomplete input voor deck editor
+- `TagFilter` - Clickable chips voor Ontdek pagina
+- `TagBadges` - Weergave op deck cards
+
+### 6.3 Ontdek Pagina ✅ AFGEROND
 
 **Route:** `/discover`
 
 **Componenten:**
-- PublicDeckGrid - Grid van publieke decks
-- SearchBar - Zoeken op titel
-- TagFilter - Filteren op tags
-- SortSelect - Sorteren (populariteit, datum, rating)
+- PublicDeckGrid - Grid van openbare decks ✅
+- SearchBar - Zoeken op titel ✅
+- TagFilter - Filteren op tags ⏳
+- SortSelect - Sorteren (nieuwste, populairste) ✅
 
 **Data fetching:**
 ```typescript
-// Publieke decks ophalen met statistieken
 const { data: decks } = await supabase
   .from("decks")
   .select(`
@@ -604,54 +626,149 @@ const { data: decks } = await supabase
   .order("created_at", { ascending: false });
 ```
 
-### 6.3 Ster-systeem (Ratings)
+### 6.4 Hartjes Systeem
+
+**Concept:** Gebruikers kunnen een hartje geven aan een leerset om aan te geven dat ze hem leuk vinden. Dit is geen rating (1-5 sterren), maar een simpele like.
+
+**Functionaliteit:**
+- Hartje toggle (wel/niet geliked)
+- Teller: "52 ❤️" zichtbaar op deck
+- Sorteren op populariteit (aantal hartjes)
+
+**Database:** Hergebruik `deck_stars` tabel met `rating = 1` voor een hartje.
 
 **Componenten:**
-- StarRating - 5-sterren input component
-- AverageRating - Gemiddelde rating weergave
-- RatingCount - Aantal ratings
+- `LikeButton` - Hartje toggle knop
+- `LikeCount` - Aantal hartjes weergave
 
-**Database:** `deck_stars` tabel is al voorbereid in schema.
+### 6.5 Landing Page & Gastgebruik ✅ GROTENDEELS AFGEROND
 
-### 6.4 Kopieer naar Eigen Collectie
+**Design Filosofie:** Natuurlijke conversie door kwaliteit, niet door opdringerigheid.
+
+#### Landing Page Layout
+
+```
+┌─────────────────────────────────────────────────────────┐
+│  [Logo] Naturae                    [Ontdek] [Inloggen]  │
+├─────────────────────────────────────────────────────────┤
+│                                                         │
+│   ┌─────────────────────────────────────────────────┐   │
+│   │  [Subtiele natuurfoto achtergrond, lage opacity] │   │
+│   │                                                   │   │
+│   │      Leer soorten herkennen                      │   │
+│   │      met flashcards van de community             │   │
+│   │                                                   │   │
+│   │      [🔍 Zoek leersets...                    ]   │   │
+│   │                                                   │   │
+│   └─────────────────────────────────────────────────┘   │
+│                                                         │
+│  ──────────────── Populaire leersets ─────────────────  │
+│                                                         │
+│   ┌─────────┐  ┌─────────┐  ┌─────────┐  ┌─────────┐   │
+│   │ 🐦      │  │ 🦋      │  │ 🐸      │  │ 🌿      │   │
+│   │ Trekvog │  │ Vlinders│  │ Amfibie │  │ Planten │   │
+│   │ 98 krt  │  │ 45 krt  │  │ 16 krt  │  │ 32 krt  │   │
+│   │ ❤️ 24   │  │ ❤️ 18   │  │ ❤️ 12   │  │ ❤️ 8    │   │
+│   └─────────┘  └─────────┘  └─────────┘  └─────────┘   │
+│                                                         │
+│                 [Bekijk alle leersets →]                │
+│                                                         │
+└─────────────────────────────────────────────────────────┘
+```
+
+#### Routes & Toegang
+
+| Route | Gast | Ingelogd |
+|-------|------|----------|
+| `/` | Landing page | Redirect naar `/dashboard` |
+| `/discover` | ✅ Volledig toegang | ✅ Volledig toegang |
+| `/decks/[id]` | ✅ Openbare decks bekijken | ✅ + eigen decks |
+| `/study/[deckId]` | ✅ Leren zonder opslaan | ✅ Voortgang opslaan |
+| `/dashboard` | Redirect naar `/` | ✅ Eigen dashboard |
+| `/my-decks` | Redirect naar `/` | ✅ Eigen decks |
+
+#### Natuurlijke Conversie Momenten
+
+Geen pop-ups, geen banners, geen urgentie. Alleen contextuele hints op logische momenten:
+
+1. **Hartje klikken als gast:**
+   - Inline bericht: "Log in om leersets te bewaren"
+   - Kleine "Inloggen" link eronder
+   - Geen modal, geen blokkade
+
+2. **Na study sessie als gast:**
+   - Sessie statistieken tonen (normaal)
+   - Subtiele tekst onderaan: "Je voortgang is niet opgeslagen"
+   - Link: "Maak account aan om voortgang te bewaren"
+
+3. **Op deck pagina (als gast):**
+   - "Start met leren" werkt gewoon
+   - Geen extra prompts of waarschuwingen
+
+#### Technische Implementatie
+
+**Gastgebruik:**
+- Geen database writes voor gasten
+- Sessie stats alleen in component state
+- LocalStorage NIET gebruiken (privacy)
+
+**Auth check pattern:**
+```typescript
+// In server components
+const { data: { user } } = await supabase.auth.getUser();
+const isGuest = !user;
+
+// Conditioneel renderen
+{isGuest && <GuestPrompt />}
+```
+
+**Middleware aanpassing:**
+- `/` - Altijd toegankelijk (landing of redirect)
+- `/discover` - Altijd toegankelijk
+- `/decks/[id]` - Toegankelijk voor openbare decks
+- `/study/[deckId]` - Toegankelijk voor openbare decks
+- `/dashboard`, `/my-decks`, `/decks/new` - Alleen ingelogd
+
+### 6.6 WYSIWYG Kaart Editor
+
+> Oorspronkelijk gepland voor Sprint 2, verplaatst naar Sprint 3.
+
+**Concept:** Kaart bewerken met live preview zoals in leermodus.
 
 **Functionaliteit:**
-- "Kopieer naar mijn collectie" knop op publieke deck pagina
-- Maakt een kopie van het deck (zonder media bestanden te dupliceren)
-- `copied_from_deck_id` tracking voor attributie
-
-### 6.5 Gastgebruik (Zonder Account)
-
-**Functionaliteit:**
-- Publieke decks bekijken en leren via directe link
-- Sessie voortgang in browser (verloren bij sluiten)
-- "Probeer zonder account" knop op publieke deck pagina
-- Soft prompt na X sessies om account aan te maken
-
-**Technische implementatie:**
-- LocalStorage voor tijdelijke voortgang
-- Geen database writes zonder auth
-- Banner/prompt voor account registratie
-
-### 6.6 Private Sharing (Share Token)
-
-**Functionaliteit:**
-- Unieke share link genereren voor private decks
-- Share token in URL: `/decks/share/{token}`
-- Toegang tot private deck via token
+- Split view: editor links, preview rechts
+- Direct visuele feedback bij aanpassingen
+- Media preview op voor- en achterkant zichtbaar
+- Flip animatie in preview
 
 ### Checklist Fase 6
-- [ ] Publiek/privé toggle implementatie
-- [ ] Share token generatie
-- [ ] Ontdek pagina UI
-- [ ] Zoeken en filteren
-- [ ] Sorteren (datum, populariteit)
-- [ ] Ster-rating systeem
-- [ ] Gemiddelde rating berekening
-- [ ] Kopieer functie
-- [ ] Gastgebruik (lokale sessie)
-- [ ] Account prompt na X sessies
-- [ ] Private sharing via token
+- [x] Openbaar/privé toggle (al aanwezig)
+- [ ] Tag systeem
+  - [ ] TagSelector component voor deck editor
+  - [ ] Tags opslaan bij deck
+  - [ ] TagFilter component voor Ontdek pagina
+- [x] Ontdek pagina
+  - [x] PublicDeckGrid component
+  - [x] Zoeken op titel
+  - [ ] Filteren op tags
+  - [x] Sorteren (nieuwste, populairste)
+- [x] Hartjes systeem
+  - [x] Database: deck_likes tabel + like_count kolom + trigger
+  - [x] Server Actions: toggleLike, getLikeStatus
+  - [x] LikeButton component
+  - [x] Like count weergave op deck cards
+  - [x] Sorteren op populariteit (discover, landing page)
+- [x] Landing page & gastgebruik
+  - [x] Landing page met hero, zoekbalk, populaire decks
+  - [x] Thumbnails op deck cards
+  - [x] Middleware aanpassen voor gastgebruik
+  - [x] Deck pagina toegankelijk voor gasten (openbare decks)
+  - [x] Study sessie voor gasten (zonder voortgang opslaan)
+  - [ ] Achtergrond foto voor hero sectie
+- [ ] WYSIWYG kaart editor
+  - [ ] Split view layout
+  - [ ] Live preview component
+  - [ ] Flip animatie in preview
 
 ---
 
@@ -703,24 +820,80 @@ track('deck_created', { cardCount: 15 });
 track('deck_exported', { format: 'json' });
 ```
 
+### Remix/Kopieer Functie
+
+**Concept:** Gebruikers kunnen openbare decks kopiëren naar hun eigen collectie om aan te passen.
+
+**Functionaliteit:**
+- "Remix" knop op openbare deck pagina
+- Kopieert deck + kaarten (media wordt gedeeld, niet gedupliceerd)
+- `copied_from_deck_id` tracking voor attributie
+- Teller: "X keer geremixed" naast hartjes
+
+### Private Sharing (Share Tokens)
+
+**Concept:** Private decks delen via unieke link.
+
+**Functionaliteit:**
+- Genereer unieke share token
+- URL: `/decks/share/{token}`
+- Toegang tot private deck zonder account
+- Token intrekken mogelijk
+
+### Foto Annotatie Editor
+
+> Geïnspireerd door BirdID's annotated species photos
+
+**Probleem:** Voor soortherkenning zijn foto's met visuele annotaties essentieel - labels die wijzen naar kenmerken (bijv. "bruine vleugel", "witte oogstreep").
+
+**Oplossing:** In-app foto-editor:
+- Tekst labels toevoegen
+- Pijlen/lijnen naar kenmerken
+- Cirkels/ellipsen voor gebieden
+- Annotaties als overlay (origineel blijft intact)
+
+**Technisch:** Canvas-based met Fabric.js of Konva.js
+
+### Voortgangsdashboard
+
+**Concept:** Statistieken over leervoortgang.
+
+**Features:**
+- Kaarten geleerd per dag/week
+- Streak tracking
+- Moeilijke kaarten identificeren
+
 ### Andere MVP+ Features
 - Responsive design optimalisatie
 - PWA install prompt
-- Push notificaties
+- Push notificaties/reminders
 - Offline mode
 - Custom domain setup
+- Leerinstellingen per leerset (FSRS presets)
+- Meerdere foto's per kaart
 
 ---
 
 ## Volgende Stappen
 
-**Huidige status:** Sprint 2 (User Generated Content) afgerond.
+**Huidige status:** Sprint 3 (Sharing & Network Effects) - in uitvoering
 
-**Volgende sprint:** Sprint 3 - Sharing & Network Effects
-- Publiek maken van decks
-- Ontdek pagina voor publieke sets
-- Rating systeem
-- Gastgebruik zonder account
+**Afgerond in Sprint 3:**
+- ✅ Publiek/privé toggle voor leersets
+- ✅ Ontdek pagina met zoeken en sorteren
+- ✅ Landing page met hero, zoekbalk, populaire decks
+- ✅ Thumbnails op deck cards
+- ✅ Gastgebruik (publieke decks bekijken en leren)
+- ✅ JSON Export
+- ✅ Hartjes systeem (LikeButton, sorteren op populariteit)
+
+**Nog te doen in Sprint 3:**
+- [ ] Achtergrond foto voor landing page hero sectie
+- [ ] Tag systeem (TagSelector, TagFilter)
+- [ ] WYSIWYG kaart editor
+
+**Verplaatst naar later (Sprint 4+):**
+- Subtiele conversie hints na gastensessie
 
 Zie [MVP Design - Sprint 3](naturae-mvp-design.md#sprint-3-sharing--network-effects-week-5-6) voor volledige feature beschrijving.
 

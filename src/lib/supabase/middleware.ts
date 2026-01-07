@@ -34,23 +34,44 @@ export async function updateSession(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser();
 
-  // Protected routes - redirect to login if not authenticated
-  const protectedPaths = ["/dashboard", "/decks", "/study"];
-  const isProtectedPath = protectedPaths.some((path) =>
-    request.nextUrl.pathname.startsWith(path)
-  );
+  const pathname = request.nextUrl.pathname;
 
-  if (isProtectedPath && !user) {
+  // Routes die altijd beschermd zijn (alleen ingelogd)
+  const strictlyProtectedPaths = [
+    "/dashboard",
+    "/my-decks",
+    "/decks/new",
+    "/settings",
+  ];
+
+  // Check voor edit pagina's: /decks/[id]/edit
+  const isEditPath = /^\/decks\/[^/]+\/edit/.test(pathname);
+
+  const isStrictlyProtected =
+    strictlyProtectedPaths.some((path) => pathname.startsWith(path)) ||
+    isEditPath;
+
+  if (isStrictlyProtected && !user) {
     const url = request.nextUrl.clone();
     url.pathname = "/login";
     return NextResponse.redirect(url);
   }
 
+  // Routes die gasten mogen bezoeken (auth check in page zelf voor openbare content):
+  // - /discover - ontdek pagina
+  // - /decks/[id] - deck bekijken (page checkt of deck openbaar is)
+  // - /study/[deckId] - leren (page checkt of deck openbaar is)
+
+  // Redirect ingelogde users van homepage naar dashboard
+  if (pathname === "/" && user) {
+    const url = request.nextUrl.clone();
+    url.pathname = "/dashboard";
+    return NextResponse.redirect(url);
+  }
+
   // Redirect authenticated users away from auth pages
   const authPaths = ["/login", "/signup"];
-  const isAuthPath = authPaths.some((path) =>
-    request.nextUrl.pathname.startsWith(path)
-  );
+  const isAuthPath = authPaths.some((path) => pathname.startsWith(path));
 
   if (isAuthPath && user) {
     const url = request.nextUrl.clone();

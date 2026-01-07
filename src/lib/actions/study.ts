@@ -129,6 +129,15 @@ export async function recordAnswer(cardId: string, rating: UserRating) {
 
 export type StudyMode = "order" | "shuffle" | "smart";
 
+// Check of user is ingelogd
+export async function isUserLoggedIn(): Promise<boolean> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  return !!user;
+}
+
 // Fisher-Yates shuffle algorithm
 function shuffleArray<T>(array: T[]): T[] {
   const shuffled = [...array];
@@ -142,16 +151,29 @@ function shuffleArray<T>(array: T[]): T[] {
 export async function getStudyCards(deckId: string, mode: StudyMode = "smart") {
   const supabase = await createClient();
 
-  const { data: { user } } = await supabase.auth.getUser();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
 
+  // Check of deck openbaar is als user niet ingelogd is
   if (!user) {
-    throw new Error("Niet ingelogd");
+    const { data: deck } = await supabase
+      .from("decks")
+      .select("is_public")
+      .eq("id", deckId)
+      .is("deleted_at", null)
+      .single();
+
+    if (!deck?.is_public) {
+      throw new Error("Niet ingelogd");
+    }
   }
 
   // Get all cards from this deck
   const { data: cards, error: cardsError } = await supabase
     .from("cards")
-    .select(`
+    .select(
+      `
       id,
       front_text,
       back_text,
@@ -162,7 +184,8 @@ export async function getStudyCards(deckId: string, mode: StudyMode = "smart") {
         url,
         position
       )
-    `)
+    `
+    )
     .eq("deck_id", deckId)
     .is("deleted_at", null)
     .order("position", { ascending: true });
@@ -171,31 +194,40 @@ export async function getStudyCards(deckId: string, mode: StudyMode = "smart") {
     throw new Error("Kon kaarten niet ophalen");
   }
 
-  // Get progress (needed for smart mode filtering and stats)
-  const { data: progress } = await supabase
-    .from("user_progress")
-    .select("card_id, next_review, times_seen, state")
-    .eq("user_id", user.id)
-    .in("card_id", cards?.map(c => c.id) || []);
+  // Get progress (only for logged in users)
+  let progressMap = new Map<
+    string,
+    { card_id: string; next_review: string | null; times_seen: number; state: number }
+  >();
 
-  const progressMap = new Map(progress?.map(p => [p.card_id, p]) || []);
+  if (user) {
+    const { data: progress } = await supabase
+      .from("user_progress")
+      .select("card_id, next_review, times_seen, state")
+      .eq("user_id", user.id)
+      .in("card_id", cards?.map((c) => c.id) || []);
+
+    progressMap = new Map(progress?.map((p) => [p.card_id, p]) || []);
+  }
+
   const now = new Date();
 
   // Add progress info to cards
-  const cardsWithProgress = cards?.map(card => {
-    const cardProgress = progressMap.get(card.id);
-    const isDue = cardProgress?.next_review
-      ? new Date(cardProgress.next_review) <= now
-      : true; // New cards are always "due"
-    const isNew = !cardProgress || cardProgress.times_seen === 0;
+  const cardsWithProgress =
+    cards?.map((card) => {
+      const cardProgress = progressMap.get(card.id);
+      const isDue = cardProgress?.next_review
+        ? new Date(cardProgress.next_review) <= now
+        : true; // New cards are always "due"
+      const isNew = !cardProgress || cardProgress.times_seen === 0;
 
-    return {
-      ...card,
-      isDue,
-      isNew,
-      progress: cardProgress,
-    };
-  }) || [];
+      return {
+        ...card,
+        isDue,
+        isNew,
+        progress: cardProgress,
+      };
+    }) || [];
 
   // Apply mode-specific sorting/filtering
   switch (mode) {
@@ -209,8 +241,12 @@ export async function getStudyCards(deckId: string, mode: StudyMode = "smart") {
 
     case "smart":
     default:
+      // For guests without progress, treat all cards as due
+      if (!user) {
+        return cardsWithProgress;
+      }
       // Filter to only due cards, then sort: review cards first, then new cards
-      const dueCards = cardsWithProgress.filter(card => card.isDue);
+      const dueCards = cardsWithProgress.filter((card) => card.isDue);
       return dueCards.sort((a, b) => {
         // First: due cards that have been seen (review cards)
         if (!a.isNew && b.isNew) return -1;

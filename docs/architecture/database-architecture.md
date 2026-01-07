@@ -309,20 +309,30 @@ CREATE TABLE user_progress (
 
 ---
 
-### 6. `deck_stars` - Ratings (Sprint 3)
+### 6. `deck_likes` - Hartjes Systeem (Sprint 3) ✅
+
+> Simpele like/unlike toggle voor leersets.
 
 ```sql
-CREATE TABLE deck_stars (
+CREATE TABLE deck_likes (
   user_id UUID NOT NULL REFERENCES auth.users ON DELETE CASCADE,
   deck_id UUID NOT NULL REFERENCES decks ON DELETE CASCADE,
-
-  rating INTEGER NOT NULL,
   created_at TIMESTAMPTZ DEFAULT NOW(),
 
-  PRIMARY KEY (user_id, deck_id),
-  CONSTRAINT valid_rating CHECK (rating >= 1 AND rating <= 5)
+  PRIMARY KEY (user_id, deck_id)
 );
+
+-- Index voor snel tellen van likes per deck
+CREATE INDEX idx_deck_likes_deck ON deck_likes(deck_id);
 ```
+
+**Denormalized like_count kolom in decks tabel:**
+```sql
+ALTER TABLE decks ADD COLUMN like_count INTEGER DEFAULT 0;
+CREATE INDEX idx_decks_like_count ON decks(like_count DESC);
+```
+
+**Migratie bestand:** `supabase/migrations/20250108_deck_likes.sql`
 
 ---
 

@@ -1,0 +1,183 @@
+import Link from "next/link";
+import { Suspense } from "react";
+import { Search, Heart } from "lucide-react";
+import { createClient } from "@/lib/supabase/server";
+import { Input } from "@/components/ui/input";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { SortSelect } from "@/components/discover/sort-select";
+
+interface DiscoverPageProps {
+  searchParams: Promise<{ q?: string; sort?: string }>;
+}
+
+export default async function DiscoverPage({ searchParams }: DiscoverPageProps) {
+  const { q: searchQuery, sort = "newest" } = await searchParams;
+  const supabase = await createClient();
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  // Bouw query voor openbare decks (zonder join voor guest compatibility)
+  let query = supabase
+    .from("decks")
+    .select(
+      `
+      id,
+      title,
+      description,
+      card_count,
+      like_count,
+      user_id,
+      created_at
+    `
+    )
+    .eq("is_public", true)
+    .is("deleted_at", null);
+
+  // Filter eigen decks uit als user ingelogd is
+  if (user) {
+    query = query.neq("user_id", user.id);
+  }
+
+  // Zoeken op titel
+  if (searchQuery) {
+    query = query.ilike("title", `%${searchQuery}%`);
+  }
+
+  // Sorteren
+  if (sort === "popular") {
+    query = query.order("like_count", { ascending: false });
+  } else {
+    query = query.order("created_at", { ascending: false });
+  }
+
+  const { data: publicDecks } = await query;
+
+  // Haal auteur profielen apart op (voor guest compatibility)
+  const authorProfiles = new Map<string, { username: string; display_name: string | null }>();
+  if (publicDecks && publicDecks.length > 0) {
+    const userIds = [...new Set(publicDecks.map((d) => d.user_id))];
+    const { data: profiles } = await supabase
+      .from("profiles")
+      .select("id, username, display_name")
+      .in("id", userIds);
+
+    if (profiles) {
+      for (const profile of profiles) {
+        authorProfiles.set(profile.id, {
+          username: profile.username,
+          display_name: profile.display_name,
+        });
+      }
+    }
+  }
+
+  return (
+    <div className="container mx-auto px-4 py-8">
+      <div className="mb-8">
+        <h1 className="text-2xl font-semibold mb-1">Ontdek leersets</h1>
+        <p className="text-muted-foreground">
+          Vind en leer van openbare leersets gemaakt door de community
+        </p>
+      </div>
+
+      {/* Search and filters */}
+      <div className="flex flex-col sm:flex-row gap-4 mb-8">
+        <form className="flex-1" action="/discover" method="GET">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+            <Input
+              type="search"
+              name="q"
+              defaultValue={searchQuery}
+              placeholder="Zoek op titel..."
+              className="pl-10"
+            />
+          </div>
+          {sort !== "newest" && (
+            <input type="hidden" name="sort" value={sort} />
+          )}
+        </form>
+
+        <Suspense fallback={<div className="w-[180px] h-10 bg-muted rounded-md animate-pulse" />}>
+          <SortSelect defaultValue={sort} />
+        </Suspense>
+      </div>
+
+      {/* Results */}
+      {publicDecks && publicDecks.length > 0 ? (
+        <>
+          <p className="text-sm text-muted-foreground mb-4">
+            {publicDecks.length} leerset{publicDecks.length !== 1 ? "s" : ""}{" "}
+            gevonden
+            {searchQuery && ` voor "${searchQuery}"`}
+          </p>
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+            {publicDecks.map((deck) => {
+              const profile = authorProfiles.get(deck.user_id);
+              const authorName = profile?.display_name || profile?.username;
+
+              return (
+                <Link key={deck.id} href={`/decks/${deck.id}`}>
+                  <Card className="h-full hover:border-primary/50 hover:shadow-md transition-all cursor-pointer">
+                    <CardHeader>
+                      <CardTitle className="text-base">{deck.title}</CardTitle>
+                      {deck.description && (
+                        <CardDescription className="line-clamp-2">
+                          {deck.description}
+                        </CardDescription>
+                      )}
+                    </CardHeader>
+                    <CardContent>
+                      <div className="flex items-center justify-between text-sm text-muted-foreground">
+                        <div className="flex items-center gap-3">
+                          <span>{deck.card_count} kaarten</span>
+                          {(deck.like_count ?? 0) > 0 && (
+                            <span className="flex items-center gap-1">
+                              <Heart className="w-3 h-3" />
+                              {deck.like_count}
+                            </span>
+                          )}
+                        </div>
+                        {authorName && <span>door {authorName}</span>}
+                      </div>
+                    </CardContent>
+                  </Card>
+                </Link>
+              );
+            })}
+          </div>
+        </>
+      ) : (
+        <Card>
+          <CardContent className="py-12 text-center">
+            {searchQuery ? (
+              <div>
+                <p className="text-muted-foreground mb-2">
+                  Geen leersets gevonden voor &quot;{searchQuery}&quot;
+                </p>
+                <Link
+                  href="/discover"
+                  className="text-primary hover:underline text-sm"
+                >
+                  Bekijk alle leersets
+                </Link>
+              </div>
+            ) : (
+              <p className="text-muted-foreground">
+                Er zijn nog geen openbare leersets beschikbaar.
+              </p>
+            )}
+          </CardContent>
+        </Card>
+      )}
+    </div>
+  );
+}

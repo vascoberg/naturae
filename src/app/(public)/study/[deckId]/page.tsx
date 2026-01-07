@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Flashcard } from "@/components/flashcard/flashcard";
 import { RatingButtons, Rating } from "@/components/flashcard/rating-buttons";
-import { getStudyCards, recordAnswer, type StudyMode } from "@/lib/actions/study";
+import { getStudyCards, recordAnswer, isUserLoggedIn, type StudyMode } from "@/lib/actions/study";
 import { ArrowLeft, CheckCircle2 } from "lucide-react";
 
 function LoadingSpinner() {
@@ -36,8 +36,9 @@ interface StudyCard {
   isNew: boolean;
   progress?: {
     card_id: string;
-    next_review: string;
+    next_review: string | null;
     times_seen: number;
+    state: number;
   } | null;
 }
 
@@ -79,6 +80,7 @@ function StudySession({ deckId, mode }: StudySessionProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [sessionComplete, setSessionComplete] = useState(false);
   const [deckTitle, setDeckTitle] = useState("");
+  const [isLoggedIn, setIsLoggedIn] = useState<boolean | null>(null);
 
   // Stats voor deze sessie
   const [sessionStats, setSessionStats] = useState({
@@ -87,8 +89,8 @@ function StudySession({ deckId, mode }: StudySessionProps) {
     incorrect: 0,
   });
 
-  // Bepaal of voortgang moet worden opgeslagen (alleen bij slim leren)
-  const shouldSaveProgress = mode === "smart";
+  // Bepaal of voortgang moet worden opgeslagen (alleen bij slim leren EN ingelogd)
+  const shouldSaveProgress = mode === "smart" && isLoggedIn === true;
 
   // Mode labels voor UI
   const modeLabels: Record<StudyMode, string> = {
@@ -107,6 +109,11 @@ function StudySession({ deckId, mode }: StudySessionProps) {
     async function loadCards() {
       try {
         setIsLoading(true);
+
+        // Check login status
+        const loggedIn = await isUserLoggedIn();
+        setIsLoggedIn(loggedIn);
+
         const studyCards = await getStudyCards(deckId, mode);
         setCards(studyCards);
 
@@ -237,6 +244,17 @@ function StudySession({ deckId, mode }: StudySessionProps) {
             </div>
           )}
 
+          {/* Subtiele hint voor gasten */}
+          {isLoggedIn === false && sessionStats.reviewed > 0 && (
+            <p className="text-sm text-muted-foreground mb-6">
+              Je voortgang is niet opgeslagen.{" "}
+              <Link href="/login" className="text-primary hover:underline">
+                Log in
+              </Link>{" "}
+              om je leervoortgang bij te houden.
+            </p>
+          )}
+
           <div className="flex gap-3 justify-center">
             <Button variant="outline" asChild>
               <Link href={`/decks/${deckId}`}>
@@ -244,9 +262,15 @@ function StudySession({ deckId, mode }: StudySessionProps) {
                 Terug naar leerset
               </Link>
             </Button>
-            <Button onClick={() => router.push("/dashboard")}>
-              Dashboard
-            </Button>
+            {isLoggedIn ? (
+              <Button onClick={() => router.push("/dashboard")}>
+                Dashboard
+              </Button>
+            ) : (
+              <Button asChild>
+                <Link href="/discover">Meer leersets</Link>
+              </Button>
+            )}
           </div>
         </Card>
       </div>
