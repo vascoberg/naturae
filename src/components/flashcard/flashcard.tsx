@@ -4,18 +4,18 @@ import { useEffect, useRef } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 
+interface MediaItem {
+  type: "image" | "audio";
+  url: string;
+  attribution?: string;
+}
+
 interface FlashcardProps {
   cardId?: string; // Unieke ID voor key management
   frontText?: string | null;
   backText: string;
-  frontMedia?: {
-    type: "image" | "audio";
-    url: string;
-  }[];
-  backMedia?: {
-    type: "image" | "audio";
-    url: string;
-  }[];
+  frontMedia?: MediaItem[];
+  backMedia?: MediaItem[];
   isFlipped?: boolean;
   onFlip?: () => void;
 }
@@ -48,6 +48,47 @@ export function Flashcard({ cardId, frontText, backText, frontMedia, backMedia, 
     }
   };
 
+  // Render media met subtiele attribution
+  const renderMedia = (media: MediaItem[], side: "front" | "back") => (
+    <div className="mb-6 space-y-3">
+      {media.map((item, index) => (
+        <div key={`${cardId}-${side}-${index}-${item.url}`} className="relative">
+          {item.type === "image" && (
+            <div className="relative inline-block">
+              <img
+                src={item.url}
+                alt={side === "front" ? "Vraag afbeelding" : "Antwoord afbeelding"}
+                className="max-h-72 w-auto mx-auto rounded-lg object-contain"
+              />
+              {item.attribution && (
+                <span className="absolute bottom-1 left-1 text-[10px] text-white/70 bg-black/40 px-1.5 py-0.5 rounded max-w-[90%] truncate">
+                  {item.attribution}
+                </span>
+              )}
+            </div>
+          )}
+          {item.type === "audio" && (
+            <div className="relative">
+              <audio
+                key={`audio-${cardId}-${side}-${item.url}`}
+                controls
+                className="w-full max-w-md mx-auto"
+              >
+                <source src={item.url} type="audio/mpeg" />
+                Je browser ondersteunt geen audio.
+              </audio>
+              {item.attribution && (
+                <p className="text-[10px] text-muted-foreground/70 text-center mt-1">
+                  {item.attribution}
+                </p>
+              )}
+            </div>
+          )}
+        </div>
+      ))}
+    </div>
+  );
+
   return (
     <div
       ref={containerRef}
@@ -77,31 +118,7 @@ export function Flashcard({ cardId, frontText, backText, frontMedia, backMedia, 
           style={{ backfaceVisibility: "hidden" }}
         >
           <CardContent className="p-8 text-center w-full">
-            {frontMedia && frontMedia.length > 0 && (
-              <div className="mb-6">
-                {frontMedia.map((media, index) => (
-                  <div key={`${cardId}-front-${index}-${media.url}`}>
-                    {media.type === "image" && (
-                      <img
-                        src={media.url}
-                        alt="Vraag afbeelding"
-                        className="max-h-72 w-auto mx-auto rounded-lg object-contain"
-                      />
-                    )}
-                    {media.type === "audio" && (
-                      <audio
-                        key={`audio-${cardId}-front-${media.url}`}
-                        controls
-                        className="w-full max-w-md mx-auto"
-                      >
-                        <source src={media.url} type="audio/mpeg" />
-                        Je browser ondersteunt geen audio.
-                      </audio>
-                    )}
-                  </div>
-                ))}
-              </div>
-            )}
+            {frontMedia && frontMedia.length > 0 && renderMedia(frontMedia, "front")}
             {frontText && (
               <p className="text-xl">{frontText}</p>
             )}
@@ -126,31 +143,7 @@ export function Flashcard({ cardId, frontText, backText, frontMedia, backMedia, 
           }}
         >
           <CardContent className="p-8 text-center w-full">
-            {backMedia && backMedia.length > 0 && (
-              <div className="mb-6">
-                {backMedia.map((media, index) => (
-                  <div key={`${cardId}-back-${index}-${media.url}`}>
-                    {media.type === "image" && (
-                      <img
-                        src={media.url}
-                        alt="Antwoord afbeelding"
-                        className="max-h-72 w-auto mx-auto rounded-lg object-contain"
-                      />
-                    )}
-                    {media.type === "audio" && (
-                      <audio
-                        key={`audio-${cardId}-back-${media.url}`}
-                        controls
-                        className="w-full max-w-md mx-auto"
-                      >
-                        <source src={media.url} type="audio/mpeg" />
-                        Je browser ondersteunt geen audio.
-                      </audio>
-                    )}
-                  </div>
-                ))}
-              </div>
-            )}
+            {backMedia && backMedia.length > 0 && renderMedia(backMedia, "back")}
             <p className="text-2xl font-semibold text-primary">{backText}</p>
             <p className="text-sm text-muted-foreground mt-6">
               Klik of druk op spatie om om te draaien

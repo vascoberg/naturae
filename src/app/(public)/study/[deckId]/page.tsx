@@ -31,6 +31,8 @@ interface StudyCard {
     type: string;
     url: string;
     position: "front" | "back" | "both";
+    attribution_name: string | null;
+    attribution_source: string | null;
   }[];
   isDue: boolean;
   isNew: boolean;
@@ -278,8 +280,16 @@ function StudySession({ deckId, mode }: StudySessionProps) {
   }
 
   const progress = ((currentIndex + 1) / cards.length) * 100;
-  const frontMedia = currentCard?.card_media?.filter((m) => m.position === "front" || m.position === "both");
-  const backMedia = currentCard?.card_media?.filter((m) => m.position === "back" || m.position === "both");
+  const frontMedia = currentCard?.card_media?.filter((m) => m.position === "front" || m.position === "both").map((m) => ({
+    type: m.type as "image" | "audio",
+    url: m.url,
+    attribution: m.attribution_source || m.attribution_name || undefined,
+  }));
+  const backMedia = currentCard?.card_media?.filter((m) => m.position === "back" || m.position === "both").map((m) => ({
+    type: m.type as "image" | "audio",
+    url: m.url,
+    attribution: m.attribution_source || m.attribution_name || undefined,
+  }));
 
   return (
     <div className="min-h-screen flex flex-col">
@@ -323,14 +333,8 @@ function StudySession({ deckId, mode }: StudySessionProps) {
                 cardId={currentCard.id}
                 frontText={currentCard.front_text}
                 backText={currentCard.back_text}
-                frontMedia={frontMedia?.map((m) => ({
-                  type: m.type as "image" | "audio",
-                  url: m.url,
-                }))}
-                backMedia={backMedia?.map((m) => ({
-                  type: m.type as "image" | "audio",
-                  url: m.url,
-                }))}
+                frontMedia={frontMedia}
+                backMedia={backMedia}
                 isFlipped={isFlipped}
                 onFlip={handleFlip}
               />

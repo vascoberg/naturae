@@ -1,5 +1,8 @@
 import { createClient } from "@/lib/supabase/server";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { ProfileForm } from "@/components/settings/profile-form";
+import { AvatarUpload } from "@/components/settings/avatar-upload";
+import { PasswordForm } from "@/components/settings/password-form";
 
 export default async function SettingsPage() {
   const supabase = await createClient();
@@ -10,7 +13,7 @@ export default async function SettingsPage() {
 
   const { data: profile } = await supabase
     .from("profiles")
-    .select("username, display_name")
+    .select("username, display_name, avatar_url, bio")
     .eq("id", user!.id)
     .single();
 
@@ -22,9 +25,11 @@ export default async function SettingsPage() {
       </div>
 
       <div className="space-y-6">
+        {/* Account Info */}
         <Card>
           <CardHeader>
             <CardTitle className="text-base">Account</CardTitle>
+            <CardDescription>Je account gegevens</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div>
@@ -39,17 +44,55 @@ export default async function SettingsPage() {
               </label>
               <p className="mt-1">@{profile?.username}</p>
             </div>
-            <div>
-              <label className="text-sm font-medium text-muted-foreground">
-                Weergavenaam
-              </label>
-              <p className="mt-1">
-                {profile?.display_name || profile?.username}
-              </p>
-            </div>
           </CardContent>
         </Card>
 
+        {/* Profile Photo */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Profielfoto</CardTitle>
+            <CardDescription>
+              Je profielfoto wordt getoond bij je leersets
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <AvatarUpload
+              currentAvatarUrl={profile?.avatar_url || null}
+              username={profile?.username || ""}
+            />
+          </CardContent>
+        </Card>
+
+        {/* Profile Details */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Profiel</CardTitle>
+            <CardDescription>
+              Personaliseer hoe anderen je zien
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <ProfileForm
+              initialDisplayName={profile?.display_name || null}
+              initialBio={profile?.bio || null}
+            />
+          </CardContent>
+        </Card>
+
+        {/* Password */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Wachtwoord</CardTitle>
+            <CardDescription>
+              Wijzig je wachtwoord
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <PasswordForm />
+          </CardContent>
+        </Card>
+
+        {/* About */}
         <Card>
           <CardHeader>
             <CardTitle className="text-base">Over Naturae</CardTitle>

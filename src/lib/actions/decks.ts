@@ -352,6 +352,64 @@ export async function addCardMedia(
   return { id: media.id };
 }
 
+export async function updateCardMediaAttribution(mediaId: string, attribution: string) {
+  const supabase = await createClient();
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    throw new Error("Niet ingelogd");
+  }
+
+  // Get media and verify ownership
+  const { data: media } = await supabase
+    .from("card_media")
+    .select("id, card_id")
+    .eq("id", mediaId)
+    .single();
+
+  if (!media) {
+    throw new Error("Media niet gevonden");
+  }
+
+  const { data: card } = await supabase
+    .from("cards")
+    .select("deck_id")
+    .eq("id", media.card_id)
+    .single();
+
+  if (!card) {
+    throw new Error("Kaart niet gevonden");
+  }
+
+  const { data: deck } = await supabase
+    .from("decks")
+    .select("user_id")
+    .eq("id", card.deck_id)
+    .single();
+
+  if (!deck || deck.user_id !== user.id) {
+    throw new Error("Geen toegang tot deze media");
+  }
+
+  const { error } = await supabase
+    .from("card_media")
+    .update({ attribution_source: attribution || null })
+    .eq("id", mediaId);
+
+  if (error) {
+    console.error("Error updating card media attribution:", error);
+    throw new Error("Kon bronvermelding niet bijwerken");
+  }
+
+  revalidatePath(`/decks/${card.deck_id}`);
+  revalidatePath(`/decks/${card.deck_id}/edit`);
+
+  return { success: true };
+}
+
 export async function deleteCardMedia(mediaId: string) {
   const supabase = await createClient();
 

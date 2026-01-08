@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Plus, Trash2, Save, GripVertical, Image, Music, Upload } from "lucide-react";
+import { Plus, Trash2, Save, GripVertical, Image, Music, Upload, ChevronDown, ChevronUp } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -13,8 +13,10 @@ import {
   updateDeck,
   deleteDeck,
 } from "@/lib/actions/decks";
-import { CardMediaUpload } from "./card-media-upload";
 import { BulkImportForm } from "./bulk-import-form";
+import { TagSelector } from "./tag-selector";
+import { WysiwygCardEditor } from "./wysiwyg-card-editor";
+import { type Tag } from "@/lib/actions/tags";
 
 interface CardMedia {
   id: string;
@@ -45,9 +47,10 @@ interface DeckData {
 interface DeckEditorProps {
   deck: DeckData;
   cards: CardData[];
+  initialTags?: Tag[];
 }
 
-export function DeckEditor({ deck, cards: initialCards }: DeckEditorProps) {
+export function DeckEditor({ deck, cards: initialCards, initialTags = [] }: DeckEditorProps) {
   const router = useRouter();
   const [title, setTitle] = useState(deck.title);
   const [description, setDescription] = useState(deck.description);
@@ -55,9 +58,10 @@ export function DeckEditor({ deck, cards: initialCards }: DeckEditorProps) {
   const [cards, setCards] = useState(initialCards);
   const [isSaving, setIsSaving] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
-  const [editingCardId, setEditingCardId] = useState<string | null>(null);
-  const [newCardBackText, setNewCardBackText] = useState("");
+  const [expandedCardId, setExpandedCardId] = useState<string | null>(null);
+  const [showNewCardEditor, setShowNewCardEditor] = useState(false);
   const [newCardFrontText, setNewCardFrontText] = useState("");
+  const [newCardBackText, setNewCardBackText] = useState("");
   const [showBulkImport, setShowBulkImport] = useState(false);
 
   const handleSaveDeck = async () => {
@@ -90,21 +94,21 @@ export function DeckEditor({ deck, cards: initialCards }: DeckEditorProps) {
     }
   };
 
-  const handleAddCard = async () => {
-    if (!newCardBackText.trim()) return;
+  const handleAddCard = async (frontText: string, backText: string) => {
+    if (!backText.trim()) return;
 
     try {
       const result = await createCard(deck.id, {
-        frontText: newCardFrontText.trim() || undefined,
-        backText: newCardBackText.trim(),
+        frontText: frontText.trim() || undefined,
+        backText: backText.trim(),
       });
 
       setCards((prev) => [
         ...prev,
         {
           id: result.id,
-          frontText: newCardFrontText.trim(),
-          backText: newCardBackText.trim(),
+          frontText: frontText.trim(),
+          backText: backText.trim(),
           position: prev.length,
           media: [],
         },
@@ -112,6 +116,7 @@ export function DeckEditor({ deck, cards: initialCards }: DeckEditorProps) {
 
       setNewCardFrontText("");
       setNewCardBackText("");
+      setShowNewCardEditor(false);
     } catch (error) {
       console.error("Error adding card:", error);
     }
@@ -134,7 +139,7 @@ export function DeckEditor({ deck, cards: initialCards }: DeckEditorProps) {
         )
       );
 
-      setEditingCardId(null);
+      setExpandedCardId(null);
     } catch (error) {
       console.error("Error updating card:", error);
     }
@@ -146,6 +151,7 @@ export function DeckEditor({ deck, cards: initialCards }: DeckEditorProps) {
     try {
       await deleteCard(cardId);
       setCards((prev) => prev.filter((card) => card.id !== cardId));
+      setExpandedCardId(null);
     } catch (error) {
       console.error("Error deleting card:", error);
     }
@@ -167,6 +173,25 @@ export function DeckEditor({ deck, cards: initialCards }: DeckEditorProps) {
           : card
       )
     );
+  };
+
+  const handleMediaUpdated = (cardId: string, mediaId: string, attribution: string) => {
+    setCards((prev) =>
+      prev.map((card) =>
+        card.id === cardId
+          ? {
+              ...card,
+              media: card.media.map((m) =>
+                m.id === mediaId ? { ...m, attributionSource: attribution } : m
+              ),
+            }
+          : card
+      )
+    );
+  };
+
+  const toggleCardExpanded = (cardId: string) => {
+    setExpandedCardId(expandedCardId === cardId ? null : cardId);
   };
 
   return (
@@ -215,6 +240,14 @@ export function DeckEditor({ deck, cards: initialCards }: DeckEditorProps) {
             </label>
           </div>
 
+          <div className="space-y-2">
+            <label className="text-sm font-medium">Tags</label>
+            <TagSelector
+              deckId={deck.id}
+              initialTags={initialTags}
+            />
+          </div>
+
           <div className="flex gap-3 pt-2">
             <Button onClick={handleSaveDeck} disabled={isSaving || !title.trim()}>
               <Save className="w-4 h-4 mr-2" />
@@ -253,201 +286,133 @@ export function DeckEditor({ deck, cards: initialCards }: DeckEditorProps) {
                 deckId={deck.id}
                 onSuccess={(addedCount) => {
                   setShowBulkImport(false);
-                  // Full page reload om nieuwe kaarten te tonen
-                  // router.refresh() werkt niet omdat cards in lokale state zitten
                   window.location.reload();
                 }}
                 onCancel={() => setShowBulkImport(false)}
               />
             </div>
           )}
+
           {/* Existing cards */}
-          {cards.map((card, index) => (
-            <div
-              key={card.id}
-              className="border rounded-lg p-4 space-y-3 bg-muted/30"
-            >
-              <div className="flex items-start gap-3">
-                <div className="text-muted-foreground pt-2">
-                  <GripVertical className="w-4 h-4" />
-                </div>
-                <span className="text-sm text-muted-foreground pt-2 w-6">
-                  {index + 1}.
-                </span>
+          {cards.map((card, index) => {
+            const isExpanded = expandedCardId === card.id;
+            const imageMedia = card.media.find((m) => m.type === "image");
+            const audioMedia = card.media.find((m) => m.type === "audio");
 
-                {editingCardId === card.id ? (
-                  <EditCardForm
-                    card={card}
-                    onSave={(frontText, backText) =>
-                      handleUpdateCard(card.id, frontText, backText)
-                    }
-                    onCancel={() => setEditingCardId(null)}
-                  />
-                ) : (
-                  <div className="flex-1 space-y-2">
-                    <div className="flex items-start justify-between">
-                      <div className="space-y-1 flex-1">
-                        {card.frontText && (
-                          <p className="text-sm text-muted-foreground">
-                            {card.frontText}
-                          </p>
-                        )}
-                        <p className="font-medium">{card.backText}</p>
-                      </div>
-                      <div className="flex gap-2">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => setEditingCardId(card.id)}
-                        >
-                          Bewerken
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleDeleteCard(card.id)}
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </Button>
-                      </div>
+            return (
+              <div
+                key={card.id}
+                className="border rounded-lg overflow-hidden bg-muted/30"
+              >
+                {/* Collapsed view - clickable to expand */}
+                <button
+                  onClick={() => toggleCardExpanded(card.id)}
+                  className="w-full p-4 flex items-center gap-3 text-left hover:bg-muted/50 transition-colors"
+                >
+                  <div className="text-muted-foreground">
+                    <GripVertical className="w-4 h-4" />
+                  </div>
+                  <span className="text-sm text-muted-foreground w-6 flex-shrink-0">
+                    {index + 1}.
+                  </span>
+
+                  {/* Media thumbnail */}
+                  {imageMedia ? (
+                    <img
+                      src={imageMedia.url}
+                      alt=""
+                      className="w-10 h-10 object-cover rounded flex-shrink-0"
+                    />
+                  ) : audioMedia ? (
+                    <div className="w-10 h-10 bg-muted rounded flex items-center justify-center flex-shrink-0">
+                      <Music className="w-5 h-5 text-muted-foreground" />
                     </div>
+                  ) : (
+                    <div className="w-10 h-10 bg-muted rounded flex items-center justify-center flex-shrink-0">
+                      <Image className="w-5 h-5 text-muted-foreground" />
+                    </div>
+                  )}
 
-                    {/* Media preview */}
-                    {card.media.length > 0 && (
-                      <div className="flex gap-2 flex-wrap">
-                        {card.media.map((m) => (
-                          <div
-                            key={m.id}
-                            className="flex items-center gap-1.5 text-xs text-muted-foreground bg-muted px-2 py-1 rounded"
-                          >
-                            {m.type === "image" ? (
-                              <img
-                                src={m.url}
-                                alt=""
-                                className="w-6 h-6 object-cover rounded"
-                              />
-                            ) : (
-                              <Music className="w-4 h-4" />
-                            )}
-                            <span>
-                              {m.position === "front"
-                                ? "Voorkant"
-                                : m.position === "back"
-                                ? "Achterkant"
-                                : "Beide"}
-                            </span>
-                          </div>
-                        ))}
-                      </div>
+                  <div className="flex-1 min-w-0">
+                    {card.frontText && (
+                      <p className="text-xs text-muted-foreground truncate">
+                        {card.frontText}
+                      </p>
                     )}
+                    <p className="font-medium truncate">{card.backText}</p>
+                  </div>
 
-                    {/* Media upload */}
-                    <CardMediaUpload
+                  <div className="flex-shrink-0 text-muted-foreground">
+                    {isExpanded ? (
+                      <ChevronUp className="w-5 h-5" />
+                    ) : (
+                      <ChevronDown className="w-5 h-5" />
+                    )}
+                  </div>
+                </button>
+
+                {/* Expanded view - WYSIWYG editor */}
+                {isExpanded && (
+                  <div className="p-4 pt-0 border-t bg-background">
+                    <WysiwygCardEditor
+                      frontText={card.frontText}
+                      backText={card.backText}
+                      media={card.media}
                       cardId={card.id}
                       deckId={deck.id}
+                      onSave={(frontText, backText) =>
+                        handleUpdateCard(card.id, frontText, backText)
+                      }
+                      onCancel={() => setExpandedCardId(null)}
+                      onDelete={() => handleDeleteCard(card.id)}
                       onMediaAdded={(media) => handleMediaAdded(card.id, media)}
                       onMediaDeleted={(mediaId) =>
                         handleMediaDeleted(card.id, mediaId)
                       }
-                      existingMedia={card.media}
+                      onMediaUpdated={(mediaId, attribution) =>
+                        handleMediaUpdated(card.id, mediaId, attribution)
+                      }
                     />
                   </div>
                 )}
               </div>
-            </div>
-          ))}
+            );
+          })}
 
           {/* Add new card */}
-          <div className="border-2 border-dashed rounded-lg p-4 space-y-3">
-            <p className="text-sm font-medium text-muted-foreground">
-              Nieuwe kaart toevoegen
-            </p>
-            <div className="grid gap-3 sm:grid-cols-2">
-              <div className="space-y-1">
-                <label className="text-xs text-muted-foreground">
-                  Voorkant (optioneel)
-                </label>
-                <Input
-                  value={newCardFrontText}
-                  onChange={(e) => setNewCardFrontText(e.target.value)}
-                  placeholder="Vraag of hint..."
-                />
-              </div>
-              <div className="space-y-1">
-                <label className="text-xs text-muted-foreground">
-                  Achterkant (antwoord) *
-                </label>
-                <Input
-                  value={newCardBackText}
-                  onChange={(e) => setNewCardBackText(e.target.value)}
-                  placeholder="Antwoord..."
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter" && newCardBackText.trim()) {
-                      handleAddCard();
-                    }
-                  }}
-                />
-              </div>
+          {showNewCardEditor ? (
+            <div className="border-2 border-dashed border-primary/30 rounded-lg p-4 bg-primary/5">
+              <p className="text-sm font-medium text-muted-foreground mb-4">
+                Nieuwe kaart toevoegen
+              </p>
+              <WysiwygCardEditor
+                frontText={newCardFrontText}
+                backText={newCardBackText}
+                media={[]}
+                onSave={handleAddCard}
+                onCancel={() => {
+                  setShowNewCardEditor(false);
+                  setNewCardFrontText("");
+                  setNewCardBackText("");
+                }}
+                isNew
+              />
+              <p className="text-xs text-muted-foreground mt-3">
+                Media kan worden toegevoegd na het opslaan van de kaart.
+              </p>
             </div>
+          ) : (
             <Button
-              onClick={handleAddCard}
-              disabled={!newCardBackText.trim()}
-              size="sm"
+              variant="outline"
+              className="w-full border-dashed"
+              onClick={() => setShowNewCardEditor(true)}
             >
               <Plus className="w-4 h-4 mr-2" />
-              Kaart toevoegen
+              Nieuwe kaart toevoegen
             </Button>
-          </div>
+          )}
         </CardContent>
       </Card>
-    </div>
-  );
-}
-
-function EditCardForm({
-  card,
-  onSave,
-  onCancel,
-}: {
-  card: CardData;
-  onSave: (frontText: string, backText: string) => void;
-  onCancel: () => void;
-}) {
-  const [frontText, setFrontText] = useState(card.frontText);
-  const [backText, setBackText] = useState(card.backText);
-
-  return (
-    <div className="flex-1 space-y-3">
-      <div className="grid gap-3 sm:grid-cols-2">
-        <div className="space-y-1">
-          <label className="text-xs text-muted-foreground">Voorkant</label>
-          <Input
-            value={frontText}
-            onChange={(e) => setFrontText(e.target.value)}
-            placeholder="Vraag of hint..."
-          />
-        </div>
-        <div className="space-y-1">
-          <label className="text-xs text-muted-foreground">Achterkant *</label>
-          <Input
-            value={backText}
-            onChange={(e) => setBackText(e.target.value)}
-            placeholder="Antwoord..."
-          />
-        </div>
-      </div>
-      <div className="flex gap-2">
-        <Button
-          size="sm"
-          onClick={() => onSave(frontText, backText)}
-          disabled={!backText.trim()}
-        >
-          Opslaan
-        </Button>
-        <Button size="sm" variant="outline" onClick={onCancel}>
-          Annuleren
-        </Button>
-      </div>
     </div>
   );
 }

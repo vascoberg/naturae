@@ -729,28 +729,36 @@ const isGuest = !user;
 - `/study/[deckId]` - Toegankelijk voor openbare decks
 - `/dashboard`, `/my-decks`, `/decks/new` - Alleen ingelogd
 
-### 6.6 WYSIWYG Kaart Editor
+### 6.6 WYSIWYG Kaart Editor ✅ AFGEROND
 
 > Oorspronkelijk gepland voor Sprint 2, verplaatst naar Sprint 3.
 
-**Concept:** Kaart bewerken met live preview zoals in leermodus.
+**Concept:** Kaart bewerken met live preview - je ziet direct hoe de kaart eruitziet.
 
-**Functionaliteit:**
-- Split view: editor links, preview rechts
-- Direct visuele feedback bij aanpassingen
-- Media preview op voor- en achterkant zichtbaar
-- Flip animatie in preview
+**Geïmplementeerde functionaliteit:**
+- Side-by-side layout: voorkant links, achterkant rechts
+- Inline uitklapbaar: klik op kaart om te bewerken
+- Media boven tekst: visuele hiërarchie zoals in leermodus
+- Responsive: gestapeld op mobiele schermen
+- Zelfde interface voor nieuwe kaarten
+
+**Componenten:**
+- `CardSideEditor` - Editor voor één zijde met media upload en tekst
+- `WysiwygCardEditor` - Combineert twee CardSideEditors
+- Geïntegreerd in `DeckEditor` met expand/collapse UI
 
 ### Checklist Fase 6
 - [x] Openbaar/privé toggle (al aanwezig)
-- [ ] Tag systeem
-  - [ ] TagSelector component voor deck editor
-  - [ ] Tags opslaan bij deck
-  - [ ] TagFilter component voor Ontdek pagina
+- [x] Tag systeem ✅
+  - [x] TagSelector component voor deck editor
+  - [x] Tags opslaan bij deck (deck_tags junction)
+  - [x] TagFilter component voor Ontdek pagina
+  - [x] Seed data met standaard tags
+  - [x] Server actions (getAllTags, getDeckTags, updateDeckTags)
 - [x] Ontdek pagina
   - [x] PublicDeckGrid component
   - [x] Zoeken op titel
-  - [ ] Filteren op tags
+  - [x] Filteren op tags
   - [x] Sorteren (nieuwste, populairste)
 - [x] Hartjes systeem
   - [x] Database: deck_likes tabel + like_count kolom + trigger
@@ -764,11 +772,15 @@ const isGuest = !user;
   - [x] Middleware aanpassen voor gastgebruik
   - [x] Deck pagina toegankelijk voor gasten (openbare decks)
   - [x] Study sessie voor gasten (zonder voortgang opslaan)
-  - [ ] Achtergrond foto voor hero sectie
-- [ ] WYSIWYG kaart editor
-  - [ ] Split view layout
-  - [ ] Live preview component
-  - [ ] Flip animatie in preview
+  - [x] Achtergrond foto voor hero sectie
+- [x] Favorieten sectie op Mijn Leersets pagina
+- [x] WYSIWYG kaart editor ✅
+  - [x] Side-by-side layout (voorkant links, achterkant rechts)
+  - [x] CardSideEditor component (media + tekst per zijde)
+  - [x] WysiwygCardEditor component
+  - [x] Inline expand/collapse in DeckEditor
+  - [x] Responsive: gestapeld op mobiel
+  - [x] Zelfde interface voor nieuwe kaarten
 
 ---
 
@@ -872,30 +884,58 @@ track('deck_exported', { format: 'json' });
 - Leerinstellingen per leerset (FSRS presets)
 - Meerdere foto's per kaart
 
+### Verbeterde Instellingen Pagina ✅ DEELS AFGEROND
+
+**Geïmplementeerd:**
+- [x] **Account beheer**
+  - [x] Weergavenaam aanpassen
+  - [x] Profielfoto uploaden/wijzigen (Supabase Storage)
+  - [x] Bio/beschrijving toevoegen
+- [x] **Beveiliging**
+  - [x] Wachtwoord wijzigen
+
+**Nog te implementeren (Sprint 4+):**
+- [ ] **Beveiliging (uitgebreid)**
+  - [ ] Twee-factor authenticatie (2FA)
+  - [ ] Actieve sessies bekijken
+- [ ] **Leervoorkeuren**
+  - [ ] FSRS parameters per gebruiker
+  - [ ] Dagelijks leerdoel instellen
+  - [ ] Herinneringen/notificaties
+- [ ] **Privacy**
+  - [ ] Profiel openbaar/privé maken
+  - [ ] Account exporteren (GDPR)
+  - [ ] Account verwijderen
+- [ ] **Weergave**
+  - [ ] Taal selectie (NL/EN)
+  - [ ] Dark/light mode toggle
+  - [ ] Compacte/uitgebreide kaartweergave
+
 ---
 
 ## Volgende Stappen
 
-**Huidige status:** Sprint 3 (Sharing & Network Effects) - in uitvoering
+**Huidige status:** MVP Core Sprints (1-3) - ✅ VOLLEDIG AFGEROND
 
-**Afgerond in Sprint 3:**
-- ✅ Publiek/privé toggle voor leersets
-- ✅ Ontdek pagina met zoeken en sorteren
-- ✅ Landing page met hero, zoekbalk, populaire decks
-- ✅ Thumbnails op deck cards
-- ✅ Gastgebruik (publieke decks bekijken en leren)
-- ✅ JSON Export
-- ✅ Hartjes systeem (LikeButton, sorteren op populariteit)
+De MVP is feature-complete. Alle core functionaliteit is geïmplementeerd:
 
-**Nog te doen in Sprint 3:**
-- [ ] Achtergrond foto voor landing page hero sectie
-- [ ] Tag systeem (TagSelector, TagFilter)
-- [ ] WYSIWYG kaart editor
+**Sprint 1 (Absolute MVP):** ✅
+- Authenticatie, FSRS spaced repetition, flashcard interface, drie rating knoppen
 
-**Verplaatst naar later (Sprint 4+):**
-- Subtiele conversie hints na gastensessie
+**Sprint 2 (User Generated Content):** ✅
+- Deck/card CRUD, media upload, bulk import met ID3, drie sessie-modi
 
-Zie [MVP Design - Sprint 3](naturae-mvp-design.md#sprint-3-sharing--network-effects-week-5-6) voor volledige feature beschrijving.
+**Sprint 3 (Sharing & Network Effects):** ✅
+- Publiek/privé toggle, Ontdek pagina met zoeken/filteren/sorteren
+- Landing page met hero, populaire decks, thumbnails
+- Gastgebruik (leren zonder account)
+- JSON Export, Hartjes systeem, Tag systeem
+- WYSIWYG kaart editor (side-by-side, media management, attributies)
+- Instellingen pagina (profielfoto, bio, wachtwoord)
+
+**Volgende fase:** MVP+ features (optioneel, op basis van gebruikersfeedback)
+
+Zie [MVP Design - MVP+ Features](naturae-mvp-design.md#mvp-features-toekomstig) voor mogelijke uitbreidingen.
 
 ---
 

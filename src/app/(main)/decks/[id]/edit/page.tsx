@@ -3,6 +3,7 @@ import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { DeckEditor } from "@/components/deck/deck-editor";
+import { getDeckTags } from "@/lib/actions/tags";
 
 interface EditDeckPageProps {
   params: Promise<{ id: string }>;
@@ -36,6 +37,9 @@ export default async function EditDeckPage({ params }: EditDeckPageProps) {
   if (deck.user_id !== user.id) {
     notFound();
   }
+
+  // Haal tags op
+  const { data: deckTags } = await getDeckTags(id);
 
   // Haal kaarten op
   const { data: cards } = await supabase
@@ -81,6 +85,7 @@ export default async function EditDeckPage({ params }: EditDeckPageProps) {
           description: deck.description || "",
           isPublic: deck.is_public,
         }}
+        initialTags={deckTags || []}
         cards={
           cards?.map((card) => ({
             id: card.id,

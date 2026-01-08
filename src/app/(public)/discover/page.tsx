@@ -11,18 +11,56 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { SortSelect } from "@/components/discover/sort-select";
+import { TagFilter } from "@/components/discover/tag-filter";
+import { getAllTags } from "@/lib/actions/tags";
 
 interface DiscoverPageProps {
-  searchParams: Promise<{ q?: string; sort?: string }>;
+  searchParams: Promise<{ q?: string; sort?: string; tags?: string }>;
 }
 
 export default async function DiscoverPage({ searchParams }: DiscoverPageProps) {
-  const { q: searchQuery, sort = "newest" } = await searchParams;
+  const { q: searchQuery, sort = "newest", tags: tagsParam } = await searchParams;
+  const selectedTagSlugs = tagsParam?.split(",").filter(Boolean) || [];
   const supabase = await createClient();
+
+  // Haal alle tags op voor de filter
+  const { data: allTags } = await getAllTags();
 
   const {
     data: { user },
   } = await supabase.auth.getUser();
+
+  // Als tags geselecteerd zijn, haal eerst deck IDs op die deze tags hebben
+  let deckIdsWithTags: string[] | null = null;
+  if (selectedTagSlugs.length > 0) {
+    // Haal tag IDs op basis van slugs
+    const { data: selectedTags } = await supabase
+      .from("tags")
+      .select("id")
+      .in("slug", selectedTagSlugs);
+
+    if (selectedTags && selectedTags.length > 0) {
+      const tagIds = selectedTags.map((t) => t.id);
+
+      // Haal deck IDs op die AL deze tags hebben
+      const { data: deckTags } = await supabase
+        .from("deck_tags")
+        .select("deck_id, tag_id")
+        .in("tag_id", tagIds);
+
+      if (deckTags) {
+        // Groepeer per deck en check of deck alle geselecteerde tags heeft
+        const deckTagCounts = new Map<string, number>();
+        for (const dt of deckTags) {
+          deckTagCounts.set(dt.deck_id, (deckTagCounts.get(dt.deck_id) || 0) + 1);
+        }
+        // Filter decks die alle tags hebben
+        deckIdsWithTags = Array.from(deckTagCounts.entries())
+          .filter(([, count]) => count >= tagIds.length)
+          .map(([deckId]) => deckId);
+      }
+    }
+  }
 
   // Bouw query voor openbare decks (zonder join voor guest compatibility)
   let query = supabase
@@ -40,6 +78,16 @@ export default async function DiscoverPage({ searchParams }: DiscoverPageProps) 
     )
     .eq("is_public", true)
     .is("deleted_at", null);
+
+  // Filter op tags als geselecteerd
+  if (deckIdsWithTags !== null) {
+    if (deckIdsWithTags.length === 0) {
+      // Geen decks matchen de tags, return early
+      query = query.in("id", ["00000000-0000-0000-0000-000000000000"]);
+    } else {
+      query = query.in("id", deckIdsWithTags);
+    }
+  }
 
   // Filter eigen decks uit als user ingelogd is
   if (user) {
@@ -89,7 +137,7 @@ export default async function DiscoverPage({ searchParams }: DiscoverPageProps) 
       </div>
 
       {/* Search and filters */}
-      <div className="flex flex-col sm:flex-row gap-4 mb-8">
+      <div className="flex flex-col sm:flex-row gap-4 mb-6">
         <form className="flex-1" action="/discover" method="GET">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
@@ -104,12 +152,24 @@ export default async function DiscoverPage({ searchParams }: DiscoverPageProps) 
           {sort !== "newest" && (
             <input type="hidden" name="sort" value={sort} />
           )}
+          {tagsParam && (
+            <input type="hidden" name="tags" value={tagsParam} />
+          )}
         </form>
 
         <Suspense fallback={<div className="w-[180px] h-10 bg-muted rounded-md animate-pulse" />}>
           <SortSelect defaultValue={sort} />
         </Suspense>
       </div>
+
+      {/* Tag filters */}
+      {allTags && allTags.length > 0 && (
+        <div className="mb-8">
+          <Suspense fallback={<div className="h-8 bg-muted rounded-md animate-pulse w-64" />}>
+            <TagFilter tags={allTags} selectedSlugs={selectedTagSlugs} />
+          </Suspense>
+        </div>
+      )}
 
       {/* Results */}
       {publicDecks && publicDecks.length > 0 ? (
@@ -118,6 +178,7 @@ export default async function DiscoverPage({ searchParams }: DiscoverPageProps) 
             {publicDecks.length} leerset{publicDecks.length !== 1 ? "s" : ""}{" "}
             gevonden
             {searchQuery && ` voor "${searchQuery}"`}
+            {selectedTagSlugs.length > 0 && ` met ${selectedTagSlugs.length} tag${selectedTagSlugs.length !== 1 ? "s" : ""}`}
           </p>
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
             {publicDecks.map((deck) => {

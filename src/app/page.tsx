@@ -85,7 +85,7 @@ export default async function Home() {
             className="object-cover object-left scale-x-[-1]"
             priority
           />
-          <div className="absolute inset-0 bg-gradient-to-r from-background via-background/40 to-transparent" />
+          <div className="absolute inset-0 bg-gradient-to-r from-background via-background/30 to-transparent" />
           <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-background" />
         </div>
 

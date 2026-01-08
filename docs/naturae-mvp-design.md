@@ -145,37 +145,38 @@ De BirdID app van Nord University dient als belangrijke inspiratiebron. Zie [doc
 
 ---
 
-### Sprint 3: Sharing & Network Effects (Week 5-6)
+### Sprint 3: Sharing & Network Effects (Week 5-6) ✅ AFGEROND
 **Voorwaarde**: Gebruikers maken eigen content
 **Doel**: Test Growth Hypothesis - delen gebruikers sets?
 
 **Features:**
 - Publiek/privé toggle voor leersets ✅
-- Deel-functionaliteit (unieke link + share token voor private sharing) ⏳
 - "Ontdek" pagina met publieke sets: ✅
-  - Filteren op tags ⏳
+  - Filteren op tags ✅
   - Zoeken op titel ✅
   - Sorteren op populariteit/datum ✅
-- Simpel ster-systeem (1-5 rating) ⏳
-- "Kopieer naar mijn collectie" functie ⏳
-- **Clone deck functie:** ⏳
-  - Leerset kopiëren naar eigen account voor aanpassing
-  - Alleen mogelijk als originele eigenaar dit toestaat (optie per deck)
-  - Teller tonen: "X keer gekopieerd" naast sterrenaantal
-  - Clone behoudt attributie naar origineel
+- Hartjes systeem (like/unlike) ✅
 - **Gastgebruik zonder account:** ✅
   - Publieke decks bekijken en leren via directe link ✅
   - Sessie voortgang in browser (verloren bij sluiten) ✅
   - "Probeer zonder account" knop op publieke deck pagina ✅
 - **JSON Export:** ✅
   - Exporteer leerset als JSON (metadata + kaarten + media info) ✅
-  - Optie: JSON + media bestanden als ZIP ⏳
   - Data ownership: gebruikers kunnen hun data downloaden ✅
 - **Landing page voor gasten:** ✅
   - Publieke homepage met populaire leersets ✅
   - Thumbnails tonen op deck cards ✅
   - Zoekbalk naar discover pagina ✅
   - Header/footer met navigatie ✅
+- **WYSIWYG kaart editor:** ✅
+  - Side-by-side layout (voorkant links, achterkant rechts) ✅
+  - Media upload, vervangen en verwijderen ✅
+  - Attribution bewerken ✅
+  - Responsive: gestapeld op mobiel ✅
+- **Verbeterde instellingen pagina:** ✅
+  - Profielfoto uploaden/wijzigen ✅
+  - Bio/beschrijving toevoegen ✅
+  - Wachtwoord wijzigen ✅
 
 **Metrics:**
 - Share rate (% gebruikers dat deelt)
@@ -189,29 +190,10 @@ De BirdID app van Nord University dient als belangrijke inspiratiebron. Zie [doc
 - Viral coefficient >0.5 (op weg naar 1.0)
 - >20% signup conversion van links
 
----
-
-### Sprint 4: Engagement & Retention (Week 7-8)
-**Voorwaarde**: Basis sharing werkt
-**Doel**: Verhoog engagement en retention
-
-**Features:**
-- Voortgangstracking en statistieken dashboard
-- Meerdere foto's per kaart
-- Audio + foto combinaties
-- Basis notificaties/reminders (PWA push)
-- Persoonlijke statistieken dashboard
-- Tag suggesties bij aanmaken leerset
-- **Leerinstellingen per leerset:**
-  - Gebruiksvriendelijke UI bovenop FSRS algoritme
-  - Intuïtieve slider/opties voor herhalingsintensiteit (bijv. "Relaxed" → "Intensief")
-  - Achterliggend: `request_retention` (0.8-0.95), `maximum_interval`, etc.
-  - Preset profielen: "Snel leren", "Op je gemak", "Examenvoorbereiding"
-
-**Metrics:**
-- Verbetering in retention rates
-- Toename in sessie frequentie
-- Feature adoption rates
+**Verplaatst naar MVP+:**
+- Deel-functionaliteit (share token voor private sharing)
+- Clone/Remix deck functie
+- ZIP export met media bestanden
 
 ---
 
@@ -289,11 +271,37 @@ Zie [Quiz Modus (v2)](#quiz-modus-v2) hieronder voor de geplande uitbreiding.
 
 ---
 
-## Toekomstige Features (Post-MVP)
+## MVP+ Features (Toekomstig)
+
+> Features die na de MVP core sprints geïmplementeerd kunnen worden.
+
+### Engagement & Retention (voorheen Sprint 4)
+
+- Voortgangstracking en statistieken dashboard
+- Streak tracking
+- Meerdere foto's per kaart
+- Basis notificaties/reminders (PWA push)
+- Tag suggesties bij aanmaken leerset
+- **Leerinstellingen per leerset:**
+  - Gebruiksvriendelijke UI bovenop FSRS algoritme
+  - Intuïtieve slider/opties voor herhalingsintensiteit
+  - Preset profielen: "Snel leren", "Op je gemak", "Examenvoorbereiding"
+
+### Private Sharing & Remix
+
+- **Deel-functionaliteit (share token):**
+  - Private decks delen via unieke link
+  - URL: `/decks/share/{token}`
+  - Token intrekken mogelijk
+- **Clone/Remix deck functie:**
+  - Leerset kopiëren naar eigen account
+  - `copied_from_deck_id` tracking voor attributie
+  - Teller: "X keer geremixed"
+- **ZIP export met media bestanden**
 
 ### Species Book (v2)
 > Database infrastructuur is voorbereid, maar UI wordt later gebouwd.
-> **Timing:** Na Sprint 4, wanneer basis engagement features werken. Geïnspireerd door BirdID's "Species Info" scherm.
+> Geïnspireerd door BirdID's "Species Info" scherm.
 
 - Gedeelde species database (wetenschappelijke naam als identifier)
 - Rijke informatie per soort:
