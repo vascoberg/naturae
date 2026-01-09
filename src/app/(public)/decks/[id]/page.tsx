@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
-import { Pencil } from "lucide-react";
+import { Pencil, Info } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -153,13 +153,23 @@ export default async function DeckPage({ params }: DeckPageProps) {
 
         {/* Stats - alleen voortgang tonen voor ingelogde users */}
         {isGuest ? (
-          <div className="mb-6">
+          <div className="mb-6 space-y-3">
             <Card>
               <CardContent className="pt-4">
                 <p className="text-2xl font-bold">{totalCards}</p>
                 <p className="text-sm text-muted-foreground">Kaarten</p>
               </CardContent>
             </Card>
+            {/* Guest disclaimer */}
+            <div className="p-3 rounded-lg bg-muted/50 border border-border/50 flex gap-3">
+              <Info className="w-4 h-4 text-muted-foreground flex-shrink-0 mt-0.5" />
+              <p className="text-sm text-muted-foreground">
+                <Link href="/login" className="text-primary hover:underline">
+                  Log in
+                </Link>{" "}
+                om je leervoortgang op te slaan en te zien welke kaarten je moet herhalen.
+              </p>
+            </div>
           </div>
         ) : (
           <div className="grid grid-cols-3 gap-4 mb-6">
@@ -191,6 +201,7 @@ export default async function DeckPage({ params }: DeckPageProps) {
             totalCards={totalCards}
             dueCards={isGuest ? totalCards : cardsDue + newCards}
             hasStarted={!isGuest && cardsSeen > 0}
+            isGuest={isGuest}
           />
           {isOwner && (
             <Button variant="outline" size="lg" asChild>

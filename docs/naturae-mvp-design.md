@@ -535,6 +535,34 @@ Voor elke sprint een dashboard met:
 
 ---
 
+## Backlog: UX Verbeteringen
+
+### Loading Feedback & Transitions (TODO)
+
+**Huidige staat:**
+- `-webkit-tap-highlight-color` geeft instant visuele feedback bij touch
+- `isSubmitting` state disabled rating buttons tijdens API calls
+- `LoadingSpinner` component voor initieel laden van pagina's
+
+**Te implementeren:**
+
+1. **Spinner in buttons tijdens submit**
+   - Voeg loading spinner toe aan buttons wanneer `isSubmitting` true is
+   - Voorkomt dubbele clicks en geeft duidelijke feedback
+   - Voorbeeld: rating buttons, form submit buttons
+
+2. **Page transition animaties**
+   - Fade/slide animaties bij navigatie tussen pagina's
+   - Voorkomt "harde" page switches
+   - Opties: Next.js built-in transitions of Framer Motion
+
+**Aandachtspunten:**
+- Race conditions vermijden bij async operaties
+- Performance impact monitoren
+- Mobile-first testen
+
+---
+
 ## Risk Mitigation
 
 ### Technische risico's

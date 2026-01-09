@@ -2,7 +2,8 @@
 
 import { useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
-import { ListOrdered, Shuffle, Brain } from "lucide-react";
+import Link from "next/link";
+import { ListOrdered, Shuffle, Brain, Info } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -13,6 +14,7 @@ interface SessionModeSelectorProps {
   deckId: string;
   totalCards: number;
   dueCards: number;
+  isGuest?: boolean;
   onClose?: () => void;
 }
 
@@ -23,6 +25,7 @@ export function SessionModeSelector({
   deckId,
   totalCards,
   dueCards,
+  isGuest = false,
   onClose,
 }: SessionModeSelectorProps) {
   const router = useRouter();
@@ -91,39 +94,55 @@ export function SessionModeSelector({
           const isSelected = selectedMode === mode.id;
           const effectiveCount = getEffectiveCardCount(mode.cardCount);
           const isDisabled = effectiveCount === 0;
+          const showGuestDisclaimer = isGuest && mode.id === "smart" && isSelected;
 
           return (
-            <Card
-              key={mode.id}
-              className={cn(
-                "cursor-pointer transition-all",
-                isSelected && "ring-2 ring-primary border-primary",
-                isDisabled && "opacity-50 cursor-not-allowed",
-                !isDisabled && !isSelected && "hover:border-primary/50"
-              )}
-              onClick={() => !isDisabled && setSelectedMode(mode.id)}
-            >
-              <CardContent className="flex items-center gap-4 p-4">
-                <div
-                  className={cn(
-                    "p-3 rounded-lg",
-                    isSelected ? "bg-primary text-primary-foreground" : "bg-muted"
-                  )}
-                >
-                  <Icon className="w-6 h-6" />
-                </div>
-                <div className="flex-1">
-                  <h3 className="font-medium">{mode.title}</h3>
+            <div key={mode.id}>
+              <Card
+                className={cn(
+                  "cursor-pointer transition-all",
+                  isSelected && "ring-2 ring-primary border-primary",
+                  isDisabled && "opacity-50 cursor-not-allowed",
+                  !isDisabled && !isSelected && "hover:border-primary/50"
+                )}
+                onClick={() => !isDisabled && setSelectedMode(mode.id)}
+              >
+                <CardContent className="flex items-center gap-4 p-4">
+                  <div
+                    className={cn(
+                      "p-3 rounded-lg",
+                      isSelected ? "bg-primary text-primary-foreground" : "bg-muted"
+                    )}
+                  >
+                    <Icon className="w-6 h-6" />
+                  </div>
+                  <div className="flex-1">
+                    <h3 className="font-medium">{mode.title}</h3>
+                    <p className="text-sm text-muted-foreground">
+                      {mode.description}
+                    </p>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-lg font-semibold">{effectiveCount}</p>
+                    <p className="text-xs text-muted-foreground">{mode.cardLabel}</p>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Guest disclaimer voor Slim leren */}
+              {showGuestDisclaimer && (
+                <div className="mt-2 p-3 rounded-lg bg-muted/50 border border-border/50 flex gap-3">
+                  <Info className="w-4 h-4 text-muted-foreground flex-shrink-0 mt-0.5" />
                   <p className="text-sm text-muted-foreground">
-                    {mode.description}
+                    <Link href="/login" className="text-primary hover:underline">
+                      Log in
+                    </Link>{" "}
+                    om je voortgang op te slaan. Slim leren onthoudt dan welke
+                    kaarten je kent en toont alleen wat je moet herhalen.
                   </p>
                 </div>
-                <div className="text-right">
-                  <p className="text-lg font-semibold">{effectiveCount}</p>
-                  <p className="text-xs text-muted-foreground">{mode.cardLabel}</p>
-                </div>
-              </CardContent>
-            </Card>
+              )}
+            </div>
           );
         })}
       </div>
