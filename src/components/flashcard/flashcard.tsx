@@ -68,7 +68,11 @@ export function Flashcard({ cardId, frontText, backText, frontMedia, backMedia, 
             </div>
           )}
           {item.type === "audio" && (
-            <div className="relative">
+            <div
+              className="relative"
+              onClick={(e) => e.stopPropagation()}
+              onKeyDown={(e) => e.stopPropagation()}
+            >
               <audio
                 key={`audio-${cardId}-${side}-${item.url}`}
                 controls

@@ -59,20 +59,23 @@ function StudyPageContent() {
   const searchParams = useSearchParams();
   const deckId = params.deckId as string;
   const mode = (searchParams.get("mode") as StudyMode) || "smart";
+  const limitParam = searchParams.get("limit");
+  const limit = limitParam ? parseInt(limitParam, 10) : undefined;
 
   // Key forceert volledige remount van StudySession bij navigatie
-  const sessionKey = `${deckId}-${mode}`;
+  const sessionKey = `${deckId}-${mode}-${limit ?? "all"}`;
 
-  return <StudySession key={sessionKey} deckId={deckId} mode={mode} />;
+  return <StudySession key={sessionKey} deckId={deckId} mode={mode} limit={limit} />;
 }
 
 // Alle state leeft hier - wordt volledig gereset bij key change
 interface StudySessionProps {
   deckId: string;
   mode: StudyMode;
+  limit?: number;
 }
 
-function StudySession({ deckId, mode }: StudySessionProps) {
+function StudySession({ deckId, mode, limit }: StudySessionProps) {
   const router = useRouter();
 
   const [cards, setCards] = useState<StudyCard[]>([]);
@@ -116,7 +119,7 @@ function StudySession({ deckId, mode }: StudySessionProps) {
         const loggedIn = await isUserLoggedIn();
         setIsLoggedIn(loggedIn);
 
-        const studyCards = await getStudyCards(deckId, mode);
+        const studyCards = await getStudyCards(deckId, mode, limit);
         setCards(studyCards);
 
         if (studyCards.length === 0) {
@@ -130,7 +133,7 @@ function StudySession({ deckId, mode }: StudySessionProps) {
     }
 
     loadCards();
-  }, [deckId, mode]);
+  }, [deckId, mode, limit]);
 
   // Laad deck titel
   useEffect(() => {

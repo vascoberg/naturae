@@ -917,6 +917,23 @@ track('deck_exported', { format: 'json' });
 
 **Huidige status:** MVP Core Sprints (1-3) - ✅ VOLLEDIG AFGEROND
 
+### Prioriteit: Email Configuratie
+
+⚠️ **Supabase email verificatie werkt niet betrouwbaar** - emails komen niet aan bij gebruikers.
+
+**Oplossing:** Resend SMTP instellen
+1. Account aanmaken op resend.com (gratis tot 3000 emails/maand)
+2. Domain verifiëren of Resend's test domain gebruiken
+3. In Supabase: **Project Settings** → **Authentication** → **SMTP Settings**
+4. Custom SMTP inschakelen met Resend credentials
+
+**Tijdelijke workaround:** Handmatig gebruikers verifiëren via Supabase SQL Editor:
+```sql
+UPDATE auth.users SET email_confirmed_at = NOW() WHERE email = 'user@example.com';
+```
+
+---
+
 De MVP is feature-complete. Alle core functionaliteit is geïmplementeerd:
 
 **Sprint 1 (Absolute MVP):** ✅

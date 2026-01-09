@@ -148,7 +148,7 @@ function shuffleArray<T>(array: T[]): T[] {
   return shuffled;
 }
 
-export async function getStudyCards(deckId: string, mode: StudyMode = "smart") {
+export async function getStudyCards(deckId: string, mode: StudyMode = "smart", limit?: number) {
   const supabase = await createClient();
 
   const {
@@ -231,31 +231,40 @@ export async function getStudyCards(deckId: string, mode: StudyMode = "smart") {
       };
     }) || [];
 
+  // Helper om limit toe te passen
+  const applyLimit = <T>(arr: T[]): T[] => {
+    if (limit && limit > 0) {
+      return arr.slice(0, limit);
+    }
+    return arr;
+  };
+
   // Apply mode-specific sorting/filtering
   switch (mode) {
     case "order":
       // Return all cards in deck order (already sorted by position)
-      return cardsWithProgress;
+      return applyLimit(cardsWithProgress);
 
     case "shuffle":
       // Return all cards in random order
-      return shuffleArray(cardsWithProgress);
+      return applyLimit(shuffleArray(cardsWithProgress));
 
     case "smart":
     default:
       // For guests without progress, treat all cards as due
       if (!user) {
-        return cardsWithProgress;
+        return applyLimit(cardsWithProgress);
       }
       // Filter to only due cards, then sort: review cards first, then new cards
       const dueCards = cardsWithProgress.filter((card) => card.isDue);
-      return dueCards.sort((a, b) => {
+      const sortedDueCards = dueCards.sort((a, b) => {
         // First: due cards that have been seen (review cards)
         if (!a.isNew && b.isNew) return -1;
         if (a.isNew && !b.isNew) return 1;
         // Otherwise: by position
         return a.position - b.position;
       });
+      return applyLimit(sortedDueCards);
   }
 }
 
