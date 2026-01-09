@@ -42,6 +42,10 @@ export function Sidebar({ username, displayName, onLogout }: SidebarProps) {
   const { isCollapsed, setIsCollapsed, isMobile } = useSidebar();
   const [mobileOpen, setMobileOpen] = useState(false);
 
+  // Op mobiel altijd labels tonen (sidebar is slide-out menu)
+  const showLabels = isMobile ? true : !isCollapsed;
+  const compactMode = isMobile ? false : isCollapsed;
+
   // Close mobile menu on navigation
   useEffect(() => {
     setMobileOpen(false);
@@ -54,7 +58,7 @@ export function Sidebar({ username, displayName, onLogout }: SidebarProps) {
         <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-primary text-primary-foreground">
           <Flower2 className="w-5 h-5" />
         </div>
-        {!isCollapsed && (
+        {showLabels && (
           <span className="font-semibold text-lg text-primary">Naturae</span>
         )}
       </div>
@@ -65,11 +69,11 @@ export function Sidebar({ username, displayName, onLogout }: SidebarProps) {
           <Button
             className={cn(
               "w-full justify-start gap-2",
-              isCollapsed && "justify-center px-2"
+              compactMode && "justify-center px-2"
             )}
           >
             <Plus className="w-4 h-4" />
-            {!isCollapsed && <span>Nieuwe leerset</span>}
+            {showLabels && <span>Nieuwe leerset</span>}
           </Button>
         </Link>
       </div>
@@ -90,11 +94,11 @@ export function Sidebar({ username, displayName, onLogout }: SidebarProps) {
                     isActive
                       ? "bg-primary/10 text-primary"
                       : "text-muted-foreground hover:bg-muted hover:text-foreground",
-                    isCollapsed && "justify-center px-2"
+                    compactMode && "justify-center px-2"
                   )}
                 >
                   <Icon className="w-5 h-5 flex-shrink-0" />
-                  {!isCollapsed && <span>{item.label}</span>}
+                  {showLabels && <span>{item.label}</span>}
                 </Link>
               </li>
             );
@@ -107,13 +111,13 @@ export function Sidebar({ username, displayName, onLogout }: SidebarProps) {
         <div
           className={cn(
             "flex items-center gap-3 px-3 py-2",
-            isCollapsed && "justify-center px-2"
+            compactMode && "justify-center px-2"
           )}
         >
           <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center text-sm font-medium">
             {displayName.charAt(0).toUpperCase()}
           </div>
-          {!isCollapsed && (
+          {showLabels && (
             <div className="flex-1 min-w-0">
               <p className="text-sm font-medium truncate">{displayName}</p>
               <p className="text-xs text-muted-foreground truncate">
@@ -126,11 +130,11 @@ export function Sidebar({ username, displayName, onLogout }: SidebarProps) {
           onClick={onLogout}
           className={cn(
             "flex items-center gap-3 px-3 py-2 w-full rounded-lg text-sm font-medium text-muted-foreground hover:bg-muted hover:text-foreground transition-colors mt-1",
-            isCollapsed && "justify-center px-2"
+            compactMode && "justify-center px-2"
           )}
         >
           <LogOut className="w-5 h-5 flex-shrink-0" />
-          {!isCollapsed && <span>Uitloggen</span>}
+          {showLabels && <span>Uitloggen</span>}
         </button>
       </div>
 

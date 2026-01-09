@@ -327,7 +327,7 @@ function StudySession({ deckId, mode, limit }: StudySessionProps) {
       </header>
 
       {/* Main content */}
-      <main className="flex-1 flex flex-col items-center justify-center p-4">
+      <main className="flex-1 flex flex-col items-center p-4 pt-6">
         <div className="w-full max-w-lg">
           {currentCard && (
             <>
@@ -343,7 +343,7 @@ function StudySession({ deckId, mode, limit }: StudySessionProps) {
               />
 
               {/* Rating buttons of flip instructie */}
-              <div className="mt-6">
+              <div className="mt-4 md:mt-6">
                 {isFlipped ? (
                   <RatingButtons
                     onRate={handleRate}
@@ -351,14 +351,15 @@ function StudySession({ deckId, mode, limit }: StudySessionProps) {
                   />
                 ) : (
                   <p className="text-center text-muted-foreground text-sm">
-                    Klik op de kaart of druk op spatie om het antwoord te zien
+                    <span className="md:hidden">Tik op de kaart om het antwoord te zien</span>
+                    <span className="hidden md:inline">Klik op de kaart of druk op spatie om het antwoord te zien</span>
                   </p>
                 )}
               </div>
 
-              {/* Keyboard shortcuts hint */}
+              {/* Keyboard shortcuts hint - alleen op desktop */}
               {isFlipped && (
-                <p className="text-center text-muted-foreground text-xs mt-4">
+                <p className="hidden md:block text-center text-muted-foreground text-xs mt-4">
                   Sneltoetsen: 1 = Opnieuw, 2 = Moeilijk, 3 = Goed
                 </p>
               )}

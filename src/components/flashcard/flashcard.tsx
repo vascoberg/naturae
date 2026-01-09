@@ -129,9 +129,6 @@ export function Flashcard({ cardId, frontText, backText, frontMedia, backMedia, 
             {!frontText && !frontMedia?.length && (
               <p className="text-muted-foreground">(Geen vraag)</p>
             )}
-            <p className="text-sm text-muted-foreground mt-6">
-              Klik of druk op spatie om om te draaien
-            </p>
           </CardContent>
         </Card>
 
@@ -149,9 +146,6 @@ export function Flashcard({ cardId, frontText, backText, frontMedia, backMedia, 
           <CardContent className="p-8 text-center w-full">
             {backMedia && backMedia.length > 0 && renderMedia(backMedia, "back")}
             <p className="text-2xl font-semibold text-primary">{backText}</p>
-            <p className="text-sm text-muted-foreground mt-6">
-              Klik of druk op spatie om om te draaien
-            </p>
           </CardContent>
         </Card>
       </div>
