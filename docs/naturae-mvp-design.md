@@ -177,6 +177,9 @@ De BirdID app van Nord University dient als belangrijke inspiratiebron. Zie [doc
   - Profielfoto uploaden/wijzigen ✅
   - Bio/beschrijving toevoegen ✅
   - Wachtwoord wijzigen ✅
+- **Maker attributie op deck cards:** ✅
+  - Auteur naam + avatar op alle deck cards (landing, discover, deck detail, favorieten)
+  - Aparte profielen query voor guest compatibility (geen joins met auth.users)
 
 **Metrics:**
 - Share rate (% gebruikers dat deelt)
@@ -469,7 +472,10 @@ Zie [Quiz Modus (v2)](#quiz-modus-v2) hieronder voor de geplande uitbreiding.
   - PostgreSQL database
   - File storage (foto's, audio)
   - Row Level Security
-- Resend voor transactional emails
+- **Resend voor transactional emails** (in configuratie):
+  - Custom SMTP via Supabase Auth settings
+  - Eigen domein: naturae.app (in setup)
+  - Sender: no-reply@naturae.app
 
 ### Database Schema
 Zie [docs/database-architecture.md](database-architecture.md) voor het complete schema.
@@ -536,6 +542,38 @@ Voor elke sprint een dashboard met:
 ---
 
 ## Backlog: UX Verbeteringen
+
+### Tag Beheer (Admin)
+
+**Huidige staat:**
+- Gebruikers kiezen tags uit voorgedefinieerde lijst via TagSelector
+- Alleen admins kunnen nieuwe tags toevoegen (via database)
+- Voorkomt duplicaten en inconsistente naamgeving
+- Tag creatie door gebruikers bewust niet geïmplementeerd (overwogen maar verworpen vanwege kwaliteitscontrole)
+
+**Besluit over user-created tags (januari 2025):**
+We hebben onderzocht of gebruikers zelf tags kunnen aanmaken met fuzzy matching en normalisatie.
+Conclusie: te veel risico op tag-vervuiling (bijv. "vogellll" vs "Vogels", case-gevoeligheid issues).
+Tags blijven admin-only om consistente naamgeving te garanderen.
+
+**Te implementeren (MVP+):**
+
+1. **Tag merging (admin functie)**
+   - Duplicaten samenvoegen (bijv. "vogel" + "vogels" → "vogels")
+   - Alle deck_tags automatisch updaten naar merged tag
+   - Oude tag verwijderen
+   - UI: Admin dashboard met tag-overzicht en merge-actie
+
+2. **Tag statistieken**
+   - Aantal decks per tag
+   - Ongebruikte tags markeren
+   - Populaire tags highlighten
+
+3. **Tag aliassen** (optioneel)
+   - Meerdere namen voor dezelfde tag (bijv. "birds" → "vogels")
+   - Automatische redirect bij zoeken
+
+---
 
 ### Loading Feedback & Transitions (TODO)
 

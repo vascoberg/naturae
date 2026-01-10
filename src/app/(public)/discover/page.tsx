@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Image from "next/image";
 import { Suspense } from "react";
 import { Search, Heart } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
@@ -109,12 +110,12 @@ export default async function DiscoverPage({ searchParams }: DiscoverPageProps) 
   const { data: publicDecks } = await query;
 
   // Haal auteur profielen apart op (voor guest compatibility)
-  const authorProfiles = new Map<string, { username: string; display_name: string | null }>();
+  const authorProfiles = new Map<string, { username: string; display_name: string | null; avatar_url: string | null }>();
   if (publicDecks && publicDecks.length > 0) {
     const userIds = [...new Set(publicDecks.map((d) => d.user_id))];
     const { data: profiles } = await supabase
       .from("profiles")
-      .select("id, username, display_name")
+      .select("id, username, display_name, avatar_url")
       .in("id", userIds);
 
     if (profiles) {
@@ -122,6 +123,7 @@ export default async function DiscoverPage({ searchParams }: DiscoverPageProps) 
         authorProfiles.set(profile.id, {
           username: profile.username,
           display_name: profile.display_name,
+          avatar_url: profile.avatar_url,
         });
       }
     }
@@ -207,7 +209,24 @@ export default async function DiscoverPage({ searchParams }: DiscoverPageProps) 
                             </span>
                           )}
                         </div>
-                        {authorName && <span>door {authorName}</span>}
+                        {authorName && (
+                          <span className="flex items-center gap-1.5">
+                            door {authorName}
+                            {profile?.avatar_url ? (
+                              <Image
+                                src={profile.avatar_url}
+                                alt={authorName}
+                                width={18}
+                                height={18}
+                                className="rounded-full"
+                              />
+                            ) : (
+                              <span className="w-[18px] h-[18px] rounded-full bg-muted flex items-center justify-center text-[10px] font-medium">
+                                {authorName.charAt(0).toUpperCase()}
+                              </span>
+                            )}
+                          </span>
+                        )}
                       </div>
                     </CardContent>
                   </Card>

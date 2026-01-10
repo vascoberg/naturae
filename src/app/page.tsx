@@ -19,10 +19,13 @@ export default async function Home() {
     .order("card_count", { ascending: false })
     .limit(4);
 
-  // Haal thumbnails op: eerste afbeelding van eerste kaart per deck
+  // Haal thumbnails en auteur profielen op
   const deckThumbnails = new Map<string, string>();
+  const authorProfiles = new Map<string, { username: string; display_name: string | null; avatar_url: string | null }>();
+
   if (popularDecks && popularDecks.length > 0) {
     const deckIds = popularDecks.map((d) => d.id);
+    const userIds = [...new Set(popularDecks.map((d) => d.user_id))];
 
     // Haal eerste kaart met afbeelding per deck
     const { data: thumbnails } = await supabase
@@ -45,6 +48,22 @@ export default async function Home() {
             deckThumbnails.set(card.deck_id, media[0].url);
           }
         }
+      }
+    }
+
+    // Haal auteur profielen op
+    const { data: profiles } = await supabase
+      .from("profiles")
+      .select("id, username, display_name, avatar_url")
+      .in("id", userIds);
+
+    if (profiles) {
+      for (const profile of profiles) {
+        authorProfiles.set(profile.id, {
+          username: profile.username,
+          display_name: profile.display_name,
+          avatar_url: profile.avatar_url,
+        });
       }
     }
   }
@@ -129,6 +148,8 @@ export default async function Home() {
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
               {popularDecks.map((deck) => {
                 const thumbnail = deckThumbnails.get(deck.id);
+                const profile = authorProfiles.get(deck.user_id);
+                const authorName = profile?.display_name || profile?.username;
                 return (
                   <Link key={deck.id} href={`/decks/${deck.id}`}>
                     <Card className="h-full hover:shadow-lg transition-shadow cursor-pointer overflow-hidden">
@@ -153,14 +174,34 @@ export default async function Home() {
                           {deck.title}
                         </h3>
                         <div className="flex items-center justify-between text-sm text-muted-foreground">
-                          <span>{deck.card_count} kaarten</span>
-                          {(deck.like_count ?? 0) > 0 && (
-                            <span className="flex items-center gap-1">
-                              <Heart className="w-3 h-3" />
-                              {deck.like_count}
-                            </span>
-                          )}
+                          <div className="flex items-center gap-2">
+                            <span>{deck.card_count} kaarten</span>
+                            {(deck.like_count ?? 0) > 0 && (
+                              <span className="flex items-center gap-1">
+                                <Heart className="w-3 h-3" />
+                                {deck.like_count}
+                              </span>
+                            )}
+                          </div>
                         </div>
+                        {authorName && (
+                          <div className="flex items-center gap-1.5 mt-2 text-sm text-muted-foreground">
+                            <span>door {authorName}</span>
+                            {profile?.avatar_url ? (
+                              <Image
+                                src={profile.avatar_url}
+                                alt={authorName}
+                                width={18}
+                                height={18}
+                                className="rounded-full"
+                              />
+                            ) : (
+                              <div className="w-[18px] h-[18px] rounded-full bg-muted flex items-center justify-center text-[10px] font-medium">
+                                {authorName.charAt(0).toUpperCase()}
+                              </div>
+                            )}
+                          </div>
+                        )}
                       </CardContent>
                     </Card>
                   </Link>

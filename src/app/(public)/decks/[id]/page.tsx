@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
+import Image from "next/image";
 import { Pencil, Info } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { Button } from "@/components/ui/button";
@@ -62,7 +63,7 @@ export default async function DeckPage({ params }: DeckPageProps) {
   // Haal auteur profiel apart op (voor guest compatibility)
   const { data: authorProfile } = await supabase
     .from("profiles")
-    .select("username, display_name")
+    .select("username, display_name, avatar_url")
     .eq("id", deck.user_id)
     .single();
 
@@ -140,8 +141,21 @@ export default async function DeckPage({ params }: DeckPageProps) {
               <p className="text-muted-foreground mb-2">{deck.description}</p>
             )}
             {!isOwner && authorName && (
-              <p className="text-sm text-muted-foreground">
+              <p className="text-sm text-muted-foreground flex items-center gap-1.5">
                 door {authorName}
+                {authorProfile?.avatar_url ? (
+                  <Image
+                    src={authorProfile.avatar_url}
+                    alt={authorName}
+                    width={18}
+                    height={18}
+                    className="rounded-full"
+                  />
+                ) : (
+                  <span className="w-[18px] h-[18px] rounded-full bg-muted flex items-center justify-center text-[10px] font-medium">
+                    {authorName.charAt(0).toUpperCase()}
+                  </span>
+                )}
               </p>
             )}
           </div>

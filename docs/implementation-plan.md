@@ -547,9 +547,9 @@ interface DeckExport {
 - [ ] Analytics basis
 - [x] Vercel deployment
 - [x] Environment variables
-- [ ] Custom domain (optioneel)
+- [ ] Custom domain (naturae.app aangeschaft, DNS in afwachting)
 - [ ] Test op echte telefoon
-- [ ] Seed data in productie
+- [x] Seed data in productie
 - [x] JSON Export API route (`/api/decks/[id]/export`)
 - [x] Export knop op deck pagina (ExportButton component)
 - [x] Export bug fix (kolom mismatch card_media)
@@ -574,7 +574,7 @@ Na voltooiing van alle fasen, valideer tegen de [MVP metrics](naturae-mvp-design
 
 De toggle zit al in de deck editor (`/decks/[id]/edit`).
 
-### 6.2 Tag Systeem
+### 6.2 Tag Systeem ✅ AFGEROND
 
 **Database:** Tabellen `tags` en `deck_tags` bestaan al.
 
@@ -583,11 +583,16 @@ De toggle zit al in de deck editor (`/decks/[id]/edit`).
 - `names`: meertalig JSON (bijv. `{"nl": "Vogels", "en": "Birds"}`)
 - `type`: "topic" | "region" | "language" | "content-type"
 
+**Besluit (januari 2025):** Gebruikers kunnen GEEN eigen tags aanmaken.
+- Onderzocht: fuzzy matching + normalisatie voor user-created tags
+- Verworpen: te veel risico op tag-vervuiling (case issues, typos)
+- Tags blijven admin-only via database
+
 **UX Flow:**
 
 1. **Bij deck bewerken:** Tag selector met autocomplete
    - Bestaande tags zoeken/selecteren
-   - Nieuwe tags aanmaken
+   - ~~Nieuwe tags aanmaken~~ (bewust niet geïmplementeerd)
    - Max 5 tags per deck
 
 2. **Op Ontdek pagina:** Tag filters
@@ -774,6 +779,9 @@ const isGuest = !user;
   - [x] Study sessie voor gasten (zonder voortgang opslaan)
   - [x] Achtergrond foto voor hero sectie
 - [x] Favorieten sectie op Mijn Leersets pagina
+- [x] Maker attributie op deck cards ✅
+  - [x] Auteur naam + avatar op landing page, discover, deck detail, favorieten
+  - [x] Aparte profielen query voor guest compatibility
 - [x] WYSIWYG kaart editor ✅
   - [x] Side-by-side layout (voorkant links, achterkant rechts)
   - [x] CardSideEditor component (media + tekst per zijde)
@@ -917,15 +925,28 @@ track('deck_exported', { format: 'json' });
 
 **Huidige status:** MVP Core Sprints (1-3) - ✅ VOLLEDIG AFGEROND
 
-### Prioriteit: Email Configuratie
+### Prioriteit: Email Configuratie (In Progress)
 
 ⚠️ **Supabase email verificatie werkt niet betrouwbaar** - emails komen niet aan bij gebruikers.
 
 **Oplossing:** Resend SMTP instellen
-1. Account aanmaken op resend.com (gratis tot 3000 emails/maand)
-2. Domain verifiëren of Resend's test domain gebruiken
-3. In Supabase: **Project Settings** → **Authentication** → **SMTP Settings**
-4. Custom SMTP inschakelen met Resend credentials
+
+**Status (januari 2025):**
+- [x] Resend account aangemaakt (vascovdberg@gmail.com)
+- [x] API key gegenereerd (Full Access)
+- [x] Supabase SMTP settings geconfigureerd:
+  - Host: smtp.resend.com
+  - Port: 465
+  - User: resend
+  - Password: Resend API key
+  - Sender: onboarding@resend.dev (tijdelijk)
+- [x] naturae.app domein aangeschaft (bij Strato)
+- [ ] Domein toevoegen aan Resend
+- [ ] DNS records configureren (SPF, DKIM)
+- [ ] Sender wijzigen naar no-reply@naturae.app
+
+**Belangrijk:** Zonder geverifieerd domein kun je alleen verzenden naar test-adressen.
+Na domeinverificatie werkt email naar alle adressen.
 
 **Tijdelijke workaround:** Handmatig gebruikers verifiëren via Supabase SQL Editor:
 ```sql
