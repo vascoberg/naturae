@@ -111,7 +111,7 @@ Zie [Design Systeem - Tailwind Config](design-system.md#tailwind-configuratie) v
 - [x] Supabase clients aangemaakt (client.ts, server.ts, middleware.ts)
 - [x] Middleware voor auth redirects
 - [x] Placeholder database types
-- [ ] Git repository geinitialiseerd
+- [x] Git repository geinitialiseerd
 
 ---
 
@@ -184,7 +184,8 @@ Zie [MVP Design - Startcontent](naturae-mvp-design.md#startcontent) voor de twee
 - [x] Triggers geconfigureerd
 - [x] Storage buckets aangemaakt (avatars, media)
 - [x] TypeScript types gegenereerd
-- [ ] Seed data voorbereid (later, voor nu verder met Fase 3)
+- [x] Seed data: Nederlandse Sprinkhanen (41 soorten)
+- [x] Seed data: Nederlandse Amfibieën (16 soorten)
 
 ---
 
@@ -398,7 +399,7 @@ Zie [Data Flow Architectuur - SRS Server Action](data-flow-architecture.md#serve
 - [x] Audio player fix (unieke keys per kaart)
 - [x] Kaart terug kunnen draaien (toggle flip)
 - [x] Kaarten zichtbaar na bulk import (page reload)
-- [ ] Test met Sprinkhanen dataset (41 bestanden)
+- [x] Test met Sprinkhanen dataset (41 bestanden)
 - [x] Test met Trekvogels dataset (98 bestanden met embedded images)
 
 ---
@@ -544,11 +545,14 @@ interface DeckExport {
 - [x] Loading states (al aanwezig in study page, import, etc.)
 - [ ] Responsive design getest
 - [x] Keyboard navigatie (1/2/3 voor rating, spatie voor flip)
-- [ ] Analytics basis
+- [x] Analytics basis (Vercel Analytics geïnstalleerd)
 - [x] Vercel deployment
 - [x] Environment variables
-- [ ] Custom domain (naturae.app aangeschaft, DNS in afwachting)
-- [ ] Test op echte telefoon
+- [x] Custom domain (naturae.app live)
+- [x] Supabase URL Configuration (Site URL + Redirect URLs)
+- [x] Resend email configuratie (DKIM, SPF, DMARC)
+- [x] Email templates (Nederlands, Naturae branding)
+- [ ] Test op echte telefoon (in progress - PWA toegevoegd aan homescreen)
 - [x] Seed data in productie
 - [x] JSON Export API route (`/api/decks/[id]/export`)
 - [x] Export knop op deck pagina (ExportButton component)
@@ -925,33 +929,18 @@ track('deck_exported', { format: 'json' });
 
 **Huidige status:** MVP Core Sprints (1-3) - ✅ VOLLEDIG AFGEROND
 
-### Prioriteit: Email Configuratie (In Progress)
-
-⚠️ **Supabase email verificatie werkt niet betrouwbaar** - emails komen niet aan bij gebruikers.
-
-**Oplossing:** Resend SMTP instellen
+### Email Configuratie ✅ AFGEROND
 
 **Status (januari 2025):**
-- [x] Resend account aangemaakt (vascovdberg@gmail.com)
+- [x] Resend account aangemaakt
 - [x] API key gegenereerd (Full Access)
-- [x] Supabase SMTP settings geconfigureerd:
-  - Host: smtp.resend.com
-  - Port: 465
-  - User: resend
-  - Password: Resend API key
-  - Sender: onboarding@resend.dev (tijdelijk)
+- [x] Supabase SMTP settings geconfigureerd
 - [x] naturae.app domein aangeschaft (bij Strato)
-- [ ] Domein toevoegen aan Resend
-- [ ] DNS records configureren (SPF, DKIM)
-- [ ] Sender wijzigen naar no-reply@naturae.app
-
-**Belangrijk:** Zonder geverifieerd domein kun je alleen verzenden naar test-adressen.
-Na domeinverificatie werkt email naar alle adressen.
-
-**Tijdelijke workaround:** Handmatig gebruikers verifiëren via Supabase SQL Editor:
-```sql
-UPDATE auth.users SET email_confirmed_at = NOW() WHERE email = 'user@example.com';
-```
+- [x] Domein toegevoegd aan Resend
+- [x] DNS records geconfigureerd (DKIM, SPF, MX, DMARC)
+- [x] Sender gewijzigd naar noreply@naturae.app
+- [x] Email templates aangepast (Nederlands, Naturae branding)
+- [x] Supabase Site URL en Redirect URLs geconfigureerd
 
 ---
 

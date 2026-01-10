@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Inter, Geist_Mono } from "next/font/google";
+import { Analytics } from "@vercel/analytics/react";
 import { Toaster } from "@/components/ui/sonner";
 import "./globals.css";
 
@@ -28,8 +29,11 @@ export const metadata: Metadata = {
     telephone: false,
   },
   icons: {
-    icon: "/icons/icon-192x192.svg",
-    apple: "/icons/icon-192x192.svg",
+    icon: [
+      { url: "/favicon.ico", sizes: "32x32" },
+      { url: "/icons/icon-192x192.png", sizes: "192x192", type: "image/png" },
+    ],
+    apple: "/apple-touch-icon.png",
   },
 };
 
@@ -53,6 +57,7 @@ export default function RootLayout({
       >
         {children}
         <Toaster position="bottom-right" />
+        <Analytics />
       </body>
     </html>
   );

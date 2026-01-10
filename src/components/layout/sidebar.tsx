@@ -2,9 +2,9 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname } from "next/navigation";
 import {
-  Flower2,
   Home,
   Library,
   Compass,
@@ -55,9 +55,13 @@ export function Sidebar({ username, displayName, onLogout }: SidebarProps) {
     <>
       {/* Logo */}
       <div className="flex items-center gap-2 px-3 py-4 border-b">
-        <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-primary text-primary-foreground">
-          <Flower2 className="w-5 h-5" />
-        </div>
+        <Image
+          src="/images/logo.png"
+          alt="Naturae"
+          width={32}
+          height={32}
+          className="w-8 h-8 flex-shrink-0"
+        />
         {showLabels && (
           <span className="font-semibold text-lg text-primary">Naturae</span>
         )}
@@ -173,7 +177,13 @@ export function Sidebar({ username, displayName, onLogout }: SidebarProps) {
             </div>
           </button>
           <div className="flex items-center gap-2 ml-3">
-            <Flower2 className="w-5 h-5 text-primary" />
+            <Image
+              src="/images/logo.png"
+              alt="Naturae"
+              width={20}
+              height={20}
+              className="w-5 h-5 flex-shrink-0"
+            />
             <span className="font-semibold text-primary">Naturae</span>
           </div>
         </header>

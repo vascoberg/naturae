@@ -51,8 +51,8 @@ De BirdID app van Nord University dient als belangrijke inspiratiebron. Zie [doc
 - Email/password authenticatie (Supabase) ✅
 - Username kiezen tijdens onboarding ✅
 - Twee voorgebouwde leersets:
-  - "Nederlandse Amfibieën" (16 soorten, foto's + geluiden) ⏳ Content nog toe te voegen
-  - "Nederlandse Sprinkhanen" (48 soorten, foto's + geluiden) ⏳ Content nog toe te voegen
+  - "Nederlandse Amfibieën" (16 soorten, foto's + geluiden) ✅
+  - "Nederlandse Sprinkhanen" (41 soorten, geluiden) ✅
 - Flashcard interface: ✅
   - Foto/audio op voorkant
   - Nederlandse naam op achterkant
@@ -511,14 +511,14 @@ Voorgebouwde leersets voor lancering:
 - Foto's (met attributie)
 - Geluiden (met attributie)
 - Bron: eigen materiaal + waarneming.nl + xeno-canto
-- Status: ⏳ Content nog toe te voegen
+- Status: ✅ Geïmporteerd in productie
 
 ### 2. Nederlandse Sprinkhanen
 - 41 soorten (3 groepen: Sabelsprinkhanen, Krekels, Veldsprinkhanen)
 - Geluiden (WAV/MP3 met xeno-canto attributie)
 - Bron: lokale collectie met ID3 metadata
 - Naamconventie: `{nr}. {groep} - {wetenschappelijke naam} - {Nederlandse naam}.wav`
-- Status: ✅ Dataset beschikbaar, import via Bulk Import UI
+- Status: ✅ Geïmporteerd in productie
 
 ### 3. Nederlandse Trekvogels
 - 98 soorten (categorieën: Zangvogels, diverse families)

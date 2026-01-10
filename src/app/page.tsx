@@ -73,7 +73,14 @@ export default async function Home() {
       {/* Header */}
       <header className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
-          <Link href="/" className="text-xl font-semibold text-primary">
+          <Link href="/" className="flex items-center gap-2 text-xl font-semibold text-primary">
+            <Image
+              src="/images/logo.png"
+              alt="Naturae"
+              width={28}
+              height={28}
+              className="w-7 h-7 flex-shrink-0"
+            />
             Naturae
           </Link>
           <nav className="flex items-center gap-4">
@@ -271,6 +278,9 @@ export default async function Home() {
             <nav className="flex gap-6 text-sm text-muted-foreground">
               <Link href="/discover" className="hover:text-foreground">
                 Ontdek
+              </Link>
+              <Link href="/privacy" className="hover:text-foreground">
+                Privacy
               </Link>
               <Link href="/login" className="hover:text-foreground">
                 Inloggen
