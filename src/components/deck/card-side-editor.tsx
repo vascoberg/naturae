@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useRef } from "react";
-import { Image as ImageIcon, Music, X, Loader2, RefreshCw, Pencil } from "lucide-react";
+import Link from "next/link";
+import { Image as ImageIcon, Music, X, Loader2, RefreshCw, Pencil, PenTool } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { createClient } from "@/lib/supabase/client";
@@ -16,6 +17,7 @@ interface CardMedia {
   attributionName?: string | null;
   attributionSource?: string | null;
   license?: string | null;
+  annotatedUrl?: string | null;
 }
 
 interface CardSideEditorProps {
@@ -267,13 +269,26 @@ export function CardSideEditor({
           {hasImage && (
             <div className="relative aspect-[4/3] group">
               <img
-                src={imageMedia[0].url}
+                src={imageMedia[0].annotatedUrl || imageMedia[0].url}
                 alt=""
                 className="w-full h-full object-cover"
               />
+              {/* Badge voor geannoteerde afbeelding */}
+              {imageMedia[0].annotatedUrl && (
+                <span className="absolute top-2 left-2 bg-primary text-primary-foreground text-[10px] px-1.5 py-0.5 rounded font-medium">
+                  Geannoteerd
+                </span>
+              )}
               {/* Controls - zichtbaar bij hover */}
               {canUpload && (
                 <div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <Link
+                    href={`/annotate/${imageMedia[0].id}?deckId=${deckId}&cardId=${cardId}`}
+                    className="w-7 h-7 bg-background/90 hover:bg-background rounded-full flex items-center justify-center shadow-sm"
+                    title="Annoteren"
+                  >
+                    <PenTool className="w-3.5 h-3.5" />
+                  </Link>
                   <button
                     onClick={() => handleReplaceImage(imageMedia[0].id)}
                     className="w-7 h-7 bg-background/90 hover:bg-background rounded-full flex items-center justify-center shadow-sm"

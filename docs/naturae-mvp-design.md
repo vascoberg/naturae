@@ -364,24 +364,38 @@ Zie [Quiz Modus (v2)](#quiz-modus-v2) hieronder voor de geplande uitbreiding.
 - Challenges/competities
 - Vergelijkbare soorten ("Similar Species" zoals BirdID)
 
-### Foto Annotatie Editor (v3+)
+### Foto Annotatie Editor ✅ AFGEROND
 > Geïnspireerd door BirdID's annotated species photos (zie [research/Reference/BirdID-04-SpeciesExplanation1.PNG](research/Reference/BirdID-04-SpeciesExplanation1.PNG))
 
-**Probleem:** Voor effectief leren van soortherkenning zijn foto's met visuele annotaties essentieel - labels die wijzen naar specifieke kenmerken (bijv. "brown", "Heavy streaking", "lead-grey"). Gebruikers moeten nu foto's extern bewerken voordat ze uploaden.
+**Probleem:** Voor effectief leren van soortherkenning zijn foto's met visuele annotaties essentieel - labels die wijzen naar specifieke kenmerken (bijv. "brown", "Heavy streaking", "lead-grey"). Gebruikers moesten foto's extern bewerken voordat ze uploaden.
 
-**Oplossing:** In-app foto-editor waarmee gebruikers geüploade foto's kunnen annoteren:
-- Tekst labels toevoegen
-- Lijntjes/pijlen trekken van label naar kenmerk
-- Cirkels/ellipsen voor het markeren van gebieden
-- Kleuren kiezen voor contrast
-- Annotaties opslaan als overlay (originele foto blijft intact)
+**Oplossing:** Custom HTML5 Canvas annotatie-editor (na 3 mislukte pogingen met Fabric.js, Konva.js, en Excalidraw):
 
-**Te onderzoeken:**
-- Canvas-gebaseerde editors (Fabric.js, Konva.js)
-- SVG overlays op afbeeldingen
-- Touch-friendly drawing op mobile
-- Opslag: annotaties als JSON + SVG overlay of samengevoegde afbeelding?
-- Performance op grote afbeeldingen
+**Geïmplementeerde features:**
+- Pijlen tekenen (click-drag van start naar eind)
+- Cirkels tekenen (click center, drag voor radius)
+- Tekst labels toevoegen (click to place, inline HTML input)
+- 6 preset kleuren (wit, zwart, rood, geel, groen, blauw)
+- Selecteren, verplaatsen, resizen van annotaties
+- Auto-select na aanmaken + automatische tool switch
+- Hover feedback (blauwe glow)
+- Grotere hit areas (20px) voor makkelijk selecteren
+- Cirkel interieur klikbaar
+- Keyboard shortcuts (Delete, Escape)
+
+**Opslag (hybride):**
+- JSON annotaties in `card_media.annotations` → voor herbewerking in editor
+- PNG export in Supabase Storage → voor display in thumbnails en study sessies
+- `upsert: true` voorkomt duplicaten bij herbewerking
+
+**Technische keuze:**
+Pure HTML5 Canvas API gekozen na onderzoek:
+- Fabric.js: te complex, TypeScript issues, coördinaat problemen
+- Konva.js: vergelijkbare complexiteit, moeilijk debugbaar
+- Excalidraw: te veel overhead, styling conflicten
+- Custom Canvas: ~5KB, volledige controle, simpel debugbaar
+
+Zie [features/photo-annotation-plan.md](features/photo-annotation-plan.md) voor volledige documentatie.
 
 ### Import/Export
 > Voorkomt vendor lock-in en maakt migratie mogelijk.

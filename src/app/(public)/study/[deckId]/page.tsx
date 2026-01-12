@@ -33,6 +33,7 @@ interface StudyCard {
     position: "front" | "back" | "both";
     attribution_name: string | null;
     attribution_source: string | null;
+    annotated_url: string | null;
   }[];
   isDue: boolean;
   isNew: boolean;
@@ -285,12 +286,12 @@ function StudySession({ deckId, mode, limit }: StudySessionProps) {
   const progress = ((currentIndex + 1) / cards.length) * 100;
   const frontMedia = currentCard?.card_media?.filter((m) => m.position === "front" || m.position === "both").map((m) => ({
     type: m.type as "image" | "audio",
-    url: m.url,
+    url: m.annotated_url || m.url,
     attribution: m.attribution_source || m.attribution_name || undefined,
   }));
   const backMedia = currentCard?.card_media?.filter((m) => m.position === "back" || m.position === "both").map((m) => ({
     type: m.type as "image" | "audio",
-    url: m.url,
+    url: m.annotated_url || m.url,
     attribution: m.attribution_source || m.attribution_name || undefined,
   }));
 

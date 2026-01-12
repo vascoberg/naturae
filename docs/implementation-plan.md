@@ -864,19 +864,33 @@ track('deck_exported', { format: 'json' });
 - Toegang tot private deck zonder account
 - Token intrekken mogelijk
 
-### Foto Annotatie Editor
+### Foto Annotatie Editor ✅ AFGEROND
 
 > Geïnspireerd door BirdID's annotated species photos
 
 **Probleem:** Voor soortherkenning zijn foto's met visuele annotaties essentieel - labels die wijzen naar kenmerken (bijv. "bruine vleugel", "witte oogstreep").
 
-**Oplossing:** In-app foto-editor:
-- Tekst labels toevoegen
-- Pijlen/lijnen naar kenmerken
-- Cirkels/ellipsen voor gebieden
-- Annotaties als overlay (origineel blijft intact)
+**Oplossing:** Custom HTML5 Canvas annotatie-editor (na 3 mislukte pogingen met libraries):
 
-**Technisch:** Canvas-based met Fabric.js of Konva.js
+**Geïmplementeerde features:**
+- Pijlen tekenen (click-drag)
+- Cirkels tekenen (click center, drag radius)
+- Tekst labels toevoegen (click to place, inline input)
+- 6 preset kleuren
+- Selecteren, verplaatsen, resizen van annotaties
+- Auto-select na aanmaken
+- Hover feedback (blauwe glow)
+- Grotere hit areas (20px) voor makkelijk selecteren
+- Keyboard shortcuts (Delete, Escape)
+
+**Opslag:**
+- JSON annotaties in `card_media.annotations` (voor herbewerking)
+- PNG export in Supabase Storage (voor display)
+- `upsert: true` voorkomt duplicaten bij herbewerking
+
+**Technisch:** Pure HTML5 Canvas API (~5KB vs 150-500KB voor libraries)
+
+Zie [Photo Annotation Plan](features/photo-annotation-plan.md) voor volledige documentatie.
 
 ### Voortgangsdashboard
 

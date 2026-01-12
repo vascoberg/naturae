@@ -10,6 +10,7 @@ interface CardMedia {
   type: string;
   url: string;
   position: string;
+  annotated_url?: string | null;
 }
 
 interface CardData {
@@ -63,7 +64,7 @@ export function CardGridView({ cards }: CardGridViewProps) {
                 <div className="aspect-[4/3] bg-muted relative">
                   {imageMedia ? (
                     <img
-                      src={imageMedia.url}
+                      src={imageMedia.annotated_url || imageMedia.url}
                       alt=""
                       className="w-full h-full object-cover"
                     />
@@ -104,7 +105,7 @@ export function CardGridView({ cards }: CardGridViewProps) {
                     {/* Media thumbnail */}
                     {imageMedia ? (
                       <img
-                        src={imageMedia.url}
+                        src={imageMedia.annotated_url || imageMedia.url}
                         alt=""
                         className="w-8 h-8 object-cover rounded flex-shrink-0"
                       />

@@ -94,7 +94,8 @@ export default async function DeckPage({ params }: DeckPageProps) {
         id,
         type,
         url,
-        position
+        position,
+        annotated_url
       )
     `
     )

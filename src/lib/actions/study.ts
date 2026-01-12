@@ -184,7 +184,8 @@ export async function getStudyCards(deckId: string, mode: StudyMode = "smart", l
         url,
         position,
         attribution_name,
-        attribution_source
+        attribution_source,
+        annotated_url
       )
     `
     )

@@ -36,11 +36,17 @@ const TAG_TYPE_LABELS: Record<string, string> = {
 };
 
 export function TagSelector({ deckId, initialTags, disabled = false }: TagSelectorProps) {
+  const [mounted, setMounted] = useState(false);
   const [open, setOpen] = useState(false);
   const [selectedTags, setSelectedTags] = useState<Tag[]>(initialTags);
   const [availableTags, setAvailableTags] = useState<Tag[]>([]);
   const [isPending, startTransition] = useTransition();
   const [searchValue, setSearchValue] = useState("");
+
+  // Prevent hydration mismatch with Radix UI Popover
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   // Load all available tags on mount
   useEffect(() => {
@@ -126,59 +132,66 @@ export function TagSelector({ deckId, initialTags, disabled = false }: TagSelect
         ))}
       </div>
 
-      <Popover open={open} onOpenChange={setOpen}>
-        <PopoverTrigger asChild>
-          <Button
-            variant="outline"
-            role="combobox"
-            aria-expanded={open}
-            disabled={disabled || isPending}
-            className="justify-between"
-          >
-            Tags toevoegen...
-            <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-          </Button>
-        </PopoverTrigger>
-        <PopoverContent className="w-[300px] p-0" align="start">
-          <Command>
-            <CommandInput
-              placeholder="Zoek tags..."
-              value={searchValue}
-              onValueChange={setSearchValue}
-            />
-            <CommandList>
-              <CommandEmpty>Geen tags gevonden.</CommandEmpty>
-              {Object.entries(filteredGroups).map(([type, tags]) => (
-                <CommandGroup key={type} heading={TAG_TYPE_LABELS[type] || type}>
-                  {tags.map((tag) => {
-                    const isSelected = selectedTags.some((t) => t.id === tag.id);
-                    return (
-                      <CommandItem
-                        key={tag.id}
-                        value={`${tag.slug}-${tag.names.nl}`}
-                        onSelect={() => handleSelect(tag)}
-                      >
-                        <Check
-                          className={cn(
-                            "mr-2 h-4 w-4",
-                            isSelected ? "opacity-100" : "opacity-0"
+      {mounted ? (
+        <Popover open={open} onOpenChange={setOpen}>
+          <PopoverTrigger asChild>
+            <Button
+              variant="outline"
+              role="combobox"
+              aria-expanded={open}
+              disabled={disabled || isPending}
+              className="justify-between"
+            >
+              Tags toevoegen...
+              <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-[300px] p-0" align="start">
+            <Command>
+              <CommandInput
+                placeholder="Zoek tags..."
+                value={searchValue}
+                onValueChange={setSearchValue}
+              />
+              <CommandList>
+                <CommandEmpty>Geen tags gevonden.</CommandEmpty>
+                {Object.entries(filteredGroups).map(([type, tags]) => (
+                  <CommandGroup key={type} heading={TAG_TYPE_LABELS[type] || type}>
+                    {tags.map((tag) => {
+                      const isSelected = selectedTags.some((t) => t.id === tag.id);
+                      return (
+                        <CommandItem
+                          key={tag.id}
+                          value={`${tag.slug}-${tag.names.nl}`}
+                          onSelect={() => handleSelect(tag)}
+                        >
+                          <Check
+                            className={cn(
+                              "mr-2 h-4 w-4",
+                              isSelected ? "opacity-100" : "opacity-0"
+                            )}
+                          />
+                          {tag.names.nl}
+                          {tag.usage_count > 0 && (
+                            <span className="ml-auto text-xs text-muted-foreground">
+                              {tag.usage_count}
+                            </span>
                           )}
-                        />
-                        {tag.names.nl}
-                        {tag.usage_count > 0 && (
-                          <span className="ml-auto text-xs text-muted-foreground">
-                            {tag.usage_count}
-                          </span>
-                        )}
-                      </CommandItem>
-                    );
-                  })}
-                </CommandGroup>
-              ))}
-            </CommandList>
-          </Command>
-        </PopoverContent>
-      </Popover>
+                        </CommandItem>
+                      );
+                    })}
+                  </CommandGroup>
+                ))}
+              </CommandList>
+            </Command>
+          </PopoverContent>
+        </Popover>
+      ) : (
+        <Button variant="outline" disabled className="justify-between">
+          Tags toevoegen...
+          <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+        </Button>
+      )}
 
       {isPending && (
         <p className="text-xs text-muted-foreground">Opslaan...</p>

@@ -823,6 +823,123 @@ export async function recordAnswer(
 
 ---
 
+## Media & Annotaties
+
+### Overzicht
+
+Kaarten kunnen media bevatten (afbeeldingen, audio). Afbeeldingen kunnen worden geannoteerd met tekeningen, pijlen, tekst etc. via Excalidraw.
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                      card_media tabel                           │
+├─────────────────────────────────────────────────────────────────┤
+│  id              │  UUID                                        │
+│  card_id         │  FK naar cards                               │
+│  type            │  'image' | 'audio'                           │
+│  url             │  Originele media URL (Supabase Storage)      │
+│  annotated_url   │  Pre-rendered PNG met annotaties (nullable)  │
+│  annotations     │  Excalidraw JSON voor editing (nullable)     │
+│  position        │  'front' | 'back' | 'both'                   │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### Hybrid Storage Approach
+
+Voor annotaties gebruiken we een **hybrid storage** strategie:
+
+1. **`annotations` (JSON)** - Excalidraw element data voor bewerking
+2. **`annotated_url` (PNG)** - Pre-rendered afbeelding voor snelle weergave
+
+Dit geeft het beste van beide werelden:
+- **Snel laden**: PNG wordt direct getoond, geen client-side rendering nodig
+- **Bewerkbaar**: Originele Excalidraw data blijft beschikbaar voor editing
+
+### Data Flow: Weergave
+
+```
+┌─────────────────┐
+│  Server Query   │
+│  SELECT ...     │
+│  annotated_url, │
+│  url            │
+└────────┬────────┘
+         │
+         ▼
+┌─────────────────────────────────────┐
+│  url = annotated_url || url         │  ← Fallback naar origineel
+└────────┬────────────────────────────┘
+         │
+         ▼
+┌─────────────────┐
+│  <img src={url} │  ← Gewoon een PNG!
+│  />             │
+└─────────────────┘
+```
+
+### Data Flow: Annotatie Editor
+
+```
+┌─────────────────┐     ┌─────────────────┐     ┌─────────────────┐
+│  Open Editor    │────►│  Load Image     │────►│  Excalidraw     │
+│  /annotate/[id] │     │  (originele     │     │  Canvas         │
+│                 │     │   url)          │     │                 │
+└─────────────────┘     └─────────────────┘     └────────┬────────┘
+                                                         │
+                                                         │ User tekent
+                                                         ▼
+┌─────────────────┐     ┌─────────────────┐     ┌─────────────────┐
+│  Update DB      │◄────│  Upload PNG     │◄────│  Canvas         │
+│  annotated_url  │     │  to Storage     │     │  Composite      │
+│  annotations    │     │                 │     │  (img + draws)  │
+└─────────────────┘     └─────────────────┘     └─────────────────┘
+```
+
+### Waar wordt `annotated_url` gebruikt?
+
+| Component | Bestand | Gebruikt annotated_url? |
+|-----------|---------|------------------------|
+| Study sessie | `study/[deckId]/page.tsx` | ✅ `annotated_url \|\| url` |
+| Deck editor thumbnail | `card-side-editor.tsx` | ✅ `annotatedUrl \|\| url` |
+| Deck editor grid | `deck-editor.tsx` | ✅ `annotatedUrl \|\| url` |
+| Public deck grid | `card-grid-view.tsx` | ✅ `annotated_url \|\| url` |
+| Flashcard component | `flashcard.tsx` | ✅ (krijgt juiste URL via parent) |
+| Annotatie editor | `ExcalidrawEditor.tsx` | ❌ (gebruikt originele `url`) |
+
+### Server Actions
+
+```typescript
+// lib/actions/annotations.ts
+
+// Opslaan van annotaties
+saveAnnotations(mediaId, annotationData, base64Png)
+  → Upload PNG naar Storage: {user_id}/{deck_id}/{card_id}/annotated.png
+  → Update card_media: annotated_url, annotations
+
+// Verwijderen van annotaties
+removeAnnotations(mediaId)
+  → Delete PNG van Storage
+  → Update card_media: annotated_url = null, annotations = null
+```
+
+### Storage Pad Structuur
+
+```
+media bucket/
+└── {user_id}/
+    └── {deck_id}/
+        └── {card_id}/
+            ├── {uuid}.jpg          ← Originele upload
+            └── annotated_{uuid}.png ← Geannoteerde versie
+```
+
+### RLS Policies
+
+De storage bucket gebruikt RLS met pad-matching:
+- Upload: `auth.uid()::text = (storage.foldername(name))[1]`
+- Gebruiker kan alleen uploaden naar eigen `{user_id}/` prefix
+
+---
+
 ## Open Vragen
 
 - [x] ~~**Real-time updates**: Nodig voor multi-device sync?~~ Niet voor MVP
@@ -837,5 +954,6 @@ export async function recordAnswer(
 
 | Datum | Wijziging |
 |-------|-----------|
+| 2025-01-10 | Media & Annotaties sectie toegevoegd: hybrid storage, data flow, component overzicht |
 | 2025-01-05 | MVP beslissingen toegevoegd: geen real-time/offline, prefetch +2, server-side SRS |
 | 2025-01-05 | Initieel document aangemaakt |

@@ -27,6 +27,7 @@ interface CardMedia {
   attributionName?: string | null;
   attributionSource?: string | null;
   license?: string | null;
+  annotatedUrl?: string | null;
 }
 
 interface CardData {
@@ -319,7 +320,7 @@ export function DeckEditor({ deck, cards: initialCards, initialTags = [] }: Deck
                   {/* Media thumbnail */}
                   {imageMedia ? (
                     <img
-                      src={imageMedia.url}
+                      src={imageMedia.annotatedUrl || imageMedia.url}
                       alt=""
                       className="w-10 h-10 object-cover rounded flex-shrink-0"
                     />

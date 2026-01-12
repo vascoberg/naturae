@@ -58,7 +58,8 @@ export default async function EditDeckPage({ params }: EditDeckPageProps) {
         display_order,
         attribution_name,
         attribution_source,
-        license
+        license,
+        annotated_url
       )
     `
     )
@@ -102,6 +103,7 @@ export default async function EditDeckPage({ params }: EditDeckPageProps) {
                 attributionName: m.attribution_name,
                 attributionSource: m.attribution_source,
                 license: m.license,
+                annotatedUrl: m.annotated_url,
               })) || [],
           })) || []
         }
