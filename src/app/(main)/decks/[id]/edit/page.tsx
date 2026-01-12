@@ -56,7 +56,8 @@ export default async function EditDeckPage({ params }: EditDeckPageProps) {
         id,
         scientific_name,
         canonical_name,
-        common_names
+        common_names,
+        gbif_key
       ),
       card_media (
         id,
@@ -111,6 +112,7 @@ export default async function EditDeckPage({ params }: EditDeckPageProps) {
                 scientificName: speciesData.scientific_name,
                 canonicalName: speciesData.canonical_name,
                 commonNames: speciesData.common_names as { nl?: string },
+                gbifKey: speciesData.gbif_key,
               } : null,
               media:
                 card.card_media?.map((m) => ({

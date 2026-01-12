@@ -165,11 +165,9 @@ export function Flashcard({
       role="button"
       aria-label={isFlipped ? "Toon vraag" : "Toon antwoord"}
     >
+      {/* Grid container: beide kanten overlappen en de grootste bepaalt de hoogte */}
       <div
-        className={cn(
-          "relative w-full transition-transform duration-500 transform-style-3d",
-          isFlipped && "rotate-y-180"
-        )}
+        className="grid grid-cols-1 grid-rows-1 transition-transform duration-500"
         style={{
           transformStyle: "preserve-3d",
           transform: isFlipped ? "rotateY(180deg)" : "rotateY(0deg)",
@@ -178,7 +176,7 @@ export function Flashcard({
         {/* Front */}
         <Card
           className={cn(
-            "w-full min-h-[400px] flex items-center justify-center backface-hidden",
+            "col-start-1 row-start-1 w-full min-h-[400px] flex items-center justify-center",
             isFlipped && "invisible"
           )}
           style={{ backfaceVisibility: "hidden" }}
@@ -212,7 +210,7 @@ export function Flashcard({
         {/* Back */}
         <Card
           className={cn(
-            "w-full min-h-[400px] flex items-center justify-center absolute inset-0 backface-hidden rotate-y-180",
+            "col-start-1 row-start-1 w-full min-h-[400px] flex items-center justify-center",
             !isFlipped && "invisible"
           )}
           style={{

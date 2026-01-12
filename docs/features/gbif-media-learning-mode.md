@@ -477,5 +477,170 @@ Console logging is ingebouwd voor debugging:
 
 ---
 
+## Feature 2: GBIF Media Search in Card Editor
+
+### Status: Geimplementeerd
+
+### Doel
+
+Gebruikers kunnen vanuit de card editor foto's zoeken in de GBIF database op basis van de gekoppelde soort. Dit is vooral nuttig voor decks die alleen audio hebben en foto's willen toevoegen.
+
+### User Flow
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│  CardSideEditor (Voorkant)                                  │
+│  ┌─────────────────────────────────────────────────────────┐
+│  │                 [Audio player]                          │
+│  └─────────────────────────────────────────────────────────┘
+│                                                              │
+│  [📷 Foto]  [🔍 GBIF]  ← Nieuwe knop                        │
+└─────────────────────────────────────────────────────────────┘
+
+↓ Klik op GBIF
+
+┌─────────────────────────────────────────────────────────────┐
+│  Foto's voor "Bruine kikker"                           [X]  │
+│                                                              │
+│  ┌──────┐  ┌──────┐  ┌──────┐  ┌──────┐                     │
+│  │      │  │      │  │      │  │      │                     │
+│  │ foto │  │ foto │  │ foto │  │ foto │                     │
+│  │      │  │      │  │      │  │      │                     │
+│  └──────┘  └──────┘  └──────┘  └──────┘                     │
+│  CC-BY     CC0       CC-BY     CC-BY                        │
+│  iNat      Flickr    iNat      iNat                         │
+│                                                              │
+│  [Meer laden...]                                            │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### Technische Implementatie
+
+#### Fase 1: GBIF Service Uitbreiden
+
+**Bestand:** `src/lib/services/gbif-media.ts`
+
+Nieuwe functie:
+```typescript
+export async function getSpeciesMediaList(
+  options: GBIFMediaOptions & { offset?: number }
+): Promise<{ media: GBIFMediaResult[]; hasMore: boolean }>;
+```
+
+Verschil met `getRandomSpeciesMedia`:
+- Retourneert meerdere resultaten (niet slechts één)
+- Ondersteunt paginatie met offset
+- Geeft `hasMore` terug voor infinite scroll
+
+#### Fase 2: Server Action
+
+**Bestand:** `src/lib/actions/decks.ts`
+
+Nieuwe functie:
+```typescript
+export async function addGBIFMediaToCard(
+  cardId: string,
+  media: {
+    url: string;
+    position: "front" | "back" | "both";
+    creator: string | null;
+    license: "CC0" | "CC-BY";
+    source: string;
+    references: string | null;
+  }
+): Promise<{ id: string }>;
+```
+
+Kenmerken:
+- Slaat externe URL direct op (geen upload naar Supabase storage)
+- Vult attributie velden in: `attribution_name`, `attribution_source`, `attribution_url`, `license`
+
+#### Fase 3: GBIF Media Picker Component
+
+**Bestand:** `src/components/deck/gbif-media-picker.tsx`
+
+```typescript
+interface GBIFMediaPickerProps {
+  gbifKey: number;
+  speciesName: string;
+  onSelect: (media: GBIFMediaResult) => void;
+  onClose: () => void;
+}
+```
+
+Features:
+- Dialog/modal met grid van beschikbare foto's
+- Laadt meerdere foto's van GBIF
+- Toont thumbnail met attributie-info
+- "Meer laden" knop voor paginatie
+- Loading states en error handling
+
+#### Fase 4: CardSideEditor Integratie
+
+**Bestand:** `src/components/deck/card-side-editor.tsx`
+
+Wijzigingen:
+- Nieuwe knop "🔍 GBIF" naast "📷 Foto" knop
+- Knop alleen actief als kaart een species met `gbif_key` heeft
+- Props uitbreiden: `speciesGbifKey?: number`, `speciesName?: string`
+
+#### Fase 5: Props Doorgeven
+
+**Bestand:** `src/components/deck/wysiwyg-card-editor.tsx`
+
+- Pass `gbifKey` van geselecteerde species naar `CardSideEditor`
+- Requires access to `selectedSpecies.gbif_key`
+
+### Technische Overwegingen
+
+- **Lokale opslag:** GBIF foto's worden gedownload en opgeslagen in Supabase storage. Dit voorkomt CORS-problemen in de annotatie-editor en zorgt voor permanente beschikbaarheid (GBIF URLs kunnen veranderen).
+- **Server-side download:** De `addGBIFMediaToCard` server action download de afbeelding server-side en upload deze naar Supabase.
+- **Attributie:** Volledig ingevuld bij opslaan (creator, license, source, references)
+
+### CORS Fix voor Annotatie-editor
+
+**Probleem:** Externe afbeeldingen van GBIF (iNaturalist, Flickr) konden niet worden geannoteerd omdat de browser canvas-toegang blokkeert voor cross-origin afbeeldingen.
+
+**Oplossing:** Bij selectie van een GBIF foto:
+1. Server action `addGBIFMediaToCard` download de afbeelding
+2. Afbeelding wordt opgeslagen in Supabase storage (`media/{userId}/{deckId}/{cardId}/{uuid}.jpg`)
+3. Lokale Supabase URL wordt opgeslagen in `card_media.url`
+4. Annotatie-editor werkt nu zonder CORS-problemen
+
+**Bestand:** `src/lib/actions/decks.ts`
+```typescript
+export async function addGBIFMediaToCard(
+  cardId: string,
+  deckId: string,
+  data: {
+    externalUrl: string;
+    position: "front" | "back" | "both";
+    attributionName?: string;
+    attributionUrl?: string;
+    attributionSource?: string;
+    license?: string;
+  }
+): Promise<{ id: string; url: string }>;
+```
+
+### Vereisten
+
+#### Must Have ✅
+- [x] GBIF zoekknop in card editor (alleen bij species met gbif_key)
+- [x] Grid weergave van beschikbare foto's
+- [x] Selectie en opslaan van foto met attributie
+- [x] CC0/CC-BY licentie filtering
+
+#### Should Have ✅
+- [x] Paginatie ("Meer laden")
+- [x] Loading state tijdens zoeken
+- [x] Preview van foto voor selectie
+
+#### Could Have (niet geïmplementeerd)
+- [ ] Filter op bron (iNaturalist, Flickr, etc.)
+- [ ] Zoeken naar video's (Sound media type)
+
+---
+
 *Document aangemaakt: januari 2026*
-*Laatste update: januari 2026 - Implementatie voltooid*
+*Laatste update: januari 2026 - CORS fix voor annotatie-editor toegevoegd*

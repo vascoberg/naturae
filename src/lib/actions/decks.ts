@@ -358,6 +358,135 @@ export async function addCardMedia(
   return { id: media.id };
 }
 
+/**
+ * Download een afbeelding van een externe URL (GBIF) en sla op in Supabase storage.
+ * Dit lost CORS-problemen op voor de annotatie-editor.
+ */
+export async function addGBIFMediaToCard(
+  cardId: string,
+  deckId: string,
+  data: {
+    externalUrl: string;
+    position: "front" | "back" | "both";
+    attributionName?: string;
+    attributionUrl?: string;
+    attributionSource?: string;
+    license?: string;
+  }
+): Promise<{ id: string; url: string }> {
+  const supabase = await createClient();
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    throw new Error("Niet ingelogd");
+  }
+
+  // Verify card and deck ownership
+  const { data: card } = await supabase
+    .from("cards")
+    .select("id, deck_id")
+    .eq("id", cardId)
+    .single();
+
+  if (!card) {
+    throw new Error("Kaart niet gevonden");
+  }
+
+  const { data: deck } = await supabase
+    .from("decks")
+    .select("user_id")
+    .eq("id", card.deck_id)
+    .single();
+
+  if (!deck || deck.user_id !== user.id) {
+    throw new Error("Geen toegang tot deze kaart");
+  }
+
+  // Download de afbeelding van de externe URL
+  console.log(`[GBIF] Downloading image from: ${data.externalUrl.substring(0, 80)}...`);
+
+  const imageResponse = await fetch(data.externalUrl);
+  if (!imageResponse.ok) {
+    throw new Error(`Kon afbeelding niet downloaden: ${imageResponse.status}`);
+  }
+
+  const imageBlob = await imageResponse.blob();
+  const contentType = imageResponse.headers.get("content-type") || "image/jpeg";
+
+  // Bepaal extensie uit content-type
+  let ext = "jpg";
+  if (contentType.includes("png")) ext = "png";
+  else if (contentType.includes("webp")) ext = "webp";
+  else if (contentType.includes("gif")) ext = "gif";
+
+  // Genereer unieke bestandsnaam
+  const filename = `${crypto.randomUUID()}.${ext}`;
+  const storagePath = `${user.id}/${deckId}/${cardId}/${filename}`;
+
+  // Upload naar Supabase storage
+  const { error: uploadError } = await supabase.storage
+    .from("media")
+    .upload(storagePath, imageBlob, {
+      contentType,
+      upsert: false,
+    });
+
+  if (uploadError) {
+    console.error("Upload error:", uploadError);
+    throw new Error("Kon afbeelding niet uploaden naar storage");
+  }
+
+  // Haal publieke URL op
+  const { data: urlData } = supabase.storage
+    .from("media")
+    .getPublicUrl(storagePath);
+
+  const publicUrl = urlData.publicUrl;
+  console.log(`[GBIF] Image uploaded to: ${publicUrl.substring(0, 80)}...`);
+
+  // Get next display order
+  const { data: lastMedia } = await supabase
+    .from("card_media")
+    .select("display_order")
+    .eq("card_id", cardId)
+    .eq("position", data.position)
+    .order("display_order", { ascending: false })
+    .limit(1)
+    .single();
+
+  const displayOrder = (lastMedia?.display_order ?? -1) + 1;
+
+  // Voeg media record toe
+  const { data: media, error } = await supabase
+    .from("card_media")
+    .insert({
+      card_id: cardId,
+      type: "image",
+      url: publicUrl,
+      position: data.position,
+      display_order: displayOrder,
+      attribution_name: data.attributionName || null,
+      attribution_url: data.attributionUrl || null,
+      attribution_source: data.attributionSource || null,
+      license: data.license || null,
+    })
+    .select("id")
+    .single();
+
+  if (error) {
+    console.error("Error adding card media:", error);
+    throw new Error("Kon media niet toevoegen aan database");
+  }
+
+  revalidatePath(`/decks/${card.deck_id}`);
+  revalidatePath(`/decks/${card.deck_id}/edit`);
+
+  return { id: media.id, url: publicUrl };
+}
+
 export async function updateCardMediaAttribution(mediaId: string, attribution: string) {
   const supabase = await createClient();
 

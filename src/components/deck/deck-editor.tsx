@@ -35,6 +35,7 @@ interface CardSpecies {
   scientificName: string;
   canonicalName: string;
   commonNames: { nl?: string };
+  gbifKey?: number | null;
 }
 
 interface CardData {

@@ -23,6 +23,7 @@ interface CardSpecies {
   scientificName: string;
   canonicalName: string;
   commonNames: { nl?: string };
+  gbifKey?: number | null;
 }
 
 interface WysiwygCardEditorProps {
@@ -77,7 +78,7 @@ export function WysiwygCardEditor({
           canonical_name: initialSpecies.canonicalName,
           common_names: initialSpecies.commonNames,
           taxonomy: {},
-          gbif_key: null,
+          gbif_key: initialSpecies.gbifKey ?? null,
           source: "gbif",
           gbif_data: null,
           created_at: "",
@@ -98,6 +99,13 @@ export function WysiwygCardEditor({
 
   const canSave = backText.trim().length > 0;
 
+  // GBIF props voor CardSideEditor
+  const speciesGbifKey = selectedSpecies?.gbif_key;
+  const speciesDisplayName = selectedSpecies?.common_names?.nl ||
+    selectedSpecies?.canonical_name ||
+    selectedSpecies?.scientific_name ||
+    null;
+
   return (
     <div className="space-y-4">
       {/* Side-by-side layout op desktop, stacked op mobiel */}
@@ -115,6 +123,8 @@ export function WysiwygCardEditor({
           onMediaDeleted={onMediaDeleted}
           onMediaUpdated={onMediaUpdated}
           placeholder="Vraag, hint of context (optioneel)"
+          speciesGbifKey={speciesGbifKey}
+          speciesName={speciesDisplayName}
         />
 
         {/* Achterkant - rechts */}
@@ -130,6 +140,8 @@ export function WysiwygCardEditor({
           onMediaDeleted={onMediaDeleted}
           onMediaUpdated={onMediaUpdated}
           placeholder="Extra informatie (optioneel)"
+          speciesGbifKey={speciesGbifKey}
+          speciesName={speciesDisplayName}
         />
       </div>
 

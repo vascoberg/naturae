@@ -285,3 +285,77 @@ export function formatAttribution(media: GBIFMediaResult): string {
 
   return `📷 ${parts.join(" · ")}`;
 }
+
+/**
+ * Haal een lijst van media op voor een soort (voor de card editor picker)
+ * Ondersteunt paginatie voor "meer laden" functionaliteit
+ */
+export async function getSpeciesMediaList(
+  options: GBIFMediaOptions & { offset?: number }
+): Promise<{ media: GBIFMediaResult[]; hasMore: boolean; total: number }> {
+  const { gbifKey, mediaType = "StillImage", limit = 20, offset = 0 } = options;
+
+  // Fetch CC0 en CC-BY apart en combineer
+  const [cc0Response, ccbyResponse] = await Promise.all([
+    fetchOccurrencesWithLicenseAndCount(gbifKey, "CC0_1_0", mediaType, limit, offset),
+    fetchOccurrencesWithLicenseAndCount(gbifKey, "CC_BY_4_0", mediaType, limit, offset),
+  ]);
+
+  // Extract media from all occurrences
+  const allMedia = [
+    ...extractMediaFromOccurrences(cc0Response.results),
+    ...extractMediaFromOccurrences(ccbyResponse.results),
+  ];
+
+  // Deduplicate by identifier URL
+  const uniqueMedia = Array.from(
+    new Map(allMedia.map(m => [m.identifier, m])).values()
+  );
+
+  const totalCount = cc0Response.count + ccbyResponse.count;
+  const hasMore = offset + limit < totalCount;
+
+  return {
+    media: uniqueMedia,
+    hasMore,
+    total: totalCount,
+  };
+}
+
+/**
+ * Fetch occurrences met count voor paginatie
+ */
+async function fetchOccurrencesWithLicenseAndCount(
+  gbifKey: number,
+  license: "CC0_1_0" | "CC_BY_4_0",
+  mediaType: string = "StillImage",
+  limit: number = 20,
+  offset: number = 0
+): Promise<{ results: GBIFOccurrenceResult[]; count: number }> {
+  const params = new URLSearchParams({
+    taxonKey: gbifKey.toString(),
+    mediaType,
+    license,
+    limit: limit.toString(),
+    offset: offset.toString(),
+  });
+
+  const url = `${GBIF_API_BASE}/occurrence/search?${params}`;
+
+  try {
+    const response = await fetchWithTimeout(url);
+    if (!response.ok) {
+      console.error(`GBIF API error: ${response.status}`);
+      return { results: [], count: 0 };
+    }
+    const data: GBIFOccurrenceResponse = await response.json();
+    return { results: data.results || [], count: data.count };
+  } catch (error) {
+    if (error instanceof Error && error.name === "AbortError") {
+      console.error("GBIF API request timed out");
+    } else {
+      console.error("GBIF API request failed:", error);
+    }
+    return { results: [], count: 0 };
+  }
+}

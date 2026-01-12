@@ -2,11 +2,13 @@
 
 import { useState, useRef } from "react";
 import Link from "next/link";
-import { Image as ImageIcon, Music, X, Loader2, RefreshCw, Pencil, PenTool } from "lucide-react";
+import { Image as ImageIcon, Music, X, Loader2, RefreshCw, Pencil, PenTool, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { createClient } from "@/lib/supabase/client";
-import { addCardMedia, deleteCardMedia, updateCardMediaAttribution } from "@/lib/actions/decks";
+import { addCardMedia, addGBIFMediaToCard, deleteCardMedia, updateCardMediaAttribution } from "@/lib/actions/decks";
+import { GBIFMediaPicker } from "./gbif-media-picker";
+import type { GBIFMediaResult } from "@/lib/services/gbif-media";
 
 interface CardMedia {
   id: string;
@@ -33,6 +35,8 @@ interface CardSideEditorProps {
   onMediaUpdated?: (mediaId: string, attribution: string) => void;
   placeholder?: string;
   required?: boolean;
+  speciesGbifKey?: number | null;
+  speciesName?: string | null;
 }
 
 export function CardSideEditor({
@@ -48,6 +52,8 @@ export function CardSideEditor({
   onMediaUpdated,
   placeholder,
   required = false,
+  speciesGbifKey,
+  speciesName,
 }: CardSideEditorProps) {
   const [isUploading, setIsUploading] = useState(false);
   const [uploadType, setUploadType] = useState<"image" | "audio" | null>(null);
@@ -56,6 +62,7 @@ export function CardSideEditor({
   const [replacingMediaId, setReplacingMediaId] = useState<string | null>(null);
   const [editingAttributionId, setEditingAttributionId] = useState<string | null>(null);
   const [editingAttributionValue, setEditingAttributionValue] = useState("");
+  const [isGBIFPickerOpen, setIsGBIFPickerOpen] = useState(false);
   const imageInputRef = useRef<HTMLInputElement>(null);
   const audioInputRef = useRef<HTMLInputElement>(null);
 
@@ -197,7 +204,52 @@ export function CardSideEditor({
     }
   };
 
+  const handleGBIFMediaSelect = async (gbifMedia: GBIFMediaResult) => {
+    if (!cardId || !deckId || !onMediaAdded) return;
+
+    setIsUploading(true);
+    setUploadType("image");
+
+    try {
+      // Format attribution string
+      const attributionParts = [];
+      if (gbifMedia.creator) attributionParts.push(gbifMedia.creator);
+      attributionParts.push(gbifMedia.licenseType);
+      attributionParts.push(gbifMedia.source);
+      const attributionSource = attributionParts.join(" · ");
+
+      // Download de afbeelding server-side en upload naar Supabase
+      // Dit lost CORS-problemen op voor de annotatie-editor
+      const result = await addGBIFMediaToCard(cardId, deckId, {
+        externalUrl: gbifMedia.identifier,
+        position: side,
+        attributionName: gbifMedia.creator || undefined,
+        attributionUrl: gbifMedia.references || undefined,
+        attributionSource,
+        license: gbifMedia.licenseType,
+      });
+
+      onMediaAdded({
+        id: result.id,
+        type: "image",
+        url: result.url, // Nu de Supabase URL, niet de externe URL
+        position: side,
+        displayOrder: sideMedia.length,
+        attributionName: gbifMedia.creator || null,
+        attributionSource,
+        license: gbifMedia.licenseType,
+      });
+    } catch (error) {
+      console.error("Error adding GBIF media:", error);
+      alert("Er ging iets mis bij het toevoegen van de foto");
+    } finally {
+      setIsUploading(false);
+      setUploadType(null);
+    }
+  };
+
   const canUpload = cardId && deckId && onMediaAdded;
+  const canSearchGBIF = canUpload && speciesGbifKey;
   const hasImage = imageMedia.length > 0;
   const hasAudio = audioMedia.length > 0;
   const hasAnyMedia = hasImage || hasAudio;
@@ -372,23 +424,37 @@ export function CardSideEditor({
           {/* Upload knoppen - als er nog ruimte is voor media */}
           {canUpload && (!hasImage || !hasAudio) && (
             <div className={`p-3 ${hasAnyMedia ? "border-t" : "aspect-[4/3] flex flex-col items-center justify-center"}`}>
-              <div className={`flex gap-2 ${hasAnyMedia ? "" : "mb-2"}`}>
+              <div className={`flex gap-2 flex-wrap justify-center ${hasAnyMedia ? "" : "mb-2"}`}>
                 {!hasImage && (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => imageInputRef.current?.click()}
-                    disabled={isUploading}
-                  >
-                    {isUploading && uploadType === "image" ? (
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                    ) : (
-                      <>
-                        <ImageIcon className="w-4 h-4 mr-1" />
-                        Foto
-                      </>
+                  <>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => imageInputRef.current?.click()}
+                      disabled={isUploading}
+                    >
+                      {isUploading && uploadType === "image" ? (
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                      ) : (
+                        <>
+                          <ImageIcon className="w-4 h-4 mr-1" />
+                          Foto
+                        </>
+                      )}
+                    </Button>
+                    {canSearchGBIF && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setIsGBIFPickerOpen(true)}
+                        disabled={isUploading}
+                        title="Zoek foto in GBIF database"
+                      >
+                        <Search className="w-4 h-4 mr-1" />
+                        GBIF
+                      </Button>
                     )}
-                  </Button>
+                  </>
                 )}
                 {!hasAudio && (
                   <Button
@@ -468,6 +534,17 @@ export function CardSideEditor({
         className="hidden"
         onChange={handleAudioSelect}
       />
+
+      {/* GBIF Media Picker */}
+      {speciesGbifKey && speciesName && (
+        <GBIFMediaPicker
+          gbifKey={speciesGbifKey}
+          speciesName={speciesName}
+          isOpen={isGBIFPickerOpen}
+          onClose={() => setIsGBIFPickerOpen(false)}
+          onSelect={handleGBIFMediaSelect}
+        />
+      )}
     </div>
   );
 }
