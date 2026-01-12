@@ -2,6 +2,7 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { fsrs, generatorParameters, Rating, State, type Card as FSRSCard, type Grade, createEmptyCard } from "ts-fsrs";
+import { getMediaForSpecies, type GBIFMediaResult } from "@/lib/services/gbif-media";
 
 // Initialize FSRS with default parameters
 const f = fsrs(generatorParameters());
@@ -127,7 +128,7 @@ export async function recordAnswer(cardId: string, rating: UserRating) {
   };
 }
 
-export type StudyMode = "order" | "shuffle" | "smart";
+export type StudyMode = "order" | "shuffle" | "smart" | "photos";
 
 // Check of user is ingelogd
 export async function isUserLoggedIn(): Promise<boolean> {
@@ -275,5 +276,191 @@ export async function getStudyCards(deckId: string, mode: StudyMode = "smart", l
       });
       return applyLimit(sortedDueCards);
   }
+}
+
+// ============================================================================
+// Openbare Foto's Modus
+// ============================================================================
+
+export interface PublicPhotoStudyCard {
+  cardId: string;
+  speciesId: string;
+  /** Naam van de soort (back_text van de kaart, of GBIF naam als fallback) */
+  speciesName: string;
+  scientificName: string;
+  backText: string | null;
+  photo: {
+    url: string;
+    creator: string | null;
+    license: "CC0" | "CC-BY";
+    source: string;
+    references: string | null;
+  } | null;
+}
+
+/**
+ * Haal kaarten op met openbare foto's voor study sessie
+ * Alleen kaarten met species_id en geldige gbif_key worden meegenomen
+ */
+export async function getPublicPhotoStudyCards(
+  deckId: string,
+  options?: { shuffle?: boolean }
+): Promise<{ data: PublicPhotoStudyCard[]; error?: string }> {
+  const supabase = await createClient();
+
+  // Check of deck openbaar is of user toegang heeft
+  const { data: { user } } = await supabase.auth.getUser();
+
+  const { data: deck } = await supabase
+    .from("decks")
+    .select("is_public, user_id")
+    .eq("id", deckId)
+    .is("deleted_at", null)
+    .single();
+
+  if (!deck) {
+    return { data: [], error: "Deck niet gevonden" };
+  }
+
+  // Check access
+  if (!deck.is_public && (!user || deck.user_id !== user.id)) {
+    return { data: [], error: "Geen toegang tot dit deck" };
+  }
+
+  // Get all cards with species that have gbif_key
+  const { data: cards, error: cardsError } = await supabase
+    .from("cards")
+    .select(`
+      id,
+      front_text,
+      back_text,
+      position,
+      species_id,
+      species_display,
+      species:species_id (
+        id,
+        scientific_name,
+        canonical_name,
+        common_names,
+        gbif_key
+      )
+    `)
+    .eq("deck_id", deckId)
+    .is("deleted_at", null)
+    .not("species_id", "is", null)
+    .order("position", { ascending: true });
+
+  if (cardsError) {
+    return { data: [], error: "Kon kaarten niet ophalen" };
+  }
+
+  if (!cards || cards.length === 0) {
+    return { data: [], error: "Geen kaarten met soorten gevonden" };
+  }
+
+  // Helper om species object te krijgen (Supabase kan array of object retourneren)
+  const getSpeciesObject = (species: unknown) => {
+    if (Array.isArray(species)) return species[0];
+    return species;
+  };
+
+  // Filter cards that have a valid gbif_key
+  const cardsWithGbif = cards.filter((card) => {
+    const species = getSpeciesObject(card.species);
+    return species && typeof species === "object" && "gbif_key" in species && species.gbif_key;
+  });
+
+  if (cardsWithGbif.length === 0) {
+    return { data: [], error: "Geen kaarten met GBIF-gekoppelde soorten gevonden" };
+  }
+
+  // Build species list for batch request
+  const speciesList = cardsWithGbif.map((card) => {
+    const species = getSpeciesObject(card.species) as { gbif_key: number };
+    return {
+      gbifKey: species.gbif_key,
+      cardId: card.id,
+    };
+  });
+
+  // Fetch photos from GBIF
+  const photoMap = await getMediaForSpecies(speciesList);
+
+  // Build result cards
+  const resultCards: PublicPhotoStudyCard[] = [];
+
+  for (const card of cardsWithGbif) {
+    const species = getSpeciesObject(card.species) as {
+      id: string;
+      scientific_name: string;
+      canonical_name: string | null;
+      common_names: { nl?: string } | null;
+      gbif_key: number;
+    };
+
+    const photo = photoMap.get(card.id);
+
+    // Prioriteit voor naam:
+    // 1. back_text (de naam die de gebruiker heeft ingevoerd, bijv. "Bruine kikker")
+    // 2. GBIF Dutch common name
+    // 3. GBIF canonical name
+    // 4. GBIF scientific name (altijd beschikbaar als fallback)
+    // NB: species_display is een enum ("front"/"back"/"both"/"none"), niet een naam!
+    const speciesName =
+      card.back_text ||
+      species.common_names?.nl ||
+      species.canonical_name ||
+      species.scientific_name;
+
+    resultCards.push({
+      cardId: card.id,
+      speciesId: species.id,
+      speciesName,
+      scientificName: species.scientific_name,
+      backText: null, // back_text wordt nu als speciesName gebruikt
+      photo: photo
+        ? {
+            url: photo.identifier,
+            creator: photo.creator,
+            license: photo.licenseType,
+            source: photo.source,
+            references: photo.references,
+          }
+        : null,
+    });
+  }
+
+  // Filter out cards without photos
+  const cardsWithPhotos = resultCards.filter((card) => card.photo !== null);
+
+  // Optionally shuffle
+  if (options?.shuffle) {
+    return { data: shuffleArray(cardsWithPhotos) };
+  }
+
+  return { data: cardsWithPhotos };
+}
+
+/**
+ * Check of een deck geschikt is voor openbare foto's modus
+ * Returns het aantal kaarten met GBIF-gekoppelde soorten
+ */
+export async function checkPublicPhotosAvailability(
+  deckId: string
+): Promise<{ available: boolean; speciesCount: number }> {
+  const supabase = await createClient();
+
+  const { count, error } = await supabase
+    .from("cards")
+    .select("id, species:species_id!inner(gbif_key)", { count: "exact", head: true })
+    .eq("deck_id", deckId)
+    .is("deleted_at", null)
+    .not("species_id", "is", null);
+
+  if (error || count === null) {
+    return { available: false, speciesCount: 0 };
+  }
+
+  return { available: count > 0, speciesCount: count };
 }
 

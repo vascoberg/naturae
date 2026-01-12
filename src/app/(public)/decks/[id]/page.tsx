@@ -81,7 +81,7 @@ export default async function DeckPage({ params }: DeckPageProps) {
     isLiked = !!like;
   }
 
-  // Haal kaarten op met media
+  // Haal kaarten op met media en species info
   const { data: cards } = await supabase
     .from("cards")
     .select(
@@ -90,6 +90,10 @@ export default async function DeckPage({ params }: DeckPageProps) {
       front_text,
       back_text,
       position,
+      species_id,
+      species:species_id (
+        gbif_key
+      ),
       card_media (
         id,
         type,
@@ -102,6 +106,11 @@ export default async function DeckPage({ params }: DeckPageProps) {
     .eq("deck_id", id)
     .is("deleted_at", null)
     .order("position", { ascending: true });
+
+  // Tel kaarten met GBIF-gekoppelde soorten (voor openbare foto's modus)
+  const speciesCardsCount = cards?.filter(
+    (c) => c.species && typeof c.species === "object" && "gbif_key" in c.species && c.species.gbif_key
+  ).length || 0;
 
   // Haal voortgang op (alleen voor ingelogde gebruikers)
   let progress: {
@@ -215,6 +224,7 @@ export default async function DeckPage({ params }: DeckPageProps) {
             deckId={deck.id}
             totalCards={totalCards}
             dueCards={isGuest ? totalCards : cardsDue + newCards}
+            speciesCardsCount={speciesCardsCount}
             hasStarted={!isGuest && cardsSeen > 0}
             isGuest={isGuest}
           />

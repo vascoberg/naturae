@@ -3,17 +3,18 @@
 import { useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { ListOrdered, Shuffle, Brain, Info } from "lucide-react";
+import { ListOrdered, Shuffle, Brain, Info, Leaf } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
-export type SessionMode = "order" | "shuffle" | "smart";
+export type SessionMode = "order" | "shuffle" | "smart" | "photos";
 
 interface SessionModeSelectorProps {
   deckId: string;
   totalCards: number;
   dueCards: number;
+  speciesCardsCount?: number; // Aantal kaarten met GBIF-gekoppelde soorten
   isGuest?: boolean;
   onClose?: () => void;
 }
@@ -25,6 +26,7 @@ export function SessionModeSelector({
   deckId,
   totalCards,
   dueCards,
+  speciesCardsCount = 0,
   isGuest = false,
   onClose,
 }: SessionModeSelectorProps) {
@@ -42,6 +44,8 @@ export function SessionModeSelector({
     if (cardLimit === null) return modeCardCount;
     return Math.min(cardLimit, modeCardCount);
   };
+
+  const hasSpeciesCards = speciesCardsCount > 0;
 
   const modes = [
     {
@@ -69,6 +73,17 @@ export function SessionModeSelector({
       cardLabel: "te herhalen",
     },
   ];
+
+  // Openbare foto's modus - alleen tonen als er species-kaarten zijn
+  const publicPhotosMode = hasSpeciesCards ? {
+    id: "photos" as SessionMode,
+    icon: Leaf,
+    title: "Openbare foto's",
+    description: "Leer met gevarieerde natuurfoto's uit openbare databases",
+    cardCount: speciesCardsCount,
+    cardLabel: "soorten beschikbaar",
+    isSpecial: true,
+  } : null;
 
   const handleStart = () => {
     if (!selectedMode) return;
@@ -145,6 +160,52 @@ export function SessionModeSelector({
             </div>
           );
         })}
+
+        {/* Openbare foto's modus - speciale weergave */}
+        {publicPhotosMode && (
+          <div>
+            <Card
+              className={cn(
+                "cursor-pointer transition-all border-green-200 dark:border-green-900",
+                selectedMode === "photos" && "ring-2 ring-green-500 border-green-500",
+                !selectedMode && "hover:border-green-400"
+              )}
+              onClick={() => setSelectedMode("photos")}
+            >
+              <CardContent className="p-4">
+                <div className="flex items-center gap-4">
+                  <div
+                    className={cn(
+                      "p-3 rounded-lg",
+                      selectedMode === "photos"
+                        ? "bg-green-500 text-white"
+                        : "bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300"
+                    )}
+                  >
+                    <Leaf className="w-6 h-6" />
+                  </div>
+                  <div className="flex-1">
+                    <h3 className="font-medium">{publicPhotosMode.title}</h3>
+                    <p className="text-sm text-muted-foreground">
+                      {publicPhotosMode.description}
+                    </p>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-lg font-semibold">{publicPhotosMode.cardCount}</p>
+                    <p className="text-xs text-muted-foreground">{publicPhotosMode.cardLabel}</p>
+                  </div>
+                </div>
+                {/* Extra info */}
+                <div className="mt-3 pt-3 border-t border-green-200 dark:border-green-900">
+                  <p className="text-xs text-muted-foreground flex items-center gap-1">
+                    <Info className="w-3 h-3" />
+                    Elke sessie andere afbeeldingen onder CC0/CC-BY licentie
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        )}
       </div>
 
       {/* Aantal kaarten sectie - alleen tonen als er limit opties zijn */}
