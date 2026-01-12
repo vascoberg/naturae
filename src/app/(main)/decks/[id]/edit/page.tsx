@@ -41,7 +41,7 @@ export default async function EditDeckPage({ params }: EditDeckPageProps) {
   // Haal tags op
   const { data: deckTags } = await getDeckTags(id);
 
-  // Haal kaarten op
+  // Haal kaarten op met species data
   const { data: cards } = await supabase
     .from("cards")
     .select(
@@ -50,6 +50,14 @@ export default async function EditDeckPage({ params }: EditDeckPageProps) {
       front_text,
       back_text,
       position,
+      species_id,
+      species_display,
+      species:species_id (
+        id,
+        scientific_name,
+        canonical_name,
+        common_names
+      ),
       card_media (
         id,
         type,
@@ -88,24 +96,36 @@ export default async function EditDeckPage({ params }: EditDeckPageProps) {
         }}
         initialTags={deckTags || []}
         cards={
-          cards?.map((card) => ({
-            id: card.id,
-            frontText: card.front_text || "",
-            backText: card.back_text || "",
-            position: card.position,
-            media:
-              card.card_media?.map((m) => ({
-                id: m.id,
-                type: m.type as "image" | "audio",
-                url: m.url,
-                position: m.position as "front" | "back",
-                displayOrder: m.display_order,
-                attributionName: m.attribution_name,
-                attributionSource: m.attribution_source,
-                license: m.license,
-                annotatedUrl: m.annotated_url,
-              })) || [],
-          })) || []
+          cards?.map((card) => {
+            // Supabase returns species as array or object depending on query type
+            const speciesData = Array.isArray(card.species) ? card.species[0] : card.species;
+            return {
+              id: card.id,
+              frontText: card.front_text || "",
+              backText: card.back_text || "",
+              position: card.position,
+              speciesId: card.species_id || null,
+              speciesDisplay: (card.species_display as "front" | "back" | "both" | "none") || "back",
+              species: speciesData ? {
+                id: speciesData.id,
+                scientificName: speciesData.scientific_name,
+                canonicalName: speciesData.canonical_name,
+                commonNames: speciesData.common_names as { nl?: string },
+              } : null,
+              media:
+                card.card_media?.map((m) => ({
+                  id: m.id,
+                  type: m.type as "image" | "audio",
+                  url: m.url,
+                  position: m.position as "front" | "back",
+                  displayOrder: m.display_order,
+                  attributionName: m.attribution_name,
+                  attributionSource: m.attribution_source,
+                  license: m.license,
+                  annotatedUrl: m.annotated_url,
+                })) || [],
+            };
+          }) || []
         }
       />
     </div>

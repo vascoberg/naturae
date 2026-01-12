@@ -30,12 +30,22 @@ interface CardMedia {
   annotatedUrl?: string | null;
 }
 
+interface CardSpecies {
+  id: string;
+  scientificName: string;
+  canonicalName: string;
+  commonNames: { nl?: string };
+}
+
 interface CardData {
   id: string;
   frontText: string;
   backText: string;
   position: number;
   media: CardMedia[];
+  speciesId: string | null;
+  speciesDisplay: "front" | "back" | "both" | "none";
+  species: CardSpecies | null;
 }
 
 interface DeckData {
@@ -95,7 +105,12 @@ export function DeckEditor({ deck, cards: initialCards, initialTags = [] }: Deck
     }
   };
 
-  const handleAddCard = async (frontText: string, backText: string) => {
+  const handleAddCard = async (
+    frontText: string,
+    backText: string,
+    speciesId: string | null,
+    speciesDisplay: "front" | "back" | "both" | "none"
+  ) => {
     if (!backText.trim()) return;
 
     try {
@@ -112,6 +127,9 @@ export function DeckEditor({ deck, cards: initialCards, initialTags = [] }: Deck
           backText: backText.trim(),
           position: prev.length,
           media: [],
+          speciesId: null,
+          speciesDisplay: "back",
+          species: null,
         },
       ]);
 
@@ -126,17 +144,23 @@ export function DeckEditor({ deck, cards: initialCards, initialTags = [] }: Deck
   const handleUpdateCard = async (
     cardId: string,
     frontText: string,
-    backText: string
+    backText: string,
+    speciesId: string | null,
+    speciesDisplay: "front" | "back" | "both" | "none"
   ) => {
     try {
       await updateCard(cardId, {
         frontText: frontText || undefined,
         backText,
+        speciesId,
+        speciesDisplay,
       });
 
       setCards((prev) =>
         prev.map((card) =>
-          card.id === cardId ? { ...card, frontText, backText } : card
+          card.id === cardId
+            ? { ...card, frontText, backText, speciesId, speciesDisplay }
+            : card
         )
       );
 
@@ -361,8 +385,11 @@ export function DeckEditor({ deck, cards: initialCards, initialTags = [] }: Deck
                       media={card.media}
                       cardId={card.id}
                       deckId={deck.id}
-                      onSave={(frontText, backText) =>
-                        handleUpdateCard(card.id, frontText, backText)
+                      speciesId={card.speciesId}
+                      speciesDisplay={card.speciesDisplay}
+                      species={card.species}
+                      onSave={(frontText, backText, speciesId, speciesDisplay) =>
+                        handleUpdateCard(card.id, frontText, backText, speciesId, speciesDisplay)
                       }
                       onCancel={() => setExpandedCardId(null)}
                       onDelete={() => handleDeleteCard(card.id)}

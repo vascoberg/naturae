@@ -4,6 +4,28 @@
 
 export type MediaType = "audio" | "image" | "mixed";
 
+/**
+ * Status van species matching tijdens import preview
+ */
+export type SpeciesMatchStatus =
+  | "pending"      // Nog niet gezocht
+  | "searching"    // Bezig met zoeken
+  | "matched"      // Exacte match gevonden
+  | "suggested"    // Suggesties gevonden, user moet kiezen
+  | "not_found"    // Geen match gevonden
+  | "skipped";     // Geen herkenbare naam in bestandsnaam
+
+/**
+ * Species match resultaat voor import preview
+ */
+export interface SpeciesMatch {
+  speciesId: string;
+  scientificName: string;
+  dutchName: string | null;
+  gbifKey: number | null;
+  confidence: "exact" | "high" | "low";
+}
+
 export interface ImportCardPreview {
   id: string; // temporary client-side ID
   filename: string;
@@ -22,6 +44,11 @@ export interface ImportCardPreview {
   artist: string | null;
   copyright: string | null;
   sourceUrl: string | null;
+
+  // Species matching
+  speciesMatchStatus: SpeciesMatchStatus;
+  speciesMatch: SpeciesMatch | null;
+  speciesSuggestions: SpeciesMatch[];
 
   // Status
   status: "pending" | "uploading" | "done" | "error";
@@ -44,4 +71,6 @@ export interface ImportResult {
   sourceUrl: string | null;
   audioUrl: string | null;
   imageUrl: string | null;
+  // Species koppeling
+  speciesId: string | null;
 }

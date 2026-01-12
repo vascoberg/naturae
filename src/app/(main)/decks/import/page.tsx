@@ -3,7 +3,7 @@
 import { useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, Upload, Music, Image, Loader2, Check, X, FileAudio, FileImage } from "lucide-react";
+import { ArrowLeft, Upload, Music, Image, Loader2, Check, X, FileAudio, FileImage, Search, AlertCircle, CheckCircle2, HelpCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -13,10 +13,25 @@ import { parseAudioFilename } from "@/lib/import/parse-filename";
 import { parseImageFilename } from "@/lib/import/parse-image-filename";
 import { parseAudioMetadata, embeddedImageToFile } from "@/lib/import/parse-audio-metadata";
 import { createDeckWithCards } from "@/lib/actions/import";
-import type { ImportCardPreview, ImportProgress, ImportResult } from "@/lib/import/types";
+import { matchSpeciesByName, searchSpecies, getOrCreateSpecies } from "@/lib/actions/species";
+import type { ImportCardPreview, ImportProgress, ImportResult, SpeciesMatch, SpeciesMatchStatus } from "@/lib/import/types";
 
 const AUDIO_EXTENSIONS = /\.(mp3|wav|ogg|webm|m4a|flac)$/i;
 const IMAGE_EXTENSIONS = /\.(jpe?g|png|gif|webp|bmp|svg)$/i;
+
+// Helper om te bepalen of een naam een echte soortnaam is of een bestandsnaam
+function looksLikeFilename(name: string): boolean {
+  // Patronen die duiden op een bestandsnaam, niet een soortnaam
+  const filenamePatterns = [
+    /^IMG_\d+$/i,
+    /^DSC_?\d+$/i,
+    /^P\d{7,}$/i,
+    /^DSCN?\d+$/i,
+    /^\d{8}_\d{6}$/,  // Timestamp format
+    /^[A-Z]{2,4}\d{4,}$/i,  // Camera prefixes
+  ];
+  return filenamePatterns.some(pattern => pattern.test(name));
+}
 
 export default function ImportPage() {
   const router = useRouter();
@@ -31,6 +46,217 @@ export default function ImportPage() {
     status: "idle",
   });
   const [error, setError] = useState<string | null>(null);
+  const [isMatchingSpecies, setIsMatchingSpecies] = useState(false);
+
+  // Species matching voor alle kaarten uitvoeren
+  const matchAllSpecies = useCallback(async () => {
+    if (cards.length === 0) return;
+
+    setIsMatchingSpecies(true);
+    setProgress({
+      current: 0,
+      total: cards.length,
+      status: "processing",
+      message: "Soorten zoeken...",
+    });
+
+    for (let i = 0; i < cards.length; i++) {
+      const card = cards[i];
+
+      setProgress((prev) => ({
+        ...prev,
+        current: i + 1,
+        message: `Zoeken: ${card.dutchName}`,
+      }));
+
+      // Update status naar searching
+      setCards((prev) =>
+        prev.map((c) =>
+          c.id === card.id
+            ? { ...c, speciesMatchStatus: "searching" as SpeciesMatchStatus }
+            : c
+        )
+      );
+
+      // Skip als naam eruitziet als bestandsnaam
+      if (looksLikeFilename(card.dutchName)) {
+        setCards((prev) =>
+          prev.map((c) =>
+            c.id === card.id
+              ? { ...c, speciesMatchStatus: "skipped" as SpeciesMatchStatus }
+              : c
+          )
+        );
+        continue;
+      }
+
+      try {
+        let match: SpeciesMatch | null = null;
+        let suggestions: SpeciesMatch[] = [];
+
+        // 1. Als wetenschappelijke naam aanwezig, probeer exacte match
+        if (card.scientificName) {
+          const result = await matchSpeciesByName(card.scientificName);
+          if (result.data) {
+            match = {
+              speciesId: result.data.id,
+              scientificName: result.data.scientific_name,
+              dutchName: result.data.common_names?.nl || null,
+              gbifKey: result.data.gbif_key,
+              confidence: "exact",
+            };
+          }
+        }
+
+        // 2. Als geen exacte match, zoek op Nederlandse naam
+        if (!match && card.dutchName) {
+          const searchResult = await searchSpecies(card.dutchName);
+          if (searchResult.data && searchResult.data.length > 0) {
+            // Converteer naar SpeciesMatch format
+            suggestions = searchResult.data.slice(0, 5).map((s) => ({
+              speciesId: s.id,
+              scientificName: s.scientific_name,
+              dutchName: s.dutch_name,
+              gbifKey: s.gbif_key,
+              confidence: s.source === "local" ? "high" as const : "low" as const,
+            }));
+
+            // Als eerste suggestie een hoge confidence heeft, gebruik als match
+            const firstResult = searchResult.data[0];
+            const dutchNameMatch = firstResult.dutch_name?.toLowerCase() === card.dutchName.toLowerCase();
+
+            if (dutchNameMatch || firstResult.source === "local") {
+              // Haal volledige species op als het een GBIF result is
+              if (firstResult.source === "gbif" && firstResult.gbif_key) {
+                const speciesResult = await getOrCreateSpecies(firstResult.gbif_key);
+                if (speciesResult.data) {
+                  match = {
+                    speciesId: speciesResult.data.id,
+                    scientificName: speciesResult.data.scientific_name,
+                    dutchName: speciesResult.data.common_names?.nl || null,
+                    gbifKey: speciesResult.data.gbif_key,
+                    confidence: dutchNameMatch ? "exact" : "high",
+                  };
+                }
+              } else {
+                match = {
+                  speciesId: firstResult.id,
+                  scientificName: firstResult.scientific_name,
+                  dutchName: firstResult.dutch_name,
+                  gbifKey: firstResult.gbif_key,
+                  confidence: dutchNameMatch ? "exact" : "high",
+                };
+              }
+            }
+          }
+        }
+
+        // Update card met resultaat
+        setCards((prev) =>
+          prev.map((c) => {
+            if (c.id !== card.id) return c;
+
+            if (match) {
+              return {
+                ...c,
+                speciesMatchStatus: "matched" as SpeciesMatchStatus,
+                speciesMatch: match,
+                speciesSuggestions: [],
+              };
+            } else if (suggestions.length > 0) {
+              return {
+                ...c,
+                speciesMatchStatus: "suggested" as SpeciesMatchStatus,
+                speciesMatch: null,
+                speciesSuggestions: suggestions,
+              };
+            } else {
+              return {
+                ...c,
+                speciesMatchStatus: "not_found" as SpeciesMatchStatus,
+                speciesMatch: null,
+                speciesSuggestions: [],
+              };
+            }
+          })
+        );
+      } catch (err) {
+        console.error("Species match error:", err);
+        setCards((prev) =>
+          prev.map((c) =>
+            c.id === card.id
+              ? { ...c, speciesMatchStatus: "not_found" as SpeciesMatchStatus }
+              : c
+          )
+        );
+      }
+    }
+
+    setIsMatchingSpecies(false);
+    setProgress({
+      current: cards.length,
+      total: cards.length,
+      status: "idle",
+      message: "Soorten zoeken voltooid",
+    });
+  }, [cards]);
+
+  // Selecteer een suggestie voor een kaart
+  const selectSuggestion = useCallback(async (cardId: string, suggestion: SpeciesMatch) => {
+    // Als het een GBIF result is (id begint met gbif-), haal eerst volledige species op
+    if (suggestion.speciesId.startsWith("gbif-") && suggestion.gbifKey) {
+      const result = await getOrCreateSpecies(suggestion.gbifKey);
+      if (result.data) {
+        setCards((prev) =>
+          prev.map((c) =>
+            c.id === cardId
+              ? {
+                  ...c,
+                  speciesMatchStatus: "matched" as SpeciesMatchStatus,
+                  speciesMatch: {
+                    speciesId: result.data!.id,
+                    scientificName: result.data!.scientific_name,
+                    dutchName: result.data!.common_names?.nl || null,
+                    gbifKey: result.data!.gbif_key,
+                    confidence: "high",
+                  },
+                  speciesSuggestions: [],
+                }
+              : c
+          )
+        );
+      }
+    } else {
+      setCards((prev) =>
+        prev.map((c) =>
+          c.id === cardId
+            ? {
+                ...c,
+                speciesMatchStatus: "matched" as SpeciesMatchStatus,
+                speciesMatch: suggestion,
+                speciesSuggestions: [],
+              }
+            : c
+        )
+      );
+    }
+  }, []);
+
+  // Verwijder species koppeling
+  const clearSpeciesMatch = useCallback((cardId: string) => {
+    setCards((prev) =>
+      prev.map((c) =>
+        c.id === cardId
+          ? {
+              ...c,
+              speciesMatchStatus: "not_found" as SpeciesMatchStatus,
+              speciesMatch: null,
+              speciesSuggestions: [],
+            }
+          : c
+      )
+    );
+  }, []);
 
   const handleFilesDrop = useCallback(async (files: FileList | File[]) => {
     const fileArray = Array.from(files);
@@ -89,6 +315,10 @@ export default function ImportPage() {
         sourceUrl: metadata.sourceUrl,
         imageFile,
         imagePreviewUrl,
+        // Species matching fields
+        speciesMatchStatus: "pending",
+        speciesMatch: null,
+        speciesSuggestions: [],
         status: "pending",
       });
     }
@@ -118,6 +348,10 @@ export default function ImportPage() {
         sourceUrl: null,
         imageFile: file,
         imagePreviewUrl,
+        // Species matching fields
+        speciesMatchStatus: "pending",
+        speciesMatch: null,
+        speciesSuggestions: [],
         status: "pending",
       });
     }
@@ -257,6 +491,8 @@ export default function ImportPage() {
           sourceUrl: card.sourceUrl,
           audioUrl,
           imageUrl,
+          // Species koppeling meesturen
+          speciesId: card.speciesMatch?.speciesId || null,
         });
 
         setCards((prev) =>
@@ -313,10 +549,35 @@ export default function ImportPage() {
 
   const isUploading = progress.status === "uploading";
   const isDone = progress.status === "done";
+  const isProcessing = progress.status === "processing";
 
   const audioCount = cards.filter((c) => c.audioFile).length;
   const imageCount = cards.filter((c) => c.imageFile && !c.audioFile).length;
   const embeddedImageCount = cards.filter((c) => c.audioFile && c.imageFile).length;
+
+  // Species matching statistieken
+  const matchedCount = cards.filter((c) => c.speciesMatchStatus === "matched").length;
+  const suggestedCount = cards.filter((c) => c.speciesMatchStatus === "suggested").length;
+  const notFoundCount = cards.filter((c) => c.speciesMatchStatus === "not_found").length;
+  const pendingMatchCount = cards.filter((c) => c.speciesMatchStatus === "pending" || c.speciesMatchStatus === "searching").length;
+
+  // Species status icon component
+  const SpeciesStatusIcon = ({ status }: { status: SpeciesMatchStatus }) => {
+    switch (status) {
+      case "matched":
+        return <CheckCircle2 className="w-4 h-4 text-green-500" />;
+      case "suggested":
+        return <HelpCircle className="w-4 h-4 text-amber-500" />;
+      case "searching":
+        return <Loader2 className="w-4 h-4 animate-spin text-primary" />;
+      case "not_found":
+        return <AlertCircle className="w-4 h-4 text-muted-foreground" />;
+      case "skipped":
+        return <X className="w-4 h-4 text-muted-foreground" />;
+      default:
+        return <Search className="w-4 h-4 text-muted-foreground" />;
+    }
+  };
 
   return (
     <div className="container mx-auto px-4 py-8 max-w-4xl">
@@ -349,7 +610,7 @@ export default function ImportPage() {
               accept=".mp3,.wav,.ogg,.webm,.m4a,.flac,.jpg,.jpeg,.png,.gif,.webp"
               onChange={handleFileInput}
               className="hidden"
-              disabled={isUploading}
+              disabled={isUploading || isProcessing}
             />
             <Upload className="w-10 h-10 mx-auto mb-4 text-muted-foreground" />
             <p className="text-lg font-medium mb-2">
@@ -424,6 +685,60 @@ export default function ImportPage() {
                 </div>
               </div>
 
+              {/* Species matching section */}
+              <div className="p-4 bg-primary/5 border border-primary/20 rounded-lg space-y-3">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h3 className="text-sm font-semibold">Soorten koppelen</h3>
+                    <p className="text-xs text-muted-foreground">
+                      Automatisch soorten herkennen uit bestandsnamen
+                    </p>
+                  </div>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={matchAllSpecies}
+                    disabled={isUploading || isMatchingSpecies || cards.length === 0}
+                  >
+                    {isMatchingSpecies ? (
+                      <>
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        Zoeken...
+                      </>
+                    ) : (
+                      <>
+                        <Search className="w-4 h-4 mr-2" />
+                        Soorten zoeken
+                      </>
+                    )}
+                  </Button>
+                </div>
+
+                {/* Species matching stats */}
+                {(matchedCount > 0 || suggestedCount > 0 || notFoundCount > 0) && (
+                  <div className="flex items-center gap-4 text-xs">
+                    {matchedCount > 0 && (
+                      <span className="flex items-center gap-1 text-green-600">
+                        <CheckCircle2 className="w-3 h-3" />
+                        {matchedCount} gekoppeld
+                      </span>
+                    )}
+                    {suggestedCount > 0 && (
+                      <span className="flex items-center gap-1 text-amber-600">
+                        <HelpCircle className="w-3 h-3" />
+                        {suggestedCount} suggesties
+                      </span>
+                    )}
+                    {notFoundCount > 0 && (
+                      <span className="flex items-center gap-1 text-muted-foreground">
+                        <AlertCircle className="w-3 h-3" />
+                        {notFoundCount} niet gevonden
+                      </span>
+                    )}
+                  </div>
+                )}
+              </div>
+
               {/* Progress */}
               {progress.status !== "idle" && (
                 <div className="space-y-2">
@@ -448,7 +763,7 @@ export default function ImportPage() {
               <div className="flex gap-3">
                 <Button
                   onClick={handleImport}
-                  disabled={isUploading || isDone || cards.length === 0}
+                  disabled={isUploading || isDone || cards.length === 0 || isMatchingSpecies}
                 >
                   {isUploading ? (
                     <>
@@ -470,7 +785,7 @@ export default function ImportPage() {
                     setCards([]);
                     setProgress({ current: 0, total: 0, status: "idle" });
                   }}
-                  disabled={isUploading}
+                  disabled={isUploading || isMatchingSpecies}
                 >
                   Reset
                 </Button>
@@ -487,14 +802,14 @@ export default function ImportPage() {
             <CardTitle>Preview ({cards.length} kaarten)</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="space-y-2 max-h-96 overflow-y-auto">
+            <div className="space-y-2 max-h-[600px] overflow-y-auto">
               {cards.map((card) => (
                 <div
                   key={card.id}
-                  className="flex items-center gap-3 p-3 rounded-lg bg-muted/50"
+                  className="flex items-start gap-3 p-3 rounded-lg bg-muted/50"
                 >
                   {/* Status indicator */}
-                  <div className="w-6 h-6 flex items-center justify-center">
+                  <div className="w-6 h-6 flex items-center justify-center flex-shrink-0 mt-0.5">
                     {card.status === "uploading" && (
                       <Loader2 className="w-4 h-4 animate-spin text-primary" />
                     )}
@@ -536,10 +851,48 @@ export default function ImportPage() {
                       {card.scientificName && card.artist && " • "}
                       {card.artist && <span>{card.artist}</span>}
                     </p>
+
+                    {/* Species match result */}
+                    {card.speciesMatchStatus === "matched" && card.speciesMatch && (
+                      <div className="flex items-center gap-2 mt-1">
+                        <span className="text-xs px-2 py-0.5 rounded-full bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400">
+                          {card.speciesMatch.dutchName || card.speciesMatch.scientificName}
+                        </span>
+                        <button
+                          onClick={() => clearSpeciesMatch(card.id)}
+                          className="text-xs text-muted-foreground hover:text-foreground"
+                        >
+                          ✕
+                        </button>
+                      </div>
+                    )}
+
+                    {/* Suggestions dropdown */}
+                    {card.speciesMatchStatus === "suggested" && card.speciesSuggestions.length > 0 && (
+                      <div className="mt-1 space-y-1">
+                        <p className="text-xs text-amber-600">Kies een soort:</p>
+                        <div className="flex flex-wrap gap-1">
+                          {card.speciesSuggestions.slice(0, 3).map((suggestion) => (
+                            <button
+                              key={suggestion.speciesId}
+                              onClick={() => selectSuggestion(card.id, suggestion)}
+                              className="text-xs px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 hover:bg-amber-200 dark:bg-amber-900/30 dark:text-amber-400 dark:hover:bg-amber-900/50"
+                            >
+                              {suggestion.dutchName || suggestion.scientificName}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Species status icon */}
+                  <div className="flex items-center gap-2 flex-shrink-0">
+                    <SpeciesStatusIcon status={card.speciesMatchStatus} />
                   </div>
 
                   {/* Media indicators */}
-                  <div className="flex items-center gap-2 text-muted-foreground">
+                  <div className="flex items-center gap-2 text-muted-foreground flex-shrink-0">
                     {card.audioFile && <Music className="w-4 h-4" />}
                     {card.imageFile && <Image className="w-4 h-4" />}
                   </div>
@@ -550,7 +903,7 @@ export default function ImportPage() {
                       variant="ghost"
                       size="sm"
                       onClick={() => removeCard(card.id)}
-                      className="h-8 w-8 p-0"
+                      className="h-8 w-8 p-0 flex-shrink-0"
                     >
                       <X className="w-4 h-4" />
                     </Button>

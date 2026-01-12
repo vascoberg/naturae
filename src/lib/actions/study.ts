@@ -169,7 +169,7 @@ export async function getStudyCards(deckId: string, mode: StudyMode = "smart", l
     }
   }
 
-  // Get all cards from this deck
+  // Get all cards from this deck with species data
   const { data: cards, error: cardsError } = await supabase
     .from("cards")
     .select(
@@ -178,6 +178,14 @@ export async function getStudyCards(deckId: string, mode: StudyMode = "smart", l
       front_text,
       back_text,
       position,
+      species_id,
+      species_display,
+      species:species_id (
+        id,
+        scientific_name,
+        canonical_name,
+        common_names
+      ),
       card_media (
         id,
         type,

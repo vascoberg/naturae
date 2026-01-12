@@ -4,6 +4,8 @@ import { useState } from "react";
 import { Check, X, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { CardSideEditor } from "./card-side-editor";
+import { SpeciesSelector } from "@/components/species";
+import type { Species, SpeciesDisplayOption } from "@/types/species";
 
 interface CardMedia {
   id: string;
@@ -16,13 +18,28 @@ interface CardMedia {
   license?: string | null;
 }
 
+interface CardSpecies {
+  id: string;
+  scientificName: string;
+  canonicalName: string;
+  commonNames: { nl?: string };
+}
+
 interface WysiwygCardEditorProps {
   frontText: string;
   backText: string;
   media: CardMedia[];
   cardId?: string;
   deckId?: string;
-  onSave: (frontText: string, backText: string) => void;
+  speciesId?: string | null;
+  speciesDisplay?: SpeciesDisplayOption;
+  species?: CardSpecies | null;
+  onSave: (
+    frontText: string,
+    backText: string,
+    speciesId: string | null,
+    speciesDisplay: SpeciesDisplayOption
+  ) => void;
   onCancel: () => void;
   onDelete?: () => void;
   onMediaAdded?: (media: CardMedia) => void;
@@ -37,6 +54,9 @@ export function WysiwygCardEditor({
   media,
   cardId,
   deckId,
+  speciesId: initialSpeciesId,
+  speciesDisplay: initialSpeciesDisplay = "back",
+  species: initialSpecies,
   onSave,
   onCancel,
   onDelete,
@@ -47,10 +67,33 @@ export function WysiwygCardEditor({
 }: WysiwygCardEditorProps) {
   const [frontText, setFrontText] = useState(initialFrontText);
   const [backText, setBackText] = useState(initialBackText);
+  const [speciesId, setSpeciesId] = useState<string | null>(initialSpeciesId || null);
+  const [speciesDisplay, setSpeciesDisplay] = useState<SpeciesDisplayOption>(initialSpeciesDisplay);
+  const [selectedSpecies, setSelectedSpecies] = useState<Species | null>(
+    initialSpecies
+      ? {
+          id: initialSpecies.id,
+          scientific_name: initialSpecies.scientificName,
+          canonical_name: initialSpecies.canonicalName,
+          common_names: initialSpecies.commonNames,
+          taxonomy: {},
+          gbif_key: null,
+          source: "gbif",
+          gbif_data: null,
+          created_at: "",
+          updated_at: "",
+        }
+      : null
+  );
+
+  const handleSpeciesChange = (newSpeciesId: string | null, species: Species | null) => {
+    setSpeciesId(newSpeciesId);
+    setSelectedSpecies(species);
+  };
 
   const handleSave = () => {
     if (!backText.trim()) return;
-    onSave(frontText.trim(), backText.trim());
+    onSave(frontText.trim(), backText.trim(), speciesId, speciesDisplay);
   };
 
   const canSave = backText.trim().length > 0;
@@ -86,9 +129,54 @@ export function WysiwygCardEditor({
           onMediaAdded={onMediaAdded}
           onMediaDeleted={onMediaDeleted}
           onMediaUpdated={onMediaUpdated}
-          placeholder="Het antwoord"
-          required
+          placeholder="Extra informatie (optioneel)"
         />
+      </div>
+
+      {/* Species Selector - Primair antwoord */}
+      <div className="space-y-3 p-4 bg-primary/5 border border-primary/20 rounded-lg">
+        <div className="space-y-2">
+          <label className="text-sm font-semibold">Soort (primair antwoord)</label>
+          <SpeciesSelector
+            value={speciesId}
+            onChange={handleSpeciesChange}
+            placeholder="Zoek op Nederlandse of wetenschappelijke naam..."
+          />
+        </div>
+
+        {/* Display options - only show when species is selected */}
+        {speciesId && (
+          <div className="space-y-2">
+            <label className="text-sm font-medium text-muted-foreground">
+              Soort tonen op
+            </label>
+            <div className="flex flex-wrap gap-3">
+              {[
+                { value: "back", label: "Achterkant" },
+                { value: "front", label: "Voorkant" },
+                { value: "both", label: "Beide" },
+                { value: "none", label: "Verborgen" },
+              ].map((option) => (
+                <label
+                  key={option.value}
+                  className="flex items-center gap-1.5 cursor-pointer"
+                >
+                  <input
+                    type="radio"
+                    name={`species-display-${cardId || "new"}`}
+                    value={option.value}
+                    checked={speciesDisplay === option.value}
+                    onChange={(e) =>
+                      setSpeciesDisplay(e.target.value as SpeciesDisplayOption)
+                    }
+                    className="h-4 w-4"
+                  />
+                  <span className="text-sm">{option.label}</span>
+                </label>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Action buttons */}

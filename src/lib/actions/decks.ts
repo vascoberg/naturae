@@ -74,6 +74,8 @@ export async function updateCard(
   data: {
     frontText?: string;
     backText?: string;
+    speciesId?: string | null;
+    speciesDisplay?: "front" | "back" | "both" | "none";
   }
 ) {
   const supabase = await createClient();
@@ -107,12 +109,16 @@ export async function updateCard(
     throw new Error("Geen toegang tot deze kaart");
   }
 
+  // Build update object, only including defined fields
+  const updateData: Record<string, unknown> = {};
+  if (data.frontText !== undefined) updateData.front_text = data.frontText;
+  if (data.backText !== undefined) updateData.back_text = data.backText;
+  if (data.speciesId !== undefined) updateData.species_id = data.speciesId;
+  if (data.speciesDisplay !== undefined) updateData.species_display = data.speciesDisplay;
+
   const { error } = await supabase
     .from("cards")
-    .update({
-      front_text: data.frontText,
-      back_text: data.backText,
-    })
+    .update(updateData)
     .eq("id", cardId);
 
   if (error) {

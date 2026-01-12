@@ -302,11 +302,39 @@ Zie [Quiz Modus (v2)](#quiz-modus-v2) hieronder voor de geplande uitbreiding.
   - Teller: "X keer geremixed"
 - **ZIP export met media bestanden**
 
+### GBIF Taxonomie Integratie ✅ AFGEROND
+
+> Centrale species database met koppeling aan GBIF (Global Biodiversity Information Facility)
+
+**Geïmplementeerde features:**
+- **Species tabel** met GBIF koppeling (`gbif_key`, `canonical_name`, `source`)
+- **SpeciesSelector component** - Autocomplete met debounced search (300ms)
+- **Zoekstrategie** - Lokaal + GBIF parallel zoeken (wetenschappelijke + Nederlandse namen)
+- **Kaart-soort koppeling** - `species_id` en `species_display` velden op cards
+- **Species badge in leermodus** - Soort als primair antwoord met prominente weergave
+- **Bulk import matching** - Automatisch soorten herkennen uit bestandsnamen
+
+**Display opties per kaart:**
+| Waarde | Betekenis |
+|--------|-----------|
+| `'back'` | Soort badge alleen op achterkant (default) |
+| `'front'` | Soort badge alleen op voorkant |
+| `'both'` | Soort badge op beide kanten |
+| `'none'` | Soort gekoppeld maar niet zichtbaar |
+
+**Bulk import species matching:**
+- "Soorten zoeken" knop voor automatische matching
+- Wetenschappelijke naam in bestandsnaam → exacte GBIF match
+- Nederlandse naam → zoek suggesties, gebruiker kiest
+- Status icons: ✅ gekoppeld, ⚠️ suggesties, ⚪ niet gevonden
+
+Zie [research/naturae-taxonomie-feature.md](research/naturae-taxonomie-feature.md) voor volledige documentatie.
+
 ### Species Book (v2)
-> Database infrastructuur is voorbereid, maar UI wordt later gebouwd.
+> Database infrastructuur is voorbereid via GBIF integratie, UI wordt later gebouwd.
 > Geïnspireerd door BirdID's "Species Info" scherm.
 
-- Gedeelde species database (wetenschappelijke naam als identifier)
+- Gedeelde species database (nu via GBIF koppeling)
 - Rijke informatie per soort:
   - Meerdere foto's met annotaties
   - Geluidsfragmenten
@@ -332,6 +360,7 @@ Zie [Quiz Modus (v2)](#quiz-modus-v2) hieronder voor de geplande uitbreiding.
 
 **Gratis tier:**
 - Basis bulk import (bestandsnaam parsing, ID3 tags, embedded images)
+- GBIF species matching (automatisch soorten herkennen)
 - Handmatig kaarten aanmaken
 - Onbeperkt leren
 

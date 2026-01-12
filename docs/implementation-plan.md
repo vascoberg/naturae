@@ -901,6 +901,27 @@ Zie [Photo Annotation Plan](features/photo-annotation-plan.md) voor volledige do
 - Streak tracking
 - Moeilijke kaarten identificeren
 
+### GBIF Taxonomie Integratie ✅ AFGEROND
+
+> Centrale species database met koppeling aan GBIF (Global Biodiversity Information Facility)
+
+**Geïmplementeerde features:**
+- [x] Species tabel uitgebreid met `gbif_key`, `canonical_name`, `source`, `gbif_data`
+- [x] Server Actions: `searchSpecies`, `getOrCreateSpecies`, `matchSpeciesByName`
+- [x] SpeciesSelector component (autocomplete met debounced search)
+- [x] Kaart-soort koppeling (`species_id`, `species_display` op cards)
+- [x] Species badge in leermodus (soort als primair antwoord)
+- [x] Bulk import species matching ("Soorten zoeken" knop)
+
+**Implementatie fasen:**
+1. ✅ Server Actions - GBIF API integratie, lokaal + remote zoeken
+2. ✅ SpeciesSelector - Autocomplete UI component
+3. ✅ Card Editor - Species koppeling en display opties
+4. ✅ Study Sessie - Species badge weergave
+5. ✅ Bulk Import - Automatisch species matching uit bestandsnamen
+
+Zie [research/naturae-taxonomie-feature.md](research/naturae-taxonomie-feature.md) voor volledige documentatie.
+
 ### Andere MVP+ Features
 - Responsive design optimalisatie
 - PWA install prompt
@@ -974,7 +995,11 @@ De MVP is feature-complete. Alle core functionaliteit is geïmplementeerd:
 - WYSIWYG kaart editor (side-by-side, media management, attributies)
 - Instellingen pagina (profielfoto, bio, wachtwoord)
 
-**Volgende fase:** MVP+ features (optioneel, op basis van gebruikersfeedback)
+**MVP+ Features (afgerond):** ✅
+- GBIF Taxonomie Integratie (species koppeling, bulk import matching)
+- Foto Annotatie Editor (custom HTML5 Canvas)
+
+**Volgende fase:** Overige MVP+ features (optioneel, op basis van gebruikersfeedback)
 
 Zie [MVP Design - MVP+ Features](naturae-mvp-design.md#mvp-features-toekomstig) voor mogelijke uitbreidingen.
 

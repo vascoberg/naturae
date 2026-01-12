@@ -10,18 +10,80 @@ interface MediaItem {
   attribution?: string;
 }
 
+interface SpeciesInfo {
+  scientificName: string;
+  canonicalName: string | null;
+  commonName?: string | null;
+}
+
 interface FlashcardProps {
   cardId?: string; // Unieke ID voor key management
   frontText?: string | null;
   backText: string;
   frontMedia?: MediaItem[];
   backMedia?: MediaItem[];
+  species?: SpeciesInfo | null;
+  speciesDisplay?: "front" | "back" | "both" | "none";
   isFlipped?: boolean;
   onFlip?: () => void;
 }
 
-export function Flashcard({ cardId, frontText, backText, frontMedia, backMedia, isFlipped = false, onFlip }: FlashcardProps) {
+export function Flashcard({
+  cardId,
+  frontText,
+  backText,
+  frontMedia,
+  backMedia,
+  species,
+  speciesDisplay = "back",
+  isFlipped = false,
+  onFlip
+}: FlashcardProps) {
   const containerRef = useRef<HTMLDivElement>(null);
+
+  // Render species as primary answer (prominent display)
+  const renderSpeciesPrimary = () => {
+    if (!species) return null;
+
+    const displayName = species.commonName || species.canonicalName || species.scientificName;
+    const scientificName = species.scientificName;
+
+    return (
+      <div className="mb-4">
+        <p className="text-2xl font-semibold text-primary">{displayName}</p>
+        {displayName !== scientificName && (
+          <p className="text-base italic text-muted-foreground mt-1">
+            {scientificName}
+          </p>
+        )}
+      </div>
+    );
+  };
+
+  // Render species badge (secondary, smaller display for front side)
+  const renderSpeciesBadge = () => {
+    if (!species) return null;
+
+    const displayName = species.commonName || species.canonicalName || species.scientificName;
+    const scientificName = species.scientificName;
+
+    return (
+      <div className="mt-4 pt-3 border-t border-border/50">
+        <div className="text-sm text-muted-foreground">
+          <span className="font-medium">{displayName}</span>
+          {displayName !== scientificName && (
+            <span className="italic ml-1.5 text-muted-foreground/70">
+              ({scientificName})
+            </span>
+          )}
+        </div>
+      </div>
+    );
+  };
+
+  // Determine if species should show on each side
+  const showSpeciesOnFront = species && (speciesDisplay === "front" || speciesDisplay === "both");
+  const showSpeciesOnBack = species && (speciesDisplay === "back" || speciesDisplay === "both");
 
   // Stop alle audio wanneer cardId verandert (nieuwe kaart)
   useEffect(() => {
@@ -123,11 +185,26 @@ export function Flashcard({ cardId, frontText, backText, frontMedia, backMedia, 
         >
           <CardContent className="p-8 text-center w-full">
             {frontMedia && frontMedia.length > 0 && renderMedia(frontMedia, "front")}
-            {frontText && (
-              <p className="text-xl">{frontText}</p>
-            )}
-            {!frontText && !frontMedia?.length && (
-              <p className="text-muted-foreground">(Geen vraag)</p>
+            {/* Species prominent on front when speciesDisplay is 'front' or 'both' */}
+            {showSpeciesOnFront ? (
+              <>
+                {renderSpeciesPrimary()}
+                {/* frontText as secondary info */}
+                {frontText && (
+                  <div className="pt-3 border-t border-border/50">
+                    <p className="text-base text-muted-foreground">{frontText}</p>
+                  </div>
+                )}
+              </>
+            ) : (
+              <>
+                {frontText && (
+                  <p className="text-xl">{frontText}</p>
+                )}
+                {!frontText && !frontMedia?.length && (
+                  <p className="text-muted-foreground">(Geen vraag)</p>
+                )}
+              </>
             )}
           </CardContent>
         </Card>
@@ -145,7 +222,21 @@ export function Flashcard({ cardId, frontText, backText, frontMedia, backMedia, 
         >
           <CardContent className="p-8 text-center w-full">
             {backMedia && backMedia.length > 0 && renderMedia(backMedia, "back")}
-            <p className="text-2xl font-semibold text-primary">{backText}</p>
+            {/* Species is primary answer when present */}
+            {showSpeciesOnBack ? (
+              <>
+                {renderSpeciesPrimary()}
+                {/* backText as secondary info */}
+                {backText && (
+                  <div className="pt-3 border-t border-border/50">
+                    <p className="text-base text-muted-foreground">{backText}</p>
+                  </div>
+                )}
+              </>
+            ) : (
+              /* No species: backText is the primary answer */
+              <p className="text-2xl font-semibold text-primary">{backText}</p>
+            )}
           </CardContent>
         </Card>
       </div>

@@ -98,12 +98,14 @@ export async function addCardsToDeck(
 
     const startPosition = existingCards?.[0]?.position ?? 0;
 
-    // Create all cards
+    // Create all cards with species koppeling
     const cardsToInsert = cards.map((card, index) => ({
       deck_id: deckId,
       front_text: null, // Media is the front
       back_text: card.dutchName,
       position: startPosition + card.position + index,
+      species_id: card.speciesId || null,
+      species_display: card.speciesId ? "back" : null, // Default: soort tonen op achterkant
     }));
 
     const { data: insertedCards, error: cardsError } = await supabase

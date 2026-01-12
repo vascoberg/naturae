@@ -21,11 +21,22 @@ function LoadingSpinner() {
   );
 }
 
+interface SpeciesData {
+  id: string;
+  scientific_name: string;
+  canonical_name: string | null;
+  common_names: { nl?: string } | null;
+}
+
 interface StudyCard {
   id: string;
   front_text: string;
   back_text: string;
   position: number;
+  species_id: string | null;
+  species_display: "front" | "back" | "both" | "none" | null;
+  // Supabase returns species as array or single object depending on query
+  species: SpeciesData | SpeciesData[] | null;
   card_media: {
     id: string;
     type: string;
@@ -295,6 +306,16 @@ function StudySession({ deckId, mode, limit }: StudySessionProps) {
     attribution: m.attribution_source || m.attribution_name || undefined,
   }));
 
+  // Prepare species info for Flashcard - handle both array and object from Supabase
+  const speciesData = currentCard?.species
+    ? (Array.isArray(currentCard.species) ? currentCard.species[0] : currentCard.species)
+    : null;
+  const speciesInfo = speciesData ? {
+    scientificName: speciesData.scientific_name,
+    canonicalName: speciesData.canonical_name,
+    commonName: speciesData.common_names?.nl,
+  } : null;
+
   return (
     <div className="min-h-screen flex flex-col">
       {/* Header */}
@@ -339,6 +360,8 @@ function StudySession({ deckId, mode, limit }: StudySessionProps) {
                 backText={currentCard.back_text}
                 frontMedia={frontMedia}
                 backMedia={backMedia}
+                species={speciesInfo}
+                speciesDisplay={currentCard.species_display || "back"}
                 isFlipped={isFlipped}
                 onFlip={handleFlip}
               />

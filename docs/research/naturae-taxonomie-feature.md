@@ -201,11 +201,644 @@ Deze taxonomie-basis maakt mogelijk:
 
 ---
 
-## 8. Open vragen voor implementatie
+## 8. Beslissingen (januari 2026)
 
-- [ ] Huidige database schema in kaart brengen (decks, cards, labels tabellen)
-- [ ] Keuze: 1 soort per kaart of meerdere mogelijk?
-- [ ] Waar wordt de GBIF API call gemaakt? (Frontend/Backend)
-- [ ] Caching strategie voor GBIF responses?
-- [ ] Hoe om te gaan met soorten die niet in GBIF staan?
-- [ ] Moeten Nederlandse namen apart opgehaald worden of volstaat wat GBIF match teruggeeft?
+### ✅ Afgehandelde vragen
+
+| Vraag | Beslissing | Toelichting |
+|-------|------------|-------------|
+| **Huidige database schema** | ✅ In kaart gebracht | `species` tabel bestaat al met JSONB velden |
+| **1 soort per kaart of meerdere?** | **1 soort per kaart** | Simpeler, past bij flashcard model |
+| **Frontend of backend GBIF calls?** | **Backend via Server Actions** | Veilig, caching mogelijk, consistent met rest van app |
+| **Caching strategie?** | **Database caching** | Soort opslaan in `species` tabel na eerste GBIF lookup |
+| **Soorten niet in GBIF?** | **Handmatige toevoeging mogelijk** | `gbif_key` is nullable, `source` veld voor herkomst |
+| **Nederlandse namen apart ophalen?** | **Nee** | GBIF match response bevat vaak al vernacular names |
+
+### Implementatie details
+
+#### Backend GBIF calls (Server Actions)
+Waarom backend i.p.v. frontend:
+- ✅ API keys veilig op server
+- ✅ Caching op server niveau mogelijk
+- ✅ Rate limiting beheersbaar
+- ✅ Data transformatie voordat het naar client gaat
+- ✅ Consistent met andere Server Actions in de app
+
+#### Database caching strategie
+```
+1. User zoekt "merel"
+2. Check eerst eigen `species` tabel (WHERE scientific_name ILIKE '%merel%' OR common_names->>'nl' ILIKE '%merel%')
+3. Niet gevonden? → GBIF API call
+4. User selecteert soort → Opslaan in `species` tabel
+5. Volgende keer: direct uit eigen database
+```
+
+#### Handmatige soorten (niet in GBIF)
+- `gbif_key = NULL` voor handmatig toegevoegde soorten
+- `source` veld: `'gbif'` of `'manual'`
+- Handmatige soorten kunnen later aan GBIF gekoppeld worden
+
+---
+
+## 9. Bestaand Database Schema
+
+### Huidige species tabel (uit 001_initial_schema.sql)
+```sql
+CREATE TABLE species (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  scientific_name TEXT NOT NULL UNIQUE,
+  common_names JSONB NOT NULL DEFAULT '{}',     -- {"nl": "Merel", "en": "Blackbird"}
+  taxonomy JSONB DEFAULT '{}',                   -- {"kingdom": "Animalia", ...}
+  descriptions JSONB DEFAULT '{}',
+  facts JSONB DEFAULT '{}',
+  external_links JSONB DEFAULT '{}',
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW(),
+  created_by UUID REFERENCES auth.users ON DELETE SET NULL
+);
+```
+
+### Bestaande relaties
+- `cards.species_id` → Foreign key naar species (nullable)
+- `card_media.species_id` → Foreign key naar species (nullable)
+
+### Benodigde uitbreidingen
+De bestaande tabel is goed opgezet met JSONB voor flexibiliteit. We voegen toe:
+
+| Kolom | Type | Doel |
+|-------|------|------|
+| `gbif_key` | INTEGER UNIQUE | GBIF usageKey voor koppeling |
+| `canonical_name` | TEXT | Naam zonder auteur |
+| `source` | TEXT | `'gbif'` of `'manual'` |
+| `gbif_data` | JSONB | Ruwe GBIF response voor toekomstig gebruik |
+
+De `taxonomy` JSONB blijft behouden (flexibeler dan aparte kolommen).
+
+---
+
+## 10. Migratieplan
+
+### Stap 1: Schema uitbreiden
+```sql
+ALTER TABLE species
+  ADD COLUMN gbif_key INTEGER UNIQUE,
+  ADD COLUMN canonical_name TEXT,
+  ADD COLUMN source TEXT DEFAULT 'manual',
+  ADD COLUMN gbif_data JSONB;
+
+CREATE INDEX idx_species_gbif_key ON species(gbif_key) WHERE gbif_key IS NOT NULL;
+CREATE INDEX idx_species_canonical_name ON species(canonical_name);
+```
+
+### Stap 2: GBIF Service
+Server Action met functies:
+- `searchGBIF(query)` - Zoek in GBIF + eigen database
+- `getOrCreateSpecies(gbifKey)` - Haal op of maak aan
+
+### Stap 3: UI Component
+Autocomplete component voor kaart-editor:
+- Debounced search (300ms)
+- Toont wetenschappelijke + Nederlandse naam
+- "Niet gevonden? Voeg handmatig toe" optie
+
+---
+
+## 11. User Flow Documentatie
+
+### Kaart Editor Flow
+
+De soort-selector wordt toegevoegd als apart veld onder de voor/achterkant editors:
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                    KAART EDITOR                                  │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                  │
+│  ┌─────────────────────┐  ┌─────────────────────┐               │
+│  │     VOORKANT        │  │     ACHTERKANT      │               │
+│  │  [foto's/audio]     │  │  [foto's/audio]     │               │
+│  │  [vrije tekst]      │  │  [vrije tekst]      │               │
+│  └─────────────────────┘  └─────────────────────┘               │
+│                                                                  │
+│  ┌─────────────────────────────────────────────────────────────┐│
+│  │ Soort (optioneel):                                          ││
+│  │ [🔍 Zoek soort...                                    ▼    ] ││
+│  │                                                             ││
+│  │   Merel (Turdus merula)                              ✓     ││
+│  │   Koolmees (Parus major)                                   ││
+│  │   ───────────────────────────────                          ││
+│  │   Niet gevonden? Voeg handmatig toe...                     ││
+│  └─────────────────────────────────────────────────────────────┘│
+│                                                                  │
+│  Soort tonen op: ○ Voorkant  ● Achterkant  ○ Beide  ○ Geen     │
+│                                                                  │
+│  [Annuleren]                                    [Opslaan]       │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### Study Sessie Weergave
+
+Als een kaart een gekoppelde soort heeft, wordt deze getoond als badge:
+
+```
+┌────────────────────────────────────────┐
+│  [foto's]                              │
+│                                        │
+│  ┌──────────────────────────────────┐  │
+│  │ 🦅 Merel                         │  │  ← Soort badge
+│  │   Turdus merula                  │  │    (Nederlandse naam + wetenschappelijk)
+│  └──────────────────────────────────┘  │
+│                                        │
+│  Let op de oranje snavel en           │  ← Vrije tekst (back_text)
+│  het gele oogring bij mannetjes.      │
+└────────────────────────────────────────┘
+```
+
+**Weergave volgorde:**
+1. Media (foto's/audio)
+2. Soort badge (indien gekoppeld en `species_display` dit toestaat)
+3. Vrije tekst (`front_text` of `back_text`)
+
+### Species Display Opties
+
+| Waarde | Betekenis |
+|--------|-----------|
+| `'back'` | Soort badge alleen op achterkant (default) |
+| `'front'` | Soort badge alleen op voorkant |
+| `'both'` | Soort badge op beide kanten |
+| `'none'` | Soort gekoppeld maar niet zichtbaar |
+
+### Database Wijziging
+
+Nieuw veld op `cards` tabel:
+```sql
+ALTER TABLE cards
+  ADD COLUMN species_display TEXT DEFAULT 'back';
+
+ALTER TABLE cards
+  ADD CONSTRAINT cards_species_display_check
+  CHECK (species_display IS NULL OR species_display IN ('front', 'back', 'both', 'none'));
+```
+
+---
+
+## 12. Bulk Import Aanpassingen
+
+### Bestandsnaam → Soort Koppeling
+
+| Scenario | Voorbeeld | Actie |
+|----------|-----------|-------|
+| Wetenschappelijke naam aanwezig | `001_Merel_Turdus-merula.mp3` | GBIF exacte match → auto-koppel |
+| Alleen Nederlandse naam | `001_Merel.mp3` | GBIF suggest → toon in preview |
+| Geen herkenbare naam | `IMG_22213.jpg` | Skip lookup, `species_id = NULL` |
+
+### Import Preview met Soort Status
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│ Preview (5 kaarten)                                             │
+├─────────────────────────────────────────────────────────────────┤
+│ 1. [🎵] Merel           Turdus merula        ✓ Gekoppeld        │
+│ 2. [🎵] Koolmees        Parus major          ✓ Gekoppeld        │
+│ 3. [🎵] Roodborst       ?                    ⚠ Zoeken...        │
+│ 4. [📷] vogel_foto.jpg  -                    ○ Geen soort       │
+│ 5. [📷] IMG_22213.jpg   -                    ○ Geen soort       │
+└─────────────────────────────────────────────────────────────────┘
+
+[Alle soorten zoeken]  [5 kaarten importeren]  [Annuleren]
+```
+
+### Import Logica
+
+```typescript
+// Pseudocode voor import flow
+for (card of importCards) {
+  if (card.scientificName) {
+    // Exacte match proberen
+    const species = await matchSpeciesByScientificName(card.scientificName);
+    if (species) card.speciesId = species.id;
+  } else if (card.dutchName && !looksLikeFilename(card.dutchName)) {
+    // Nederlandse naam proberen (optioneel, user kan bevestigen)
+    const suggestions = await searchSpecies(card.dutchName);
+    if (suggestions.length === 1 && suggestions[0].confidence > 0.9) {
+      card.speciesId = suggestions[0].id;
+    } else {
+      card.speciesSuggestions = suggestions; // Toon in preview
+    }
+  }
+  // Anders: geen species lookup, user kan later handmatig koppelen
+}
+```
+
+---
+
+## 13. Implementatie Fase 1: Server Actions (Voltooid)
+
+**Datum:** januari 2026
+**Status:** ✅ Voltooid en getest
+
+### Gemaakte bestanden
+
+| Bestand | Beschrijving |
+|---------|--------------|
+| `src/types/species.ts` | TypeScript types voor Species, GBIF responses, search results |
+| `src/lib/actions/species.ts` | Server Actions voor GBIF integratie |
+| `src/app/(main)/test-species/page.tsx` | Test pagina (te verwijderen na implementatie) |
+
+### Server Actions
+
+```typescript
+// Zoek soorten (lokaal + GBIF)
+searchSpecies(query: string): Promise<{ data: SpeciesSearchResult[]; error?: string }>
+
+// Haal soort op of maak aan vanuit GBIF key
+getOrCreateSpecies(gbifKey: number): Promise<{ data: Species | null; error?: string }>
+
+// Maak handmatige soort aan (niet in GBIF)
+createManualSpecies(input: CreateManualSpeciesInput): Promise<{ data: Species | null; error?: string }>
+
+// Haal soort op via ID
+getSpeciesById(id: string): Promise<{ data: Species | null; error?: string }>
+
+// Match soort op wetenschappelijke naam (voor bulk import)
+matchSpeciesByName(scientificName: string): Promise<{ data: Species | null; error?: string }>
+```
+
+### Zoekstrategie
+
+De `searchSpecies` functie zoekt in drie stappen:
+
+1. **Lokale database (primair)** - wetenschappelijke namen + Nederlandse namen in `common_names`
+2. **Lokale vernacular search** - doorzoekt alle talen in `gbif_data.vernacularNames`
+3. **GBIF API (parallel)**:
+   - `/species/suggest?q=` - wetenschappelijke namen
+   - `/species/search?q=` - zoekt ook in vernacular names
+
+### GBIF API Learnings
+
+| Endpoint | Werkt voor | Notitie |
+|----------|------------|---------|
+| `/species/suggest?q=` | Wetenschappelijke namen | Snel, maar geen vernacular search |
+| `/species/search?q=` | Beide | Langzamer, maar vindt "huismus" → Passer domesticus |
+| `/species/search?vernacularName=` | ❌ Werkt niet | Geeft willekeurige resultaten |
+| `/species/{key}` | Volledige soort data | Inclusief taxonomie |
+| `/species/{key}/vernacularNames` | Alle vertalingen | Nederlands = `language: "nld"` |
+
+### Database Caching
+
+Bij selectie van een GBIF soort:
+1. Check of `gbif_key` al bestaat in `species` tabel
+2. Zo niet: fetch volledige data + vernacular names van GBIF
+3. Sla op met `source: 'gbif'` en alle vernacular names in `gbif_data`
+4. Volgende keer: direct uit lokale database (sneller + offline beschikbaar)
+
+### Test Resultaten
+
+| Zoekterm | Verwacht | Resultaat |
+|----------|----------|-----------|
+| "merel" | Turdus merula | ✅ Gevonden (lokaal na eerste selectie) |
+| "Turdus merula" | Turdus merula | ✅ Gevonden |
+| "huismus" | Passer domesticus | ✅ Gevonden via GBIF search |
+| "blackbird" | Turdus merula | ✅ Gevonden via Engelse naam |
+
+---
+
+## 14. Implementatie Fase 2: SpeciesSelector Component (Voltooid)
+
+**Datum:** januari 2026
+**Status:** ✅ Voltooid
+
+### Gemaakte bestanden
+
+| Bestand | Beschrijving |
+|---------|--------------|
+| `src/components/species/species-selector.tsx` | Autocomplete component voor soort selectie |
+| `src/components/species/index.ts` | Barrel export |
+
+### Component Features
+
+- **Debounced search** (300ms) voorkomt te veel API calls
+- **Lokaal vs GBIF badges** toont bron van elke zoekresultaat
+- **Inline loading state** tijdens zoeken
+- **Clear button** om selectie te wissen
+- **Keyboard navigatie** volledig ondersteund
+
+### Props Interface
+
+```typescript
+interface SpeciesSelectorProps {
+  value: string | null;           // species ID
+  onChange: (speciesId: string | null, species: Species | null) => void;
+  disabled?: boolean;
+  placeholder?: string;
+}
+```
+
+---
+
+## 15. Implementatie Fase 3: Card Editor Integratie (Voltooid)
+
+**Datum:** januari 2026
+**Status:** ✅ Voltooid
+
+### Aangepaste bestanden
+
+| Bestand | Wijziging |
+|---------|-----------|
+| `src/lib/actions/decks.ts` | `updateCard` ondersteunt nu `speciesId` en `speciesDisplay` |
+| `src/app/(main)/decks/[id]/edit/page.tsx` | Haalt species data op via Supabase join |
+| `src/components/deck/deck-editor.tsx` | Geeft species props door aan WysiwygCardEditor |
+| `src/components/deck/wysiwyg-card-editor.tsx` | Toont SpeciesSelector + display opties |
+
+### UI Flow
+
+1. Gebruiker klikt op een kaart om te bewerken
+2. Onder de voor/achterkant editors verschijnt de SpeciesSelector
+3. Zoeken op Nederlandse of wetenschappelijke naam
+4. Bij selectie verschijnen radio buttons voor display locatie
+5. Opslaan stuurt `speciesId` en `speciesDisplay` naar de server
+
+### Supabase Query Handling
+
+Supabase retourneert foreign key joins soms als array, soms als object. De code handelt dit af:
+
+```typescript
+const speciesData = Array.isArray(card.species)
+  ? card.species[0]
+  : card.species;
+```
+
+---
+
+## 16. Implementatie Fase 4: Study Sessie Badge (Voltooid)
+
+**Datum:** januari 2026
+**Status:** ✅ Voltooid
+
+### Aangepaste bestanden
+
+| Bestand | Wijziging |
+|---------|-----------|
+| `src/lib/actions/study.ts` | `getStudyCards` haalt species data op |
+| `src/app/(public)/study/[deckId]/page.tsx` | Geeft species data door aan Flashcard |
+| `src/components/flashcard/flashcard.tsx` | Toont species badge op basis van `speciesDisplay` |
+
+### Badge Weergave
+
+De badge toont:
+- Nederlandse naam (indien beschikbaar) of canonieke naam
+- Wetenschappelijke naam cursief tussen haakjes (indien anders dan display naam)
+
+```tsx
+<div className="mt-4 pt-3 border-t border-border/50">
+  <div className="text-sm text-muted-foreground">
+    <span className="font-medium">{displayName}</span>
+    <span className="italic ml-1.5">({scientificName})</span>
+  </div>
+</div>
+```
+
+### Display Logic
+
+| `speciesDisplay` | Voorkant | Achterkant |
+|------------------|----------|------------|
+| `'front'` | ✅ | ❌ |
+| `'back'` (default) | ❌ | ✅ |
+| `'both'` | ✅ | ✅ |
+| `'none'` | ❌ | ❌ |
+
+---
+
+## 17. Layout Verbetering: Soort als Primair Antwoord (Voltooid)
+
+**Datum:** januari 2026
+**Status:** ✅ Voltooid
+
+### Probleem
+
+De originele layout behandelde de soort als secundaire informatie:
+- In de editor stond "Soort koppelen" onderaan als apart veld
+- In de leermodus werd de vrije tekst (backText) groot getoond, met de soort klein eronder
+
+Dit is niet ideaal voor een flashcard app gericht op soortherkenning, waar de **soort** het primaire antwoord zou moeten zijn.
+
+### Oplossing
+
+#### Editor Layout (wysiwyg-card-editor.tsx)
+
+De CardSideEditor component combineert media én tekst in één card-preview. Dit geeft gebruikers een WYSIWYG-ervaring die overeenkomt met hoe de flashcard eruit zal zien.
+
+**Voor:**
+```
+┌─────────────────────┐  ┌─────────────────────┐
+│ Voorkant            │  │ Achterkant          │
+│ [media + tekst]     │  │ [media + tekst]     │
+└─────────────────────┘  └─────────────────────┘
+
+Soort koppelen (optioneel): [selector]
+
+[Opslaan] [Annuleren]
+```
+
+**Na:**
+```
+┌─────────────────────┐  ┌─────────────────────┐
+│ Voorkant            │  │ Achterkant          │
+│ [media + tekst]     │  │ [media + tekst]     │
+│ placeholder: "Vraag │  │ placeholder: "Extra │
+│ hint of context"    │  │ informatie"         │
+└─────────────────────┘  └─────────────────────┘
+
+┌─────────────────────────────────────────────┐
+│ Soort (primair antwoord)                   │  ← Prominent styling
+│ [🔍 Zoek op Nederlandse of wetenschappe...] │
+│ Tonen op: ● Achterkant ○ Voorkant ○ Beide  │
+└─────────────────────────────────────────────┘
+
+[Opslaan] [Annuleren]
+```
+
+**Wijzigingen:**
+- Soort selector krijgt prominente styling (`bg-primary/5 border-primary/20 rounded-lg p-4`)
+- Label veranderd naar "Soort (primair antwoord)" met `font-semibold`
+- Achterkant tekstveld placeholder veranderd naar "Extra informatie (optioneel)"
+
+#### Leermodus Weergave (flashcard.tsx)
+
+**Voor (achterkant):**
+```
+[Media]
+Alpenwatersalamander          ← backText groot, primary color
+──────────────────────
+Alpenwatersalamander          ← Species klein, muted
+(Ichthyosaura alpestris)
+```
+
+**Na (achterkant):**
+```
+[Media]
+Alpenwatersalamander          ← Species groot, primary color
+Ichthyosaura alpestris        ← Wetenschappelijke naam cursief
+──────────────────────
+Leeft in berggebieden...      ← backText kleiner, als extra info
+```
+
+**Wijzigingen:**
+- Nieuwe functie `renderSpeciesPrimary()` voor prominente weergave
+- Als `showSpeciesOnBack` true is: species = primair, backText = secundair
+- Als geen species: backText blijft primair (backwards compatible)
+- Zelfde logica voor voorkant wanneer `speciesDisplay === 'front' | 'both'`
+
+### Weergave Hiërarchie
+
+| Element | Met Species | Zonder Species |
+|---------|-------------|----------------|
+| **Primair** | Soort (groot, primary) | backText (groot, primary) |
+| **Secundair** | backText (kleiner, muted) | - |
+| **Wetenschappelijk** | Cursief onder primair | - |
+
+---
+
+## 18. Fase 5: Bulk Import Species Matching (Voltooid)
+
+**Datum:** januari 2026
+**Status:** ✅ Voltooid
+
+### Overzicht
+
+Bij het importeren van bestanden worden nu automatisch soorten herkend uit bestandsnamen en gekoppeld aan de GBIF taxonomie.
+
+### Nieuwe Types
+
+```typescript
+// src/lib/import/types.ts
+
+type SpeciesMatchStatus =
+  | "pending"      // Nog niet gezocht
+  | "searching"    // Bezig met zoeken
+  | "matched"      // Exacte match gevonden
+  | "suggested"    // Suggesties gevonden, user moet kiezen
+  | "not_found"    // Geen match gevonden
+  | "skipped";     // Geen herkenbare naam (bijv. IMG_1234)
+
+interface SpeciesMatch {
+  speciesId: string;
+  scientificName: string;
+  dutchName: string | null;
+  gbifKey: number | null;
+  confidence: "exact" | "high" | "low";
+}
+
+// Uitbreiding ImportCardPreview
+interface ImportCardPreview {
+  // ... bestaande velden
+  speciesMatchStatus: SpeciesMatchStatus;
+  speciesMatch: SpeciesMatch | null;
+  speciesSuggestions: SpeciesMatch[];
+}
+
+// Uitbreiding ImportResult
+interface ImportResult {
+  // ... bestaande velden
+  speciesId: string | null;
+}
+```
+
+### UI Workflow
+
+1. **Bestanden selecteren** - Gebruiker sleept bestanden naar import zone
+2. **"Soorten zoeken" knop** - Start automatische matching:
+   - Wetenschappelijke naam in bestandsnaam → Exacte GBIF match
+   - Nederlandse naam → Zoek in lokale DB + GBIF
+   - Bestandsnaam-patronen (IMG_1234) worden geskipt
+3. **Preview met status icons**:
+   - ✅ Groen: Gekoppeld (automatisch of handmatig bevestigd)
+   - ⚠️ Amber: Suggesties beschikbaar (klik om te kiezen)
+   - ⚪ Grijs: Niet gevonden / overgeslagen
+4. **Import** - Soorten worden automatisch gekoppeld aan kaarten
+
+### Visuele Preview
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│ Soorten koppelen                          [🔍 Soorten zoeken]   │
+│ Automatisch soorten herkennen uit bestandsnamen                 │
+│                                                                 │
+│ ✅ 12 gekoppeld  ⚠️ 3 suggesties  ⚪ 2 niet gevonden            │
+└─────────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────────┐
+│ Preview (17 kaarten)                                            │
+├─────────────────────────────────────────────────────────────────┤
+│ 1. [🎵] Merel                                              ✅   │
+│        [Turdus merula] ✕                                        │
+│                                                                 │
+│ 2. [🎵] Roodborst                                          ⚠️   │
+│        Kies een soort: [Roodborst] [Europese roodborst]         │
+│                                                                 │
+│ 3. [📷] IMG_22213.jpg                                      ⚪   │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### Matching Logica
+
+```typescript
+// 1. Bestandsnaam check - skip camera patronen
+if (looksLikeFilename(name)) {
+  status = "skipped";
+  return;
+}
+
+// 2. Wetenschappelijke naam in bestandsnaam → exacte match
+if (scientificName) {
+  const result = await matchSpeciesByName(scientificName);
+  if (result.data) {
+    status = "matched";
+    confidence = "exact";
+  }
+}
+
+// 3. Nederlandse naam → zoek suggesties
+if (!match && dutchName) {
+  const results = await searchSpecies(dutchName);
+
+  // Exacte Nederlandse naam match → auto-koppel
+  if (results[0].dutch_name === dutchName) {
+    status = "matched";
+    confidence = "exact";
+  } else if (results.length > 0) {
+    status = "suggested";
+    suggestions = results.slice(0, 5);
+  } else {
+    status = "not_found";
+  }
+}
+```
+
+### Backend Aanpassingen
+
+```typescript
+// src/lib/actions/import.ts - addCardsToDeck()
+
+const cardsToInsert = cards.map((card, index) => ({
+  deck_id: deckId,
+  front_text: null,
+  back_text: card.dutchName,
+  position: startPosition + card.position + index,
+  species_id: card.speciesId || null,           // Nieuw
+  species_display: card.speciesId ? "back" : null,  // Nieuw
+}));
+```
+
+### Bestanden Aangepast
+
+| Bestand | Wijziging |
+|---------|-----------|
+| `src/lib/import/types.ts` | Nieuwe types voor species matching |
+| `src/app/(main)/decks/import/page.tsx` | Species matching UI en logica |
+| `src/components/deck/bulk-import-form.tsx` | Species velden toegevoegd |
+| `src/lib/actions/import.ts` | species_id opslaan bij import |
+
+---
+
+*Alle fasen voltooid: januari 2026*
