@@ -43,6 +43,11 @@ interface GBIFOccurrenceResponse {
 const GBIF_API_BASE = "https://api.gbif.org/v1";
 const REQUEST_TIMEOUT = 5000; // 5 seconds
 
+// iNaturalist Research-Grade Observations dataset key
+// Alleen waarnemingen die door minimaal 2 mensen bevestigd zijn
+// Licenties: CC0 en CC-BY 4.0 (bewerkingen toegestaan)
+const INATURALIST_RESEARCH_GRADE_DATASET_KEY = "50c9509d-22c7-4a22-a47d-8c48425ef4a7";
+
 /**
  * Bepaal bron uit URL
  */
@@ -109,6 +114,7 @@ async function fetchOccurrencesWithLicense(
     mediaType,
     license,
     limit: limit.toString(),
+    datasetKey: INATURALIST_RESEARCH_GRADE_DATASET_KEY,
   });
 
   const url = `${GBIF_API_BASE}/occurrence/search?${params}`;
@@ -210,29 +216,25 @@ export async function getRandomSpeciesMedia(
 
 /**
  * Haal meerdere random media op voor een lijst soorten
- * Geoptimaliseerd voor batch requests
+ * Alle requests worden parallel uitgevoerd voor maximale snelheid
  */
 export async function getMediaForSpecies(
   speciesList: Array<{ gbifKey: number; cardId: string }>
 ): Promise<Map<string, GBIFMediaResult>> {
   const results = new Map<string, GBIFMediaResult>();
 
-  // Process in batches to avoid overwhelming the API
-  const batchSize = 5;
-  for (let i = 0; i < speciesList.length; i += batchSize) {
-    const batch = speciesList.slice(i, i + batchSize);
+  // Voer ALLE requests parallel uit
+  // Elke getRandomSpeciesMedia doet intern al 2 parallelle calls (CC0 + CC-BY)
+  const allResults = await Promise.all(
+    speciesList.map(async ({ gbifKey, cardId }) => {
+      const media = await getRandomSpeciesMedia({ gbifKey, limit: 20 }); // Kleinere limit per soort
+      return { cardId, media };
+    })
+  );
 
-    const batchResults = await Promise.all(
-      batch.map(async ({ gbifKey, cardId }) => {
-        const media = await getRandomSpeciesMedia({ gbifKey });
-        return { cardId, media };
-      })
-    );
-
-    for (const { cardId, media } of batchResults) {
-      if (media) {
-        results.set(cardId, media);
-      }
+  for (const { cardId, media } of allResults) {
+    if (media) {
+      results.set(cardId, media);
     }
   }
 
@@ -250,6 +252,7 @@ export async function hasPublicMedia(
     mediaType: "StillImage",
     license: "CC_BY_4_0",
     limit: "1",
+    datasetKey: INATURALIST_RESEARCH_GRADE_DATASET_KEY,
   });
 
   const url = `${GBIF_API_BASE}/occurrence/search?${params}`;
@@ -338,6 +341,7 @@ async function fetchOccurrencesWithLicenseAndCount(
     license,
     limit: limit.toString(),
     offset: offset.toString(),
+    datasetKey: INATURALIST_RESEARCH_GRADE_DATASET_KEY,
   });
 
   const url = `${GBIF_API_BASE}/occurrence/search?${params}`;

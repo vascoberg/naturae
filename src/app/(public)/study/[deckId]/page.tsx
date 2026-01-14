@@ -87,7 +87,7 @@ function StudyPageContent() {
 
   // Aparte component voor openbare foto's modus
   if (mode === "photos") {
-    return <PhotoStudySession key={sessionKey} deckId={deckId} />;
+    return <PhotoStudySession key={sessionKey} deckId={deckId} limit={limit} />;
   }
 
   return <StudySession key={sessionKey} deckId={deckId} mode={mode} limit={limit} />;
@@ -415,9 +415,10 @@ function StudySession({ deckId, mode, limit }: StudySessionProps) {
 
 interface PhotoStudySessionProps {
   deckId: string;
+  limit?: number;
 }
 
-function PhotoStudySession({ deckId }: PhotoStudySessionProps) {
+function PhotoStudySession({ deckId, limit }: PhotoStudySessionProps) {
   const router = useRouter();
 
   const [cards, setCards] = useState<PublicPhotoStudyCard[]>([]);
@@ -446,7 +447,7 @@ function PhotoStudySession({ deckId }: PhotoStudySessionProps) {
         setIsLoading(true);
         setLoadError(null);
 
-        const result = await getPublicPhotoStudyCards(deckId, { shuffle: true });
+        const result = await getPublicPhotoStudyCards(deckId, { shuffle: true, limit });
 
         if (result.error) {
           setLoadError(result.error);

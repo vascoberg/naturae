@@ -304,7 +304,7 @@ export interface PublicPhotoStudyCard {
  */
 export async function getPublicPhotoStudyCards(
   deckId: string,
-  options?: { shuffle?: boolean }
+  options?: { shuffle?: boolean; limit?: number }
 ): Promise<{ data: PublicPhotoStudyCard[]; error?: string }> {
   const supabase = await createClient();
 
@@ -365,7 +365,7 @@ export async function getPublicPhotoStudyCards(
   };
 
   // Filter cards that have a valid gbif_key
-  const cardsWithGbif = cards.filter((card) => {
+  let cardsWithGbif = cards.filter((card) => {
     const species = getSpeciesObject(card.species);
     return species && typeof species === "object" && "gbif_key" in species && species.gbif_key;
   });
@@ -374,8 +374,19 @@ export async function getPublicPhotoStudyCards(
     return { data: [], error: "Geen kaarten met GBIF-gekoppelde soorten gevonden" };
   }
 
-  // Build species list for batch request
-  const speciesList = cardsWithGbif.map((card) => {
+  // PERFORMANCE: Shuffle en limit VOORDAT we foto's ophalen
+  // Dit voorkomt dat we 97 API calls doen als de gebruiker maar 10 kaarten wil
+  if (options?.shuffle) {
+    cardsWithGbif = shuffleArray(cardsWithGbif);
+  }
+
+  // We vragen iets meer kaarten op dan de limit, omdat sommige geen foto's hebben
+  // Bijvoorbeeld: limit=10 -> we halen 15 kaarten op, filteren op foto's, en nemen max 10
+  const fetchLimit = options?.limit ? Math.min(cardsWithGbif.length, options.limit * 1.5) : cardsWithGbif.length;
+  const cardsToFetch = cardsWithGbif.slice(0, Math.ceil(fetchLimit));
+
+  // Build species list for batch request (alleen voor gelimiteerde set)
+  const speciesList = cardsToFetch.map((card) => {
     const species = getSpeciesObject(card.species) as { gbif_key: number };
     return {
       gbifKey: species.gbif_key,
@@ -389,7 +400,7 @@ export async function getPublicPhotoStudyCards(
   // Build result cards
   const resultCards: PublicPhotoStudyCard[] = [];
 
-  for (const card of cardsWithGbif) {
+  for (const card of cardsToFetch) {
     const species = getSpeciesObject(card.species) as {
       id: string;
       scientific_name: string;
@@ -400,12 +411,14 @@ export async function getPublicPhotoStudyCards(
 
     const photo = photoMap.get(card.id);
 
+    // Skip cards without photos
+    if (!photo) continue;
+
     // Prioriteit voor naam:
     // 1. back_text (de naam die de gebruiker heeft ingevoerd, bijv. "Bruine kikker")
     // 2. GBIF Dutch common name
     // 3. GBIF canonical name
     // 4. GBIF scientific name (altijd beschikbaar als fallback)
-    // NB: species_display is een enum ("front"/"back"/"both"/"none"), niet een naam!
     const speciesName =
       card.back_text ||
       species.common_names?.nl ||
@@ -417,28 +430,23 @@ export async function getPublicPhotoStudyCards(
       speciesId: species.id,
       speciesName,
       scientificName: species.scientific_name,
-      backText: null, // back_text wordt nu als speciesName gebruikt
-      photo: photo
-        ? {
-            url: photo.identifier,
-            creator: photo.creator,
-            license: photo.licenseType,
-            source: photo.source,
-            references: photo.references,
-          }
-        : null,
+      backText: null,
+      photo: {
+        url: photo.identifier,
+        creator: photo.creator,
+        license: photo.licenseType,
+        source: photo.source,
+        references: photo.references,
+      },
     });
+
+    // Stop als we genoeg kaarten hebben
+    if (options?.limit && resultCards.length >= options.limit) {
+      break;
+    }
   }
 
-  // Filter out cards without photos
-  const cardsWithPhotos = resultCards.filter((card) => card.photo !== null);
-
-  // Optionally shuffle
-  if (options?.shuffle) {
-    return { data: shuffleArray(cardsWithPhotos) };
-  }
-
-  return { data: cardsWithPhotos };
+  return { data: resultCards };
 }
 
 /**
