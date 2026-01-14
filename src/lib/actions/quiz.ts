@@ -14,6 +14,8 @@ export interface QuizOption {
   isCorrect: boolean;
 }
 
+export type QuizMediaType = "image" | "audio";
+
 export interface QuizCard {
   cardId: string;
   speciesId: string;
@@ -22,12 +24,18 @@ export interface QuizCard {
     scientificName: string;
   };
   options: QuizOption[];
-  photo: {
+  mediaType: QuizMediaType;
+  photo?: {
     url: string;
     creator: string | null;
     license: "CC0" | "CC-BY";
     source: string;
     references: string | null;
+  };
+  audio?: {
+    url: string;
+    creator: string | null;
+    source: string;
   };
 }
 
@@ -259,11 +267,15 @@ async function getDistractors(
  * Haal quiz kaarten op voor een deck
  * Ondersteunt twee bronnen:
  * - "gbif": Gebruik openbare foto's van GBIF (vereist gbif_key op soorten)
- * - "own": Gebruik eigen media van kaarten (vereist card_media met type "image")
+ * - "own": Gebruik eigen media van kaarten (image, audio, of mix)
  */
 export async function getQuizCards(
   deckId: string,
-  options?: { limit?: number; source?: "own" | "gbif" }
+  options?: {
+    limit?: number;
+    source?: "own" | "gbif";
+    mediaType?: "image" | "audio" | "mix"; // Alleen relevant voor source="own"
+  }
 ): Promise<{ data: QuizCard[]; error?: string }> {
   const supabase = await createClient();
   const source = options?.source || "gbif";
@@ -289,7 +301,7 @@ export async function getQuizCards(
 
   // Verschillende queries afhankelijk van bron
   if (source === "own") {
-    return getQuizCardsWithOwnMedia(supabase, deckId, options?.limit);
+    return getQuizCardsWithOwnMedia(supabase, deckId, options?.limit, options?.mediaType || "image");
   } else {
     return getQuizCardsWithGbifMedia(supabase, deckId, options?.limit);
   }
@@ -297,11 +309,13 @@ export async function getQuizCards(
 
 /**
  * Quiz met eigen media van kaarten
+ * Ondersteunt image, audio, of mix
  */
 async function getQuizCardsWithOwnMedia(
   supabase: Awaited<ReturnType<typeof createClient>>,
   deckId: string,
-  limit?: number
+  limit?: number,
+  mediaType: "image" | "audio" | "mix" = "image"
 ): Promise<{ data: QuizCard[]; error?: string }> {
   // Get all cards with their own media AND species (voor distractors)
   const { data: cards, error: cardsError } = await supabase
@@ -348,13 +362,26 @@ async function getQuizCardsWithOwnMedia(
     return s as SpeciesForDistractor;
   };
 
-  // Filter cards that have at least one image media
+  // Filter cards based on mediaType
   let cardsWithMedia = cards.filter((card) => {
-    return card.card_media && card.card_media.some(m => m.type === "image");
+    if (!card.card_media || card.card_media.length === 0) return false;
+    if (mediaType === "image") {
+      return card.card_media.some(m => m.type === "image");
+    } else if (mediaType === "audio") {
+      return card.card_media.some(m => m.type === "audio");
+    } else {
+      // mix: any media type
+      return card.card_media.some(m => m.type === "image" || m.type === "audio");
+    }
   });
 
   if (cardsWithMedia.length === 0) {
-    return { data: [], error: "Geen kaarten met afbeeldingen gevonden" };
+    const errorMsg = mediaType === "audio"
+      ? "Geen kaarten met audio gevonden"
+      : mediaType === "mix"
+        ? "Geen kaarten met media gevonden"
+        : "Geen kaarten met afbeeldingen gevonden";
+    return { data: [], error: errorMsg };
   }
 
   // Shuffle cards
@@ -378,9 +405,29 @@ async function getQuizCardsWithOwnMedia(
   const resultCards: QuizCard[] = [];
 
   for (const card of cardsToProcess) {
-    // Get first image from card_media
-    const imageMedia = card.card_media?.find(m => m.type === "image");
-    if (!imageMedia) continue;
+    // Determine which media to use based on mediaType
+    let selectedMedia: typeof card.card_media[0] | undefined;
+    let selectedMediaType: QuizMediaType;
+
+    if (mediaType === "mix") {
+      // For mix mode, randomly pick image or audio (preferring what's available)
+      const hasImage = card.card_media?.some(m => m.type === "image");
+      const hasAudio = card.card_media?.some(m => m.type === "audio");
+      if (hasImage && hasAudio) {
+        // Random keuze
+        selectedMediaType = Math.random() < 0.5 ? "image" : "audio";
+      } else if (hasImage) {
+        selectedMediaType = "image";
+      } else {
+        selectedMediaType = "audio";
+      }
+      selectedMedia = card.card_media?.find(m => m.type === selectedMediaType);
+    } else {
+      selectedMediaType = mediaType;
+      selectedMedia = card.card_media?.find(m => m.type === mediaType);
+    }
+
+    if (!selectedMedia) continue;
 
     const species = getSpeciesObject(card.species);
 
@@ -445,7 +492,8 @@ async function getQuizCardsWithOwnMedia(
     // Shuffle options so correct answer isn't always first
     const shuffledOptions = shuffleArray(quizOptions);
 
-    resultCards.push({
+    // Build the quiz card based on media type
+    const quizCard: QuizCard = {
       cardId: card.id,
       speciesId: species?.id || card.id,
       correctAnswer: {
@@ -453,14 +501,26 @@ async function getQuizCardsWithOwnMedia(
         scientificName: scientificName,
       },
       options: shuffledOptions,
-      photo: {
-        url: imageMedia.annotated_url || imageMedia.url,
-        creator: imageMedia.attribution_name,
+      mediaType: selectedMediaType,
+    };
+
+    if (selectedMediaType === "image") {
+      quizCard.photo = {
+        url: selectedMedia.annotated_url || selectedMedia.url,
+        creator: selectedMedia.attribution_name,
         license: "CC-BY", // Default, eigen media heeft geen specifieke licentie info
-        source: imageMedia.attribution_source || "Eigen media",
+        source: selectedMedia.attribution_source || "Eigen media",
         references: null,
-      },
-    });
+      };
+    } else {
+      quizCard.audio = {
+        url: selectedMedia.url,
+        creator: selectedMedia.attribution_name,
+        source: selectedMedia.attribution_source || "Eigen media",
+      };
+    }
+
+    resultCards.push(quizCard);
   }
 
   if (resultCards.length === 0) {
@@ -597,6 +657,7 @@ async function getQuizCardsWithGbifMedia(
         scientificName: species.scientific_name,
       },
       options: shuffledOptions,
+      mediaType: "image",
       photo: {
         url: photo.identifier,
         creator: photo.creator,

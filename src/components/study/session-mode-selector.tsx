@@ -12,6 +12,8 @@ import {
   CircleHelp,
   Layers,
   ImageIcon,
+  Volume2,
+  Dices,
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -26,6 +28,9 @@ export type FlashcardSubMode = "order" | "shuffle" | "smart" | "photos";
 // Quiz media bron
 export type QuizMediaSource = "own" | "gbif";
 
+// Quiz media type (voor eigen media)
+export type QuizMediaType = "image" | "audio" | "mix";
+
 // Gecombineerde session mode voor URL params
 export type SessionMode = FlashcardSubMode | "quiz";
 
@@ -34,7 +39,9 @@ interface SessionModeSelectorProps {
   totalCards: number;
   dueCards: number;
   speciesCardsCount?: number;
-  cardsWithMediaCount?: number; // Aantal kaarten met eigen media
+  cardsWithMediaCount?: number; // Aantal kaarten met eigen media (totaal)
+  cardsWithImageCount?: number; // Aantal kaarten met eigen foto's
+  cardsWithAudioCount?: number; // Aantal kaarten met eigen audio
   isGuest?: boolean;
   onClose?: () => void;
 }
@@ -48,6 +55,8 @@ export function SessionModeSelector({
   dueCards,
   speciesCardsCount = 0,
   cardsWithMediaCount = 0,
+  cardsWithImageCount = 0,
+  cardsWithAudioCount = 0,
   isGuest = false,
   onClose,
 }: SessionModeSelectorProps) {
@@ -57,9 +66,12 @@ export function SessionModeSelector({
   const [cardLimit, setCardLimit] = useState<number | null>(null);
   const [quizQuestionCount, setQuizQuestionCount] = useState<number>(10);
   const [quizMediaSource, setQuizMediaSource] = useState<QuizMediaSource>("gbif");
+  const [quizMediaType, setQuizMediaType] = useState<QuizMediaType>("image");
 
   const hasSpeciesCards = speciesCardsCount > 0;
   const hasOwnMedia = cardsWithMediaCount > 0;
+  const hasOwnImages = cardsWithImageCount > 0;
+  const hasOwnAudio = cardsWithAudioCount > 0;
   const canUseQuiz = speciesCardsCount >= 1; // Minstens 1 soort nodig voor quiz (GBIF)
   const canUseOwnMediaQuiz = cardsWithMediaCount >= 1; // Minstens 1 kaart met media
 
@@ -67,13 +79,24 @@ export function SessionModeSelector({
     return CARD_LIMIT_OPTIONS.filter((limit) => limit < totalCards);
   }, [totalCards]);
 
-  const availableQuizOptions = useMemo(() => {
-    const maxCount = quizMediaSource === "own" ? cardsWithMediaCount : speciesCardsCount;
-    return QUIZ_QUESTION_OPTIONS.filter((count) => count <= maxCount);
-  }, [speciesCardsCount, cardsWithMediaCount, quizMediaSource]);
+  // Bereken het aantal beschikbare kaarten voor de huidige quiz configuratie
+  const getOwnMediaCount = (mediaType: QuizMediaType) => {
+    if (mediaType === "image") return cardsWithImageCount;
+    if (mediaType === "audio") return cardsWithAudioCount;
+    return cardsWithMediaCount; // mix: alle kaarten met media
+  };
 
-  // Max aantal vragen voor quiz (afhankelijk van bron)
-  const maxQuizQuestions = quizMediaSource === "own" ? cardsWithMediaCount : speciesCardsCount;
+  const availableQuizOptions = useMemo(() => {
+    const maxCount = quizMediaSource === "own"
+      ? getOwnMediaCount(quizMediaType)
+      : speciesCardsCount;
+    return QUIZ_QUESTION_OPTIONS.filter((count) => count <= maxCount);
+  }, [speciesCardsCount, cardsWithImageCount, cardsWithAudioCount, cardsWithMediaCount, quizMediaSource, quizMediaType]);
+
+  // Max aantal vragen voor quiz (afhankelijk van bron en mediatype)
+  const maxQuizQuestions = quizMediaSource === "own"
+    ? getOwnMediaCount(quizMediaType)
+    : speciesCardsCount;
 
   // Reset quiz question count als deze groter is dan het max bij de nieuwe bron
   useEffect(() => {
@@ -138,6 +161,10 @@ export function SessionModeSelector({
         limit: quizQuestionCount.toString(),
         source: quizMediaSource,
       });
+      // Voeg mediaType toe voor eigen media
+      if (quizMediaSource === "own") {
+        params.set("mediaType", quizMediaType);
+      }
       router.push(`/study/${deckId}?${params.toString()}`);
     } else {
       if (!flashcardSubMode) return;
@@ -149,8 +176,13 @@ export function SessionModeSelector({
     }
   };
 
-  // Bepaal of quiz gestart kan worden (afhankelijk van media bron)
-  const canStartQuiz = quizMediaSource === "own" ? canUseOwnMediaQuiz : canUseQuiz;
+  // Bepaal of quiz gestart kan worden (afhankelijk van media bron en type)
+  const canStartOwnQuiz = quizMediaType === "image"
+    ? hasOwnImages
+    : quizMediaType === "audio"
+      ? hasOwnAudio
+      : hasOwnMedia;
+  const canStartQuiz = quizMediaSource === "own" ? canStartOwnQuiz : canUseQuiz;
   const canStart =
     mainMode === "quiz" ? canStartQuiz : flashcardSubMode !== null;
 
@@ -413,6 +445,53 @@ export function SessionModeSelector({
               </CardContent>
             </Card>
           </div>
+
+          {/* Quiz media type selectie (alleen voor eigen media) */}
+          {quizMediaSource === "own" && (
+            <div className="rounded-lg border bg-muted/30 p-4">
+              <p className="text-sm font-medium mb-3">Type media</p>
+              <div className="grid grid-cols-3 gap-2">
+                {/* Foto's */}
+                <Button
+                  size="sm"
+                  variant={quizMediaType === "image" ? "default" : "outline"}
+                  onClick={() => setQuizMediaType("image")}
+                  disabled={!hasOwnImages}
+                  className="flex flex-col h-auto py-2 gap-1"
+                >
+                  <ImageIcon className="w-4 h-4" />
+                  <span className="text-xs">Foto's</span>
+                  <span className="text-xs font-semibold">{cardsWithImageCount}</span>
+                </Button>
+
+                {/* Geluid */}
+                <Button
+                  size="sm"
+                  variant={quizMediaType === "audio" ? "default" : "outline"}
+                  onClick={() => setQuizMediaType("audio")}
+                  disabled={!hasOwnAudio}
+                  className="flex flex-col h-auto py-2 gap-1"
+                >
+                  <Volume2 className="w-4 h-4" />
+                  <span className="text-xs">Geluid</span>
+                  <span className="text-xs font-semibold">{cardsWithAudioCount}</span>
+                </Button>
+
+                {/* Mix */}
+                <Button
+                  size="sm"
+                  variant={quizMediaType === "mix" ? "default" : "outline"}
+                  onClick={() => setQuizMediaType("mix")}
+                  disabled={!hasOwnMedia}
+                  className="flex flex-col h-auto py-2 gap-1"
+                >
+                  <Dices className="w-4 h-4" />
+                  <span className="text-xs">Mix</span>
+                  <span className="text-xs font-semibold">{cardsWithMediaCount}</span>
+                </Button>
+              </div>
+            </div>
+          )}
 
           {/* Aantal vragen */}
           <div className="rounded-lg border bg-muted/30 p-4">

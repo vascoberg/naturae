@@ -84,13 +84,22 @@ function StudyPageContent() {
   const limitParam = searchParams.get("limit");
   const limit = limitParam ? parseInt(limitParam, 10) : undefined;
   const source = searchParams.get("source") as "own" | "gbif" | null;
+  const mediaType = searchParams.get("mediaType") as "image" | "audio" | "mix" | null;
 
   // Key forceert volledige remount van StudySession bij navigatie
-  const sessionKey = `${deckId}-${mode}-${limit ?? "all"}-${source ?? "gbif"}`;
+  const sessionKey = `${deckId}-${mode}-${limit ?? "all"}-${source ?? "gbif"}-${mediaType ?? "image"}`;
 
   // Quiz mode
   if (mode === "quiz") {
-    return <QuizStudySession key={sessionKey} deckId={deckId} limit={limit} source={source || "gbif"} />;
+    return (
+      <QuizStudySession
+        key={sessionKey}
+        deckId={deckId}
+        limit={limit}
+        source={source || "gbif"}
+        mediaType={mediaType || "image"}
+      />
+    );
   }
 
   // Openbare foto's modus
@@ -714,9 +723,10 @@ interface QuizStudySessionProps {
   deckId: string;
   limit?: number;
   source: "own" | "gbif";
+  mediaType: "image" | "audio" | "mix";
 }
 
-function QuizStudySession({ deckId, limit, source }: QuizStudySessionProps) {
+function QuizStudySession({ deckId, limit, source, mediaType }: QuizStudySessionProps) {
   const router = useRouter();
 
   const [questions, setQuestions] = useState<QuizCard[]>([]);
@@ -735,7 +745,11 @@ function QuizStudySession({ deckId, limit, source }: QuizStudySessionProps) {
         setIsLoading(true);
         setLoadError(null);
 
-        const result = await getQuizCards(deckId, { limit: limit || 10, source });
+        const result = await getQuizCards(deckId, {
+          limit: limit || 10,
+          source,
+          mediaType: source === "own" ? mediaType : undefined,
+        });
 
         if (result.error) {
           setLoadError(result.error);
@@ -757,7 +771,7 @@ function QuizStudySession({ deckId, limit, source }: QuizStudySessionProps) {
     }
 
     loadQuestions();
-  }, [deckId, limit, source]);
+  }, [deckId, limit, source, mediaType]);
 
   // Laad deck titel
   useEffect(() => {

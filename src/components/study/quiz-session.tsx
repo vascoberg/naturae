@@ -3,6 +3,7 @@
 import { useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { QuizQuestion } from "./quiz-question";
+import { QuizAudioQuestion } from "./quiz-audio-question";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Trophy, RotateCcw, ArrowLeft } from "lucide-react";
@@ -177,10 +178,14 @@ export function QuizSession({
     );
   }
 
-  // Quiz vraag
+  // Quiz vraag - kies component op basis van mediaType
+  const QuestionComponent = currentQuestion.mediaType === "audio"
+    ? QuizAudioQuestion
+    : QuizQuestion;
+
   return (
     <div className="max-w-md mx-auto">
-      <QuizQuestion
+      <QuestionComponent
         question={currentQuestion}
         onAnswer={handleAnswer}
         onNext={handleNext}

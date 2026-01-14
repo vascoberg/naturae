@@ -112,7 +112,17 @@ export default async function DeckPage({ params }: DeckPageProps) {
     (c) => c.species && typeof c.species === "object" && "gbif_key" in c.species && c.species.gbif_key
   ).length || 0;
 
-  // Tel kaarten met eigen media (foto of audio, voor quiz met eigen media)
+  // Tel kaarten met eigen foto's (voor quiz met eigen foto's)
+  const cardsWithImageCount = cards?.filter(
+    (c) => c.card_media && c.card_media.length > 0 && c.card_media.some(m => m.type === "image")
+  ).length || 0;
+
+  // Tel kaarten met eigen audio (voor quiz met eigen geluiden)
+  const cardsWithAudioCount = cards?.filter(
+    (c) => c.card_media && c.card_media.length > 0 && c.card_media.some(m => m.type === "audio")
+  ).length || 0;
+
+  // Totaal kaarten met eigen media (voor backwards compatibility)
   const cardsWithMediaCount = cards?.filter(
     (c) => c.card_media && c.card_media.length > 0 && c.card_media.some(m => m.type === "image" || m.type === "audio")
   ).length || 0;
@@ -231,6 +241,8 @@ export default async function DeckPage({ params }: DeckPageProps) {
             dueCards={isGuest ? totalCards : cardsDue + newCards}
             speciesCardsCount={speciesCardsCount}
             cardsWithMediaCount={cardsWithMediaCount}
+            cardsWithImageCount={cardsWithImageCount}
+            cardsWithAudioCount={cardsWithAudioCount}
             hasStarted={!isGuest && cardsSeen > 0}
             isGuest={isGuest}
           />

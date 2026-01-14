@@ -1,16 +1,13 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import Image from "next/image";
+import { useState, useEffect, useRef } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { PhotoAttribution } from "@/components/ui/photo-attribution";
-import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
-import { Check, X, ArrowRight } from "lucide-react";
+import { Check, X, ArrowRight, Play, Pause, Volume2 } from "lucide-react";
 import type { QuizCard, QuizOption } from "@/lib/actions/quiz";
 
-interface QuizQuestionProps {
+interface QuizAudioQuestionProps {
   question: QuizCard;
   onAnswer: (selectedId: string, isCorrect: boolean) => void;
   onNext: () => void;
@@ -19,28 +16,40 @@ interface QuizQuestionProps {
   isLastQuestion: boolean;
 }
 
-export function QuizQuestion({
+export function QuizAudioQuestion({
   question,
   onAnswer,
   onNext,
   questionNumber,
   totalQuestions,
   isLastQuestion,
-}: QuizQuestionProps) {
-  const [imageLoaded, setImageLoaded] = useState(false);
-  const [imageError, setImageError] = useState(false);
+}: QuizAudioQuestionProps) {
+  const audioRef = useRef<HTMLAudioElement>(null);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [audioLoaded, setAudioLoaded] = useState(false);
+  const [audioError, setAudioError] = useState(false);
   const [selectedOption, setSelectedOption] = useState<string | null>(null);
   const [showResult, setShowResult] = useState(false);
   const [hasAnswered, setHasAnswered] = useState(false);
 
   // Reset state wanneer de vraag verandert
   useEffect(() => {
-    setImageLoaded(false);
-    setImageError(false);
+    setIsPlaying(false);
+    setAudioLoaded(false);
+    setAudioError(false);
     setSelectedOption(null);
     setShowResult(false);
     setHasAnswered(false);
   }, [question.cardId]);
+
+  // Auto-play when audio loads
+  useEffect(() => {
+    if (audioLoaded && audioRef.current && !hasAnswered) {
+      audioRef.current.play().catch(() => {
+        // Autoplay blocked by browser, user needs to click play
+      });
+    }
+  }, [audioLoaded, hasAnswered]);
 
   // Keyboard support voor volgende vraag
   useEffect(() => {
@@ -54,6 +63,21 @@ export function QuizQuestion({
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [hasAnswered, onNext]);
+
+  const handlePlayPause = () => {
+    if (!audioRef.current) return;
+
+    if (isPlaying) {
+      audioRef.current.pause();
+    } else {
+      audioRef.current.play();
+    }
+    setIsPlaying(!isPlaying);
+  };
+
+  const handleAudioEnded = () => {
+    setIsPlaying(false);
+  };
 
   const handleOptionClick = (option: QuizOption) => {
     if (showResult) return; // Voorkom dubbele selectie
@@ -95,46 +119,70 @@ export function QuizQuestion({
         </div>
       </div>
 
-      {/* Foto kaart */}
+      {/* Audio player card */}
       <Card className="overflow-hidden">
-        <CardContent className="p-0">
-          {/* Afbeelding */}
-          <div className="relative aspect-[4/3] w-full bg-muted">
-            {!imageLoaded && !imageError && (
-              <Skeleton className="absolute inset-0 w-full h-full" />
-            )}
-            {imageError || !question.photo ? (
-              <div className="absolute inset-0 flex items-center justify-center text-muted-foreground">
-                <p className="text-sm">Foto kon niet geladen worden</p>
+        <CardContent className="p-6">
+          {/* Audio element (hidden) */}
+          {question.audio && (
+            <audio
+              ref={audioRef}
+              src={question.audio.url}
+              onCanPlayThrough={() => setAudioLoaded(true)}
+              onError={() => setAudioError(true)}
+              onEnded={handleAudioEnded}
+              onPlay={() => setIsPlaying(true)}
+              onPause={() => setIsPlaying(false)}
+            />
+          )}
+
+          {/* Audio player UI */}
+          <div className="flex flex-col items-center gap-4">
+            {audioError ? (
+              <div className="text-center text-muted-foreground py-8">
+                <Volume2 className="w-12 h-12 mx-auto mb-2 opacity-50" />
+                <p className="text-sm">Audio kon niet geladen worden</p>
               </div>
             ) : (
-              <Image
-                src={question.photo.url}
-                alt="Quiz foto"
-                fill
-                className={cn(
-                  "object-contain transition-opacity duration-300",
-                  imageLoaded ? "opacity-100" : "opacity-0"
+              <>
+                {/* Play button */}
+                <button
+                  onClick={handlePlayPause}
+                  disabled={!audioLoaded}
+                  className={cn(
+                    "w-24 h-24 rounded-full flex items-center justify-center transition-all",
+                    "bg-primary text-primary-foreground",
+                    "hover:bg-primary/90",
+                    "disabled:opacity-50 disabled:cursor-not-allowed",
+                    isPlaying && "bg-primary/80"
+                  )}
+                >
+                  {isPlaying ? (
+                    <Pause className="w-10 h-10" />
+                  ) : (
+                    <Play className="w-10 h-10 ml-1" />
+                  )}
+                </button>
+
+                {/* Status */}
+                <p className="text-sm text-muted-foreground">
+                  {!audioLoaded ? "Laden..." : isPlaying ? "Afspelen..." : "Klik om af te spelen"}
+                </p>
+
+                {/* Attribution */}
+                {question.audio && (
+                  <p className="text-xs text-muted-foreground text-center">
+                    {question.audio.creator && (
+                      <span>Door {question.audio.creator}</span>
+                    )}
+                    {question.audio.source && question.audio.creator && " • "}
+                    {question.audio.source && (
+                      <span>{question.audio.source}</span>
+                    )}
+                  </p>
                 )}
-                onLoad={() => setImageLoaded(true)}
-                onError={() => setImageError(true)}
-                sizes="(max-width: 768px) 100vw, 512px"
-                unoptimized
-              />
+              </>
             )}
           </div>
-
-          {/* Attributie */}
-          {question.photo && (
-            <div className="p-3 border-t bg-muted/30">
-              <PhotoAttribution
-                creator={question.photo.creator}
-                license={question.photo.license}
-                source={question.photo.source}
-                references={question.photo.references}
-              />
-            </div>
-          )}
         </CardContent>
       </Card>
 
