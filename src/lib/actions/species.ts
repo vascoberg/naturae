@@ -438,3 +438,171 @@ async function fetchGBIFByVernacularName(query: string): Promise<GBIFSearchResul
 
   return results;
 }
+
+/**
+ * Fix missing genus in taxonomy by extracting from gbif_data
+ * Returns count of updated species
+ */
+export async function fixMissingGenus(): Promise<{ updated: number; errors: string[] }> {
+  const supabase = await createClient();
+  let updated = 0;
+  const errors: string[] = [];
+
+  // Find species that have gbif_data but no genus in taxonomy
+  const { data: speciesWithoutGenus } = await supabase
+    .from("species")
+    .select("id, scientific_name, taxonomy, gbif_data")
+    .not("gbif_data", "is", null);
+
+  if (!speciesWithoutGenus) {
+    return { updated: 0, errors: ["Could not fetch species"] };
+  }
+
+  for (const species of speciesWithoutGenus) {
+    // Check if genus is missing in taxonomy
+    const currentTaxonomy = species.taxonomy as Record<string, string> | null;
+    if (currentTaxonomy?.genus) continue; // Already has genus
+
+    // Try to extract genus from gbif_data
+    const gbifData = species.gbif_data as GBIFSpeciesData | null;
+    if (!gbifData?.genus) {
+      console.log(`[fixMissingGenus] No genus in gbif_data for ${species.scientific_name}`);
+      continue;
+    }
+
+    // Update taxonomy with genus (and other fields if missing)
+    const newTaxonomy = {
+      ...currentTaxonomy,
+      kingdom: currentTaxonomy?.kingdom || gbifData.kingdom,
+      phylum: currentTaxonomy?.phylum || gbifData.phylum,
+      class: currentTaxonomy?.class || gbifData.class,
+      order: currentTaxonomy?.order || gbifData.order,
+      family: currentTaxonomy?.family || gbifData.family,
+      genus: gbifData.genus,
+    };
+
+    const { error } = await supabase
+      .from("species")
+      .update({ taxonomy: newTaxonomy })
+      .eq("id", species.id);
+
+    if (error) {
+      errors.push(`Failed to update ${species.scientific_name}: ${error.message}`);
+    } else {
+      console.log(`[fixMissingGenus] Updated ${species.scientific_name} with genus: ${gbifData.genus}`);
+      updated++;
+    }
+  }
+
+  return { updated, errors };
+}
+
+/**
+ * DEBUG: Check taxonomy data for species in a deck
+ * Returns species with their taxonomy to diagnose missing genus fields
+ */
+export async function debugDeckTaxonomy(deckId: string): Promise<{
+  species: Array<{
+    id: string;
+    scientific_name: string;
+    taxonomy: Record<string, string> | null;
+    hasGenus: boolean;
+  }>;
+}> {
+  const supabase = await createClient();
+
+  // Get all cards in deck with their species
+  const { data: cards } = await supabase
+    .from("cards")
+    .select(`
+      species:species_id (
+        id,
+        scientific_name,
+        taxonomy
+      )
+    `)
+    .eq("deck_id", deckId)
+    .is("deleted_at", null);
+
+  if (!cards) return { species: [] };
+
+  const speciesMap = new Map<string, { id: string; scientific_name: string; taxonomy: Record<string, string> | null }>();
+
+  for (const card of cards) {
+    const species = Array.isArray(card.species) ? card.species[0] : card.species;
+    if (species && typeof species === "object" && "id" in species) {
+      speciesMap.set(species.id as string, {
+        id: species.id as string,
+        scientific_name: species.scientific_name as string,
+        taxonomy: species.taxonomy as Record<string, string> | null,
+      });
+    }
+  }
+
+  return {
+    species: Array.from(speciesMap.values()).map(s => ({
+      ...s,
+      hasGenus: !!s.taxonomy?.genus,
+    })),
+  };
+}
+
+/**
+ * DEBUG: Get all species with their taxonomy info
+ * For diagnosing genus matching issues
+ */
+export async function debugAllSpeciesTaxonomy(): Promise<{
+  total: number;
+  withGenus: number;
+  withoutGenus: number;
+  sample: Array<{
+    scientific_name: string;
+    genus: string | null;
+    family: string | null;
+  }>;
+}> {
+  const supabase = await createClient();
+
+  const { data: allSpecies, count, error } = await supabase
+    .from("species")
+    .select("scientific_name, taxonomy", { count: "exact" });
+
+  console.log("[debugAllSpeciesTaxonomy] Query result:", { count, error, dataLength: allSpecies?.length });
+
+  if (!allSpecies || error) {
+    console.error("[debugAllSpeciesTaxonomy] Error:", error);
+    return { total: 0, withGenus: 0, withoutGenus: 0, sample: [] };
+  }
+
+  const withGenus = allSpecies.filter(s => {
+    const tax = s.taxonomy as Record<string, string> | null;
+    return !!tax?.genus;
+  });
+
+  const withoutGenus = allSpecies.filter(s => {
+    const tax = s.taxonomy as Record<string, string> | null;
+    return !tax?.genus;
+  });
+
+  // Sample: first 10 species
+  const sample = allSpecies.slice(0, 10).map(s => {
+    const tax = s.taxonomy as Record<string, string> | null;
+    return {
+      scientific_name: s.scientific_name,
+      genus: tax?.genus || null,
+      family: tax?.family || null,
+    };
+  });
+
+  console.log("[debugAllSpeciesTaxonomy] Total species:", count);
+  console.log("[debugAllSpeciesTaxonomy] With genus:", withGenus.length);
+  console.log("[debugAllSpeciesTaxonomy] Without genus:", withoutGenus.length);
+  console.log("[debugAllSpeciesTaxonomy] Sample:", sample);
+
+  return {
+    total: count || 0,
+    withGenus: withGenus.length,
+    withoutGenus: withoutGenus.length,
+    sample,
+  };
+}

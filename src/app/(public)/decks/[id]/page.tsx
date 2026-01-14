@@ -112,6 +112,11 @@ export default async function DeckPage({ params }: DeckPageProps) {
     (c) => c.species && typeof c.species === "object" && "gbif_key" in c.species && c.species.gbif_key
   ).length || 0;
 
+  // Tel kaarten met eigen media (foto of audio, voor quiz met eigen media)
+  const cardsWithMediaCount = cards?.filter(
+    (c) => c.card_media && c.card_media.length > 0 && c.card_media.some(m => m.type === "image" || m.type === "audio")
+  ).length || 0;
+
   // Haal voortgang op (alleen voor ingelogde gebruikers)
   let progress: {
     card_id: string;
@@ -225,6 +230,7 @@ export default async function DeckPage({ params }: DeckPageProps) {
             totalCards={totalCards}
             dueCards={isGuest ? totalCards : cardsDue + newCards}
             speciesCardsCount={speciesCardsCount}
+            cardsWithMediaCount={cardsWithMediaCount}
             hasStarted={!isGuest && cardsSeen > 0}
             isGuest={isGuest}
           />

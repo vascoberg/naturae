@@ -8,6 +8,7 @@ import { Card } from "@/components/ui/card";
 import { Flashcard } from "@/components/flashcard/flashcard";
 import { RatingButtons, Rating } from "@/components/flashcard/rating-buttons";
 import { PublicPhotoFlashcard } from "@/components/study/public-photo-flashcard";
+import { QuizSession } from "@/components/study/quiz-session";
 import {
   getStudyCards,
   recordAnswer,
@@ -16,6 +17,7 @@ import {
   type StudyMode,
   type PublicPhotoStudyCard,
 } from "@/lib/actions/study";
+import { getQuizCards, type QuizCard } from "@/lib/actions/quiz";
 import { ArrowLeft, CheckCircle2 } from "lucide-react";
 
 function LoadingSpinner() {
@@ -78,19 +80,25 @@ function StudyPageContent() {
   const params = useParams();
   const searchParams = useSearchParams();
   const deckId = params.deckId as string;
-  const mode = (searchParams.get("mode") as StudyMode) || "smart";
+  const mode = searchParams.get("mode") || "smart";
   const limitParam = searchParams.get("limit");
   const limit = limitParam ? parseInt(limitParam, 10) : undefined;
+  const source = searchParams.get("source") as "own" | "gbif" | null;
 
   // Key forceert volledige remount van StudySession bij navigatie
-  const sessionKey = `${deckId}-${mode}-${limit ?? "all"}`;
+  const sessionKey = `${deckId}-${mode}-${limit ?? "all"}-${source ?? "gbif"}`;
 
-  // Aparte component voor openbare foto's modus
+  // Quiz mode
+  if (mode === "quiz") {
+    return <QuizStudySession key={sessionKey} deckId={deckId} limit={limit} source={source || "gbif"} />;
+  }
+
+  // Openbare foto's modus
   if (mode === "photos") {
     return <PhotoStudySession key={sessionKey} deckId={deckId} limit={limit} />;
   }
 
-  return <StudySession key={sessionKey} deckId={deckId} mode={mode} limit={limit} />;
+  return <StudySession key={sessionKey} deckId={deckId} mode={mode as StudyMode} limit={limit} />;
 }
 
 // Alle state leeft hier - wordt volledig gereset bij key change
@@ -693,6 +701,134 @@ function PhotoStudySession({ deckId, limit }: PhotoStudySessionProps) {
             </>
           )}
         </div>
+      </main>
+    </div>
+  );
+}
+
+// ============================================================================
+// Quiz Study Session
+// ============================================================================
+
+interface QuizStudySessionProps {
+  deckId: string;
+  limit?: number;
+  source: "own" | "gbif";
+}
+
+function QuizStudySession({ deckId, limit, source }: QuizStudySessionProps) {
+  const router = useRouter();
+
+  const [questions, setQuestions] = useState<QuizCard[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [deckTitle, setDeckTitle] = useState("");
+
+  const hasLoadedRef = useRef(false);
+
+  useEffect(() => {
+    if (hasLoadedRef.current) return;
+    hasLoadedRef.current = true;
+
+    async function loadQuestions() {
+      try {
+        setIsLoading(true);
+        setLoadError(null);
+
+        const result = await getQuizCards(deckId, { limit: limit || 10, source });
+
+        if (result.error) {
+          setLoadError(result.error);
+          return;
+        }
+
+        if (result.data.length === 0) {
+          setLoadError("Kon geen quiz vragen genereren voor dit deck");
+          return;
+        }
+
+        setQuestions(result.data);
+      } catch (error) {
+        console.error("Error loading quiz:", error);
+        setLoadError("Er ging iets mis bij het laden van de quiz");
+      } finally {
+        setIsLoading(false);
+      }
+    }
+
+    loadQuestions();
+  }, [deckId, limit, source]);
+
+  // Laad deck titel
+  useEffect(() => {
+    async function loadDeckTitle() {
+      try {
+        const response = await fetch(`/api/decks/${deckId}`);
+        if (response.ok) {
+          const deck = await response.json();
+          setDeckTitle(deck.title);
+        }
+      } catch {
+        // Ignore error, title is optional
+      }
+    }
+    loadDeckTitle();
+  }, [deckId]);
+
+  const handleExit = () => {
+    router.push(`/decks/${deckId}`);
+  };
+
+  if (isLoading) {
+    return <LoadingSpinner />;
+  }
+
+  if (loadError) {
+    return (
+      <div className="min-h-screen flex items-center justify-center p-4">
+        <Card className="max-w-md w-full p-8 text-center">
+          <h1 className="text-xl font-bold mb-2">Kon quiz niet laden</h1>
+          <p className="text-muted-foreground mb-6">{loadError}</p>
+          <Button variant="outline" asChild>
+            <Link href={`/decks/${deckId}`}>
+              <ArrowLeft className="w-4 h-4 mr-2" />
+              Terug naar leerset
+            </Link>
+          </Button>
+        </Card>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen flex flex-col">
+      {/* Header */}
+      <header className="border-b">
+        <div className="container mx-auto px-4 py-3 flex items-center justify-between">
+          <Button variant="ghost" size="sm" onClick={handleExit}>
+            <ArrowLeft className="w-4 h-4 mr-2" />
+            Stoppen
+          </Button>
+          <div className="text-center">
+            <span className="text-sm text-muted-foreground block">
+              {deckTitle || "Laden..."}
+            </span>
+            <span className="text-xs text-green-600 dark:text-green-400">
+              Quiz
+            </span>
+          </div>
+          <div className="w-20" /> {/* Spacer for alignment */}
+        </div>
+      </header>
+
+      {/* Main content */}
+      <main className="flex-1 flex flex-col items-center p-4 pt-6">
+        <QuizSession
+          deckId={deckId}
+          deckName={deckTitle}
+          questions={questions}
+          onExit={handleExit}
+        />
       </main>
     </div>
   );

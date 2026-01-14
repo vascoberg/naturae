@@ -15,6 +15,7 @@ interface StartStudyButtonProps {
   totalCards: number;
   dueCards: number;
   speciesCardsCount?: number;
+  cardsWithMediaCount?: number;
   hasStarted: boolean;
   isGuest?: boolean;
 }
@@ -24,6 +25,7 @@ export function StartStudyButton({
   totalCards,
   dueCards,
   speciesCardsCount = 0,
+  cardsWithMediaCount = 0,
   hasStarted,
   isGuest = false,
 }: StartStudyButtonProps) {
@@ -45,6 +47,7 @@ export function StartStudyButton({
             totalCards={totalCards}
             dueCards={dueCards}
             speciesCardsCount={speciesCardsCount}
+            cardsWithMediaCount={cardsWithMediaCount}
             isGuest={isGuest}
             onClose={() => setIsOpen(false)}
           />
