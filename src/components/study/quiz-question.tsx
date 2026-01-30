@@ -6,8 +6,9 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { PhotoAttribution } from "@/components/ui/photo-attribution";
 import { Skeleton } from "@/components/ui/skeleton";
+import { SpeciesSheet } from "@/components/species/species-sheet";
 import { cn } from "@/lib/utils";
-import { Check, X, ArrowRight } from "lucide-react";
+import { Check, X, ArrowRight, BookOpen } from "lucide-react";
 import type { QuizCard, QuizOption } from "@/lib/actions/quiz";
 
 interface QuizQuestionProps {
@@ -32,6 +33,7 @@ export function QuizQuestion({
   const [selectedOption, setSelectedOption] = useState<string | null>(null);
   const [showResult, setShowResult] = useState(false);
   const [hasAnswered, setHasAnswered] = useState(false);
+  const [speciesSheetId, setSpeciesSheetId] = useState<string | null>(null);
 
   // Reset state wanneer de vraag verandert
   useEffect(() => {
@@ -172,6 +174,23 @@ export function QuizQuestion({
                   {option.scientificName}
                 </p>
               </div>
+              {/* Book icon - alleen tonen als er een species ID is */}
+              {option.speciesId && (
+                <span
+                  role="button"
+                  tabIndex={-1}
+                  className="flex-shrink-0 p-1 -m-1 rounded hover:bg-accent"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    e.preventDefault();
+                    setSpeciesSheetId(option.speciesId!);
+                  }}
+                  onMouseDown={(e) => e.stopPropagation()}
+                  onPointerDown={(e) => e.stopPropagation()}
+                >
+                  <BookOpen className="w-4 h-4 text-muted-foreground hover:text-primary transition-colors" />
+                </span>
+              )}
             </div>
           </Button>
         ))}
@@ -194,6 +213,13 @@ export function QuizQuestion({
           </p>
         </div>
       )}
+
+      {/* Species Sheet */}
+      <SpeciesSheet
+        speciesId={speciesSheetId}
+        open={!!speciesSheetId}
+        onOpenChange={(open) => !open && setSpeciesSheetId(null)}
+      />
     </div>
   );
 }

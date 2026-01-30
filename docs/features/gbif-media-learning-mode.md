@@ -42,7 +42,7 @@ De "Openbare foto's" modus verschijnt als optie in de sessie-modus selector, met
 │  │  Leer met gevarieerde natuurfoto's uit openbare databases │  │
 │  │  Elke sessie andere afbeeldingen · 98 soorten beschikbaar │  │
 │  │                                                            │  │
-│  │  ℹ️ Foto's zijn beschikbaar onder CC0/CC-BY licentie       │  │
+│  │  ℹ️ Foto's zijn beschikbaar onder CC0/CC-BY/CC-BY-NC licentie │  │
 │  └───────────────────────────────────────────────────────────┘  │
 │                                                                  │
 │                                         [Start sessie]          │
@@ -196,10 +196,10 @@ CC-BY-NC wordt **niet** gebruikt (non-commercial beperking).
 export interface GBIFMediaResult {
   identifier: string;      // Direct image URL
   license: string;         // CC license URL (voor formattering)
-  licenseType: "CC0" | "CC-BY";  // Genormaliseerd type
+  licenseType: "CC0" | "CC-BY" | "CC-BY-NC";  // Genormaliseerd type
   creator: string | null;  // Naam van fotograaf
   references: string | null;  // Link naar bron (iNaturalist, etc.)
-  source: string;          // Afgeleid: "iNaturalist", "Flickr", etc.
+  source: string;          // Afgeleid: "iNaturalist", "Waarneming.nl", "Observation.org", "Flickr", etc.
 }
 
 export interface GBIFMediaOptions {
@@ -212,17 +212,18 @@ export async function getRandomSpeciesMedia(options: GBIFMediaOptions): Promise<
 export async function getMediaForSpecies(speciesList: Array<{ gbifKey: number; cardId: string }>): Promise<Map<string, GBIFMediaResult>>;
 export async function hasPublicMedia(gbifKey: number): Promise<{ available: boolean; count: number }>;
 export function getSourceFromUrl(url: string): string;
-export function getLicenseType(licenseUrl: string): "CC0" | "CC-BY";
+export function getLicenseType(licenseUrl: string): "CC0" | "CC-BY" | "CC-BY-NC";
 export function formatAttribution(media: GBIFMediaResult): string;
 ```
 
 **Implementatie details:**
-- Query met `license=CC0_1_0` + aparte query met `license=CC_BY_4_0` (parallel)
-- Random selectie uit resultaten
+- **Observation.org prioriteit:** Expliciet fetchen van Observation.org dataset (key: `8a863029-f435-446a-821e-275f4f641165`) voor betere fotokwaliteit
+- Query met `license=CC0_1_0`, `license=CC_BY_4_0` en `license=CC_BY_NC_4_0` (parallel)
+- 70% kans op Observation.org foto als beschikbaar, anders uit top 30% van gesorteerde resultaten
+- **Bronprioriteit:** Waarneming.nl/Observation.org > andere bronnen > iNaturalist
 - Timeout van 5 seconden per request
-- Batch processing in groepen van 5 om API niet te overbelasten
 - Bron detectie uit `identifier` of `references` URL
-- Licentie normalisatie naar "CC0" of "CC-BY"
+- Licentie normalisatie naar "CC0", "CC-BY" of "CC-BY-NC"
 - Console logging voor debugging (`[GBIF] Found media from {source}: {url}...`)
 
 ---
@@ -242,7 +243,7 @@ export interface PublicPhotoStudyCard {
   photo: {
     url: string;
     creator: string | null;
-    license: "CC0" | "CC-BY";
+    license: "CC0" | "CC-BY" | "CC-BY-NC";
     source: string;
     references: string | null;
   } | null;
@@ -282,7 +283,7 @@ interface PublicPhotoFlashcardProps {
   backText: string | null;
   attribution: {
     creator: string | null;
-    license: "CC0" | "CC-BY";
+    license: "CC0" | "CC-BY" | "CC-BY-NC";
     source: string;
     references?: string | null;
   };
@@ -303,7 +304,7 @@ Features:
 ```typescript
 interface PhotoAttributionProps {
   creator: string | null;
-  license: "CC0" | "CC-BY";
+  license: "CC0" | "CC-BY" | "CC-BY-NC";
   source: string;
   references?: string | null;
 }
@@ -394,8 +395,10 @@ images: {
 
 ### Could Have (niet geïmplementeerd)
 - [ ] Filter op land/regio
-- [ ] Audio modus (GBIF Sound media)
+- [ ] Audio modus (GBIF Sound media) - *Wel beschikbaar via eigen media quiz*
 - [x] Shuffle optie binnen openbare foto's modus (altijd aan)
+
+> **Opmerking:** Audio quiz is geïmplementeerd voor **eigen media** (kaarten met audio uploads). Zie [Quiz Mode Implementation Plan](../research/quiz-mode-implementation-plan.md#2-media-bron-keuze) voor details. GBIF Sound media integratie is nog niet geïmplementeerd.
 
 ---
 
@@ -544,7 +547,7 @@ export async function addGBIFMediaToCard(
     url: string;
     position: "front" | "back" | "both";
     creator: string | null;
-    license: "CC0" | "CC-BY";
+    license: "CC0" | "CC-BY" | "CC-BY-NC";
     source: string;
     references: string | null;
   }
@@ -643,4 +646,4 @@ export async function addGBIFMediaToCard(
 ---
 
 *Document aangemaakt: januari 2026*
-*Laatste update: januari 2026 - CORS fix voor annotatie-editor toegevoegd*
+*Laatste update: januari 2026 - Audio quiz verwijzing toegevoegd*

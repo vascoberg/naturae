@@ -1,9 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import { LayoutGrid, List, Music } from "lucide-react";
+import { LayoutGrid, List, Music, BookOpen } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { SpeciesSheet } from "@/components/species/species-sheet";
 
 interface CardMedia {
   id: string;
@@ -18,6 +19,7 @@ interface CardData {
   front_text: string | null;
   back_text: string;
   position: number;
+  species_id?: string | null; // Voor soortenpagina link
   card_media: CardMedia[] | null;
 }
 
@@ -27,6 +29,7 @@ interface CardGridViewProps {
 
 export function CardGridView({ cards }: CardGridViewProps) {
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
+  const [speciesSheetId, setSpeciesSheetId] = useState<string | null>(null);
 
   return (
     <section>
@@ -80,9 +83,17 @@ export function CardGridView({ cards }: CardGridViewProps) {
                     </div>
                   )}
                 </div>
-                {/* Card name */}
+                {/* Card name with optional book icon */}
                 <CardContent className="p-2">
-                  <p className="text-sm font-medium truncate">{card.back_text}</p>
+                  <div className="flex items-center gap-1">
+                    <p className="text-sm font-medium truncate flex-1">{card.back_text}</p>
+                    {card.species_id && (
+                      <BookOpen
+                        className="w-3.5 h-3.5 flex-shrink-0 text-muted-foreground hover:text-primary cursor-pointer transition-colors"
+                        onClick={() => setSpeciesSheetId(card.species_id!)}
+                      />
+                    )}
+                  </div>
                 </CardContent>
               </Card>
             );
@@ -117,9 +128,15 @@ export function CardGridView({ cards }: CardGridViewProps) {
                       <div className="w-8 h-8 flex-shrink-0" />
                     )}
 
-                    <span className="font-medium truncate">
+                    <span className="font-medium truncate flex-1">
                       {card.back_text}
                     </span>
+                    {card.species_id && (
+                      <BookOpen
+                        className="w-4 h-4 flex-shrink-0 text-muted-foreground hover:text-primary cursor-pointer transition-colors"
+                        onClick={() => setSpeciesSheetId(card.species_id!)}
+                      />
+                    )}
                   </div>
                 </CardContent>
               </Card>
@@ -127,6 +144,13 @@ export function CardGridView({ cards }: CardGridViewProps) {
           })}
         </div>
       )}
+
+      {/* Species Sheet */}
+      <SpeciesSheet
+        speciesId={speciesSheetId}
+        open={!!speciesSheetId}
+        onOpenChange={(open) => !open && setSpeciesSheetId(null)}
+      />
     </section>
   );
 }

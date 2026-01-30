@@ -342,6 +342,7 @@ function StudySession({ deckId, mode, limit }: StudySessionProps) {
     ? (Array.isArray(currentCard.species) ? currentCard.species[0] : currentCard.species)
     : null;
   const speciesInfo = speciesData ? {
+    id: speciesData.id, // Voor soortenpagina link
     scientificName: speciesData.scientific_name,
     canonicalName: speciesData.canonical_name,
     commonName: speciesData.common_names?.nl,
@@ -676,6 +677,7 @@ function PhotoStudySession({ deckId, limit }: PhotoStudySessionProps) {
             <>
               <PublicPhotoFlashcard
                 photoUrl={currentCard.photo.url}
+                speciesId={currentCard.speciesId}
                 speciesName={currentCard.speciesName}
                 scientificName={currentCard.scientificName}
                 backText={currentCard.backText}

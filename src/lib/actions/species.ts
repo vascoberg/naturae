@@ -606,3 +606,37 @@ export async function debugAllSpeciesTaxonomy(): Promise<{
     sample,
   };
 }
+
+/**
+ * Get related species (same family), excluding the current species
+ * Returns up to `limit` species with basic info for thumbnails
+ */
+export async function getRelatedSpecies(
+  family: string,
+  excludeSpeciesId: string,
+  limit: number = 6
+): Promise<{
+  id: string;
+  scientific_name: string;
+  canonical_name: string | null;
+  common_names: Record<string, string> | null;
+  gbif_key: number | null;
+}[]> {
+  const supabase = await createClient();
+
+  // Use explicit JSONB path filter: taxonomy->>family = 'FamilyName'
+  const { data, error } = await supabase
+    .from("species")
+    .select("id, scientific_name, canonical_name, common_names, gbif_key")
+    .neq("id", excludeSpeciesId)
+    .filter("taxonomy->>family", "eq", family)
+    .limit(limit);
+
+  if (error) {
+    console.error("[getRelatedSpecies] Error:", error);
+    return [];
+  }
+
+  console.log(`[getRelatedSpecies] Found ${data?.length || 0} species in family "${family}"`);
+  return data || [];
+}

@@ -1375,47 +1375,66 @@ async function getWikipediaSummary(speciesName: string): Promise<string | null> 
 |-----------|---------|--------|
 | **QuizCard types** | `src/lib/actions/quiz.ts` | ✅ Afgerond |
 | **getQuizCards** server action | `src/lib/actions/quiz.ts` | ✅ Afgerond |
-| **getDistractors** helper | `src/lib/actions/quiz.ts` | ✅ Afgerond |
+| **getDistractors** helper | `src/lib/actions/quiz.ts` | ✅ Afgerond (8-niveau prioriteit) |
 | **QuizQuestion** component | `src/components/study/quiz-question.tsx` | ✅ Afgerond |
+| **QuizAudioQuestion** component | `src/components/study/quiz-audio-question.tsx` | ✅ Afgerond |
 | **QuizSession** component | `src/components/study/quiz-session.tsx` | ✅ Afgerond |
-| **SessionModeSelector** update | `src/components/study/session-mode-selector.tsx` | ✅ Afgerond |
+| **SessionModeSelector** update | `src/components/study/session-mode-selector.tsx` | ✅ Afgerond (mediaType selectie) |
 | **Study page routing** | `src/app/(public)/study/[deckId]/page.tsx` | ✅ Afgerond |
 
 ### Geïmplementeerde Features
 
-#### 1. Taxonomische Distractors
-Het distractor algoritme werkt met de volgende prioriteiten:
-1. **Zelfde familie uit deck** - Soorten met dezelfde `taxonomy.family` uit de huidige leerset
-2. **Andere soorten uit deck** - Willekeurige andere soorten uit het deck
-3. **Zelfde taxonomische klasse** - Soorten uit de hele database met dezelfde `taxonomy.class` (bijv. alle Aves voor een vogel quiz)
+#### 1. Taxonomische Distractors (8-niveau prioriteit)
+Het distractor algoritme werkt met de volgende prioriteiten (van meest naar minst gelijkend):
 
-Dit voorkomt dat amfibieën verschijnen in een vogelquiz.
+1. **Zelfde genus uit deck** - Soorten met dezelfde `taxonomy.genus` uit de huidige leerset
+2. **Zelfde genus uit database** - Soorten met dezelfde `taxonomy.genus` uit de hele database
+3. **Zelfde familie uit deck** - Soorten met dezelfde `taxonomy.family` uit de huidige leerset
+4. **Zelfde familie uit database** - Soorten met dezelfde `taxonomy.family` uit de hele database
+5. **Zelfde orde uit deck** - Soorten met dezelfde `taxonomy.order` uit de huidige leerset
+6. **Zelfde orde uit database** - Soorten met dezelfde `taxonomy.order` uit de hele database
+7. **Andere soorten uit deck** - Willekeurige andere soorten uit het deck
+8. **Zelfde taxonomische klasse** - Soorten uit de hele database met dezelfde `taxonomy.class`
+
+Dit zorgt voor maximaal relevante distractors: bij een vraag over de Koolmees krijg je eerst andere Parus-soorten (genus), dan andere mezen (Paridae familie), dan andere zangvogels (Passeriformes orde), etc.
 
 #### 2. Media Bron Keuze
 De gebruiker kan kiezen tussen twee media bronnen voor de quiz:
-- **Eigen media** (`source=own`) - Gebruik afbeeldingen die aan kaarten zijn toegevoegd
+- **Eigen media** (`source=own`) - Gebruik eigen afbeeldingen of audio die aan kaarten zijn toegevoegd
 - **Openbare foto's** (`source=gbif`) - Gebruik GBIF foto's van de gekoppelde soorten
+
+Bij **eigen media** kan de gebruiker ook het **mediatype** kiezen:
+- **Foto's** (`mediaType=image`) - Quiz met eigen afbeeldingen
+- **Geluid** (`mediaType=audio`) - Quiz met eigen audio
+- **Mix** (`mediaType=mix`) - Random foto's en audio door elkaar
 
 UI in SessionModeSelector:
 ```
 ┌─────────────────────────────────────────────────┐
-│  Media bron:                                    │
+│  Kies een methode:                              │
 │  ┌─────────────────┐ ┌─────────────────┐       │
 │  │ Eigen media     │ │ Openbare foto's │       │
 │  │ 12 kaarten      │ │ 18 soorten      │       │
 │  └─────────────────┘ └─────────────────┘       │
+│                                                 │
+│  Type media: (alleen bij Eigen media)           │
+│  ┌─────────┐ ┌─────────┐ ┌─────────┐           │
+│  │📷 Foto's│ │🔊 Geluid│ │🎲 Mix   │           │
+│  │   45    │ │   12    │ │   57    │           │
+│  └─────────┘ └─────────┘ └─────────┘           │
 └─────────────────────────────────────────────────┘
 ```
 
 #### 3. Quiz UI
 - **Voortgangsbalk** met vraagnummer
-- **Foto weergave** met aspect ratio 4:3
+- **Foto weergave** met aspect ratio 4:3 (bij image quiz)
+- **Audio player** met play/pause knop (bij audio quiz)
 - **4 antwoordopties** (1 correct + 3 distractors)
 - **Directe feedback** na beantwoorden:
   - Groen voor correcte antwoord
   - Rood voor fout gekozen antwoord
-  - Tekst: "Goed!" of "Helaas, dat was niet juist"
-- **Auto-advance** na 1.5 seconden naar volgende vraag
+- **Handmatige navigatie** met "Volgende" / "Bekijk resultaat" knop
+- **Keyboard support**: Enter of Spatie om door te gaan na beantwoorden
 
 #### 4. Einde Scherm
 - Score cirkel met percentage
@@ -1427,13 +1446,15 @@ UI in SessionModeSelector:
 
 ```
 /study/[deckId]?mode=quiz&limit=10&source=gbif
+/study/[deckId]?mode=quiz&limit=10&source=own&mediaType=audio
 ```
 
-| Parameter | Waarden | Default |
-|-----------|---------|---------|
-| `mode` | `quiz` | - |
-| `limit` | 5, 10, 20, of meer | 10 |
-| `source` | `own`, `gbif` | `gbif` |
+| Parameter | Waarden | Default | Beschrijving |
+|-----------|---------|---------|--------------|
+| `mode` | `quiz` | - | Quiz modus activeren |
+| `limit` | 5, 10, 20, of meer | 10 | Aantal vragen |
+| `source` | `own`, `gbif` | `gbif` | Media bron |
+| `mediaType` | `image`, `audio`, `mix` | `image` | Type media (alleen bij source=own) |
 
 ### Props Flow
 
@@ -1443,21 +1464,32 @@ DeckPage
     ├── totalCards
     ├── dueCards
     ├── speciesCardsCount (voor GBIF quiz)
-    └── cardsWithMediaCount (voor eigen media quiz)
+    ├── cardsWithMediaCount (totaal met media)
+    ├── cardsWithImageCount (alleen foto's)
+    └── cardsWithAudioCount (alleen audio)
         └── SessionModeSelector
-            └── handleStart() → /study/[deckId]?mode=quiz&source=...&limit=...
+            └── handleStart() → /study/[deckId]?mode=quiz&source=...&limit=...&mediaType=...
 ```
 
 ### Niet Geïmplementeerd in Fase 1
 
 - [ ] Timer per vraag
 - [ ] "Weet ik niet" optie
-- [ ] Keyboard shortcuts (1-4)
-- [ ] Audio quiz (Xeno-canto)
+- [ ] Keyboard shortcuts (1-4 voor optie selectie)
+- [ ] Audio quiz met Xeno-canto API (externe geluiden)
 - [ ] Difficulty levels
 - [ ] Score leaderboards
 - [ ] Soortenpagina met "meer info" knop
 
+### Toegevoegd na Fase 1 (januari 2026)
+
+| Component | Bestand | Beschrijving |
+|-----------|---------|--------------|
+| **QuizAudioQuestion** | `src/components/study/quiz-audio-question.tsx` | Audio player component voor audio quiz |
+| **Handmatige navigatie** | `quiz-question.tsx`, `quiz-session.tsx` | "Volgende" knop + keyboard support |
+| **8-niveau distractors** | `src/lib/actions/quiz.ts` | Genus → Familie → Orde → Klasse prioriteit |
+| **mediaType parameter** | `quiz.ts`, `session-mode-selector.tsx` | Keuze tussen foto/audio/mix |
+
 ---
 
-*Laatste update: januari 2026*
+*Laatste update: januari 2026 - Audio quiz support toegevoegd*

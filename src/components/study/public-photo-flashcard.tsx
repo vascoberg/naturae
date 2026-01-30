@@ -4,17 +4,20 @@ import { useState, useEffect } from "react";
 import Image from "next/image";
 import { Card, CardContent } from "@/components/ui/card";
 import { PhotoAttribution } from "@/components/ui/photo-attribution";
+import { SpeciesSheet } from "@/components/species/species-sheet";
 import { Skeleton } from "@/components/ui/skeleton";
+import { BookOpen } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface PublicPhotoFlashcardProps {
   photoUrl: string;
+  speciesId?: string; // Voor soortenpagina link
   speciesName: string;
   scientificName: string;
   backText: string | null;
   attribution: {
     creator: string | null;
-    license: "CC0" | "CC-BY";
+    license: "CC0" | "CC-BY" | "CC-BY-NC";
     source: string;
     references?: string | null;
   };
@@ -24,6 +27,7 @@ interface PublicPhotoFlashcardProps {
 
 export function PublicPhotoFlashcard({
   photoUrl,
+  speciesId,
   speciesName,
   scientificName,
   backText,
@@ -33,6 +37,7 @@ export function PublicPhotoFlashcard({
 }: PublicPhotoFlashcardProps) {
   const [imageLoaded, setImageLoaded] = useState(false);
   const [imageError, setImageError] = useState(false);
+  const [speciesSheetOpen, setSpeciesSheetOpen] = useState(false);
 
   // Reset state wanneer de foto URL verandert (nieuwe kaart)
   useEffect(() => {
@@ -119,7 +124,18 @@ export function PublicPhotoFlashcard({
           )}
         >
           <div className="text-center space-y-2">
-            <h2 className="text-2xl font-bold">{speciesName}</h2>
+            <div className="flex items-center justify-center gap-2">
+              <h2 className="text-2xl font-bold">{speciesName}</h2>
+              {speciesId && (
+                <BookOpen
+                  className="w-5 h-5 text-muted-foreground hover:text-primary cursor-pointer transition-colors"
+                  onClick={(e) => {
+                    e.stopPropagation(); // Voorkom kaart flip
+                    setSpeciesSheetOpen(true);
+                  }}
+                />
+              )}
+            </div>
             <p className="text-lg text-muted-foreground italic">
               {scientificName}
             </p>
@@ -133,6 +149,17 @@ export function PublicPhotoFlashcard({
           )}
         </div>
       </CardContent>
+
+      {/* Species Sheet - wrapped to prevent click bubbling to flip handler */}
+      {speciesId && (
+        <div onClick={(e) => e.stopPropagation()} onMouseDown={(e) => e.stopPropagation()}>
+          <SpeciesSheet
+            speciesId={speciesId}
+            open={speciesSheetOpen}
+            onOpenChange={setSpeciesSheetOpen}
+          />
+        </div>
+      )}
     </Card>
   );
 }

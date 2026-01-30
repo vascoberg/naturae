@@ -1,7 +1,9 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
+import { SpeciesSheet } from "@/components/species/species-sheet";
+import { BookOpen } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface MediaItem {
@@ -11,6 +13,7 @@ interface MediaItem {
 }
 
 interface SpeciesInfo {
+  id?: string; // Species ID voor soortenpagina
   scientificName: string;
   canonicalName: string | null;
   commonName?: string | null;
@@ -40,6 +43,7 @@ export function Flashcard({
   onFlip
 }: FlashcardProps) {
   const containerRef = useRef<HTMLDivElement>(null);
+  const [speciesSheetOpen, setSpeciesSheetOpen] = useState(false);
 
   // Render species as primary answer (prominent display)
   const renderSpeciesPrimary = () => {
@@ -50,7 +54,18 @@ export function Flashcard({
 
     return (
       <div className="mb-4">
-        <p className="text-2xl font-semibold text-primary">{displayName}</p>
+        <div className="flex items-center justify-center gap-2">
+          <p className="text-2xl font-semibold text-primary">{displayName}</p>
+          {species.id && (
+            <BookOpen
+              className="w-5 h-5 text-muted-foreground hover:text-primary cursor-pointer transition-colors"
+              onClick={(e) => {
+                e.stopPropagation(); // Voorkom kaart flip
+                setSpeciesSheetOpen(true);
+              }}
+            />
+          )}
+        </div>
         {displayName !== scientificName && (
           <p className="text-base italic text-muted-foreground mt-1">
             {scientificName}
@@ -238,6 +253,17 @@ export function Flashcard({
           </CardContent>
         </Card>
       </div>
+
+      {/* Species Sheet - wrapped to prevent click bubbling to flip handler */}
+      {species?.id && (
+        <div onClick={(e) => e.stopPropagation()} onMouseDown={(e) => e.stopPropagation()}>
+          <SpeciesSheet
+            speciesId={species.id}
+            open={speciesSheetOpen}
+            onOpenChange={setSpeciesSheetOpen}
+          />
+        </div>
+      )}
     </div>
   );
 }

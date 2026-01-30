@@ -12,6 +12,7 @@ export interface QuizOption {
   name: string;
   scientificName: string;
   isCorrect: boolean;
+  speciesId?: string; // Species ID voor soortenpagina link (undefined voor non-species distractors)
 }
 
 export type QuizMediaType = "image" | "audio";
@@ -28,7 +29,7 @@ export interface QuizCard {
   photo?: {
     url: string;
     creator: string | null;
-    license: "CC0" | "CC-BY";
+    license: "CC0" | "CC-BY" | "CC-BY-NC";
     source: string;
     references: string | null;
   };
@@ -463,6 +464,7 @@ async function getQuizCardsWithOwnMedia(
         name: correctName,
         scientificName: scientificName,
         isCorrect: true,
+        speciesId: species?.id, // undefined als er geen species is
       },
     ];
 
@@ -473,6 +475,7 @@ async function getQuizCardsWithOwnMedia(
         name: getSpeciesDisplayName(d),
         scientificName: d.scientific_name,
         isCorrect: false,
+        speciesId: d.id,
       })));
     } else if (!species) {
       // Gebruik back_text van andere kaarten als distractors
@@ -486,6 +489,7 @@ async function getQuizCardsWithOwnMedia(
         name: text,
         scientificName: "",
         isCorrect: false,
+        // speciesId is undefined - geen Book icon voor non-species distractors
       })));
     }
 
@@ -637,12 +641,14 @@ async function getQuizCardsWithGbifMedia(
         name: correctName,
         scientificName: species.scientific_name,
         isCorrect: true,
+        speciesId: species.id,
       },
       ...distractors.map(d => ({
         id: d.id,
         name: getSpeciesDisplayName(d),
         scientificName: d.scientific_name,
         isCorrect: false,
+        speciesId: d.id,
       })),
     ];
 

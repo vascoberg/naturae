@@ -292,7 +292,7 @@ export interface PublicPhotoStudyCard {
   photo: {
     url: string;
     creator: string | null;
-    license: "CC0" | "CC-BY";
+    license: "CC0" | "CC-BY" | "CC-BY-NC";
     source: string;
     references: string | null;
   } | null;
