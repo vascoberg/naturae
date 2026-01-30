@@ -88,22 +88,22 @@ Eventuele toekomstige verbeteringen (lage prioriteit):
 
 ### 5. Knop Interacties / Loading Feedback
 
-**Status:** Nieuw (gerelateerd aan UX backlog in mvp-design)
-**Geschatte omvang:** Klein-Medium (4-8 uur)
+**Status:** Onderzoek afgerond ✅
+**Geschatte omvang:** Klein-Medium (4-8 uur) voor implementatie
 
 **Probleem:** Soms geen zichtbare feedback na klikken op links of knoppen.
 
-**Onderzoeken:**
-- [ ] Welke knoppen/links geven geen feedback?
-- [ ] Is er een centraal loading/transition systeem?
-- [ ] Touch feedback (`-webkit-tap-highlight-color`) consistent?
+**Onderzoek bevindingen:**
+- ✅ Goede patterns: Optimistic updates (LikeButton), progress tracking (BulkImport)
+- ⚠️ Inconsistent: Toast gebruik varieert per component
+- ❌ Missend: DeckEditor save feedback, quiz completion, stille CRUD failures
 
-**Oplossingen:**
-- Loading spinner in buttons tijdens async operaties
-- Page transition animaties (fade/slide)
-- Consistente hover/active states
+**Aanbevolen implementatie (uit onderzoek):**
+- Fase 1: LoadingButton component + feedback utilities
+- Fase 2: Toast toevoegen aan alle async operaties
+- ~~Fase 3: Page transitions~~ ✅ Geïmplementeerd (30-01-2026)
 
-**Documentatie:** [naturae-mvp-design.md - Loading Feedback & Transitions](naturae-mvp-design.md#loading-feedback--transitions-todo)
+**Documentatie:** [research/loading-feedback-ux.md](research/loading-feedback-ux.md)
 
 ---
 
@@ -166,9 +166,39 @@ Eventuele toekomstige verbeteringen (lage prioriteit):
 
 ---
 
+### 10. Website Performance & Snelheid
+
+**Status:** Nieuw - onderzoek nodig
+**Geschatte omvang:** Te bepalen na onderzoek
+
+**Doel:** Algehele performance van de website verbeteren qua laadtijd en responsiviteit.
+
+**Onderzoeken:**
+- [ ] Lighthouse audit uitvoeren (Core Web Vitals)
+- [ ] Bundle size analyseren (next/bundle-analyzer)
+- [ ] Image loading optimalisatie (lazy loading, blur placeholders)
+- [ ] API response times meten
+- [ ] Database query performance (Supabase)
+
+**Mogelijke verbeteringen:**
+- Next.js Image component optimalisatie
+- Code splitting en lazy imports
+- Caching strategie (SWR/React Query)
+- Database indexen toevoegen
+- CDN voor statische assets
+- Server-side caching
+
+**Metrics om te meten:**
+- LCP (Largest Contentful Paint) < 2.5s
+- FID (First Input Delay) < 100ms
+- CLS (Cumulative Layout Shift) < 0.1
+- TTFB (Time to First Byte)
+
+---
+
 ## Backlog: Prioriteit Laag
 
-### 10. Engagement & Retention Features
+### 11. Engagement & Retention Features
 
 - [ ] Voortgangstracking dashboard
 - [ ] Streak tracking
@@ -176,7 +206,7 @@ Eventuele toekomstige verbeteringen (lage prioriteit):
 - [ ] PWA push notificaties
 - [ ] Leerinstellingen per leerset (FSRS presets UI)
 
-### 11. Import/Export Uitbreidingen
+### 12. Import/Export Uitbreidingen
 
 - [ ] JSON Import (backup restore)
 - [ ] CSV Import/Export
@@ -184,14 +214,14 @@ Eventuele toekomstige verbeteringen (lage prioriteit):
 - [ ] Anki Export/Import (.apkg) - onderzoek nodig
 - [ ] Quizlet Import - onderzoek nodig
 
-### 12. Community Features
+### 13. Community Features
 
 - [ ] Comments op sets
 - [ ] Uitgebreide gebruikersprofielen
 - [ ] Volg systeem
 - [ ] Challenges/competities
 
-### 13. Premium Features (later)
+### 14. Premium Features (later)
 
 - [ ] AI-assisted import (soort herkenning uit foto/audio)
 - [ ] Kwaliteitscheck AI

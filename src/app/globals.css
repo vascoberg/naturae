@@ -130,3 +130,30 @@
     @apply bg-background text-foreground;
   }
 }
+
+/* View Transitions API - voor browsers die het ondersteunen */
+@supports (view-transition-name: page) {
+  ::view-transition-old(page),
+  ::view-transition-new(page) {
+    animation-duration: 150ms;
+    animation-timing-function: ease-out;
+  }
+
+  ::view-transition-old(page) {
+    animation-name: fade-out;
+  }
+
+  ::view-transition-new(page) {
+    animation-name: fade-in;
+  }
+
+  @keyframes fade-out {
+    from { opacity: 1; }
+    to { opacity: 0; }
+  }
+
+  @keyframes fade-in {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+}

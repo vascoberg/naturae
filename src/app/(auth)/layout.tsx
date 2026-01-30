@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { PublicPageWrapper } from "@/components/layout/public-page-wrapper";
 
 export default function AuthLayout({
   children,
@@ -17,7 +18,9 @@ export default function AuthLayout({
       </header>
 
       {/* Main content */}
-      <main className="flex-1">{children}</main>
+      <main className="flex-1">
+        <PublicPageWrapper>{children}</PublicPageWrapper>
+      </main>
     </div>
   );
 }

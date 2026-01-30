@@ -3,6 +3,7 @@
 import { ReactNode } from "react";
 import { cn } from "@/lib/utils";
 import { useSidebar } from "./sidebar-context";
+import { PageTransition } from "./page-transition";
 
 interface MainContentProps {
   children: ReactNode;
@@ -18,7 +19,9 @@ export function MainContent({ children }: MainContentProps) {
         isMobile ? "pt-14" : isCollapsed ? "pl-16" : "pl-64"
       )}
     >
-      <main className="min-h-screen">{children}</main>
+      <main className="min-h-screen">
+        <PageTransition>{children}</PageTransition>
+      </main>
     </div>
   );
 }

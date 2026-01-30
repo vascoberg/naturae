@@ -3,6 +3,7 @@ import Image from "next/image";
 import { createClient } from "@/lib/supabase/server";
 import { Button } from "@/components/ui/button";
 import { AppShell } from "@/components/layout/app-shell";
+import { PublicPageWrapper } from "@/components/layout/public-page-wrapper";
 
 export default async function PublicLayout({
   children,
@@ -67,7 +68,9 @@ export default async function PublicLayout({
       </header>
 
       {/* Main content */}
-      <main className="flex-1">{children}</main>
+      <main className="flex-1">
+        <PublicPageWrapper>{children}</PublicPageWrapper>
+      </main>
 
       {/* Footer */}
       <footer className="border-t py-8 mt-auto">
