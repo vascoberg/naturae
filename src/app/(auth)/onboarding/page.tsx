@@ -1,19 +1,23 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { Suspense, useState, useEffect } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { CheckCircle2 } from "lucide-react";
 
-export default function OnboardingPage() {
+function OnboardingContent() {
   const [username, setUsername] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [checking, setChecking] = useState(true);
   const router = useRouter();
+  const searchParams = useSearchParams();
   const supabase = createClient();
+
+  const isVerified = searchParams.get("verified") === "true";
 
   // Check of user al een username heeft
   useEffect(() => {
@@ -116,6 +120,14 @@ export default function OnboardingPage() {
     <div className="min-h-screen flex items-center justify-center p-4">
       <Card className="w-full max-w-md">
         <CardHeader className="text-center">
+          {isVerified && (
+            <div className="mb-4 p-3 bg-green-50 dark:bg-green-950 border border-green-200 dark:border-green-800 rounded-lg flex items-center justify-center gap-2">
+              <CheckCircle2 className="w-5 h-5 text-green-600 dark:text-green-400" />
+              <span className="text-sm font-medium text-green-800 dark:text-green-200">
+                Account geactiveerd!
+              </span>
+            </div>
+          )}
           <CardTitle className="text-2xl">Kies je username</CardTitle>
           <CardDescription>
             Dit is hoe andere gebruikers je zien
@@ -153,5 +165,17 @@ export default function OnboardingPage() {
         </CardContent>
       </Card>
     </div>
+  );
+}
+
+export default function OnboardingPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center">
+        <p className="text-muted-foreground">Laden...</p>
+      </div>
+    }>
+      <OnboardingContent />
+    </Suspense>
   );
 }

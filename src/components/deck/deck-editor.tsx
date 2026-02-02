@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Plus, Trash2, Save, GripVertical, Image, Music, Upload, ChevronDown, ChevronUp } from "lucide-react";
+import { Plus, Trash2, Save, GripVertical, Image, Music, Upload, ChevronDown, ChevronUp, FileText } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -16,6 +16,7 @@ import {
   addGBIFMediaToCard,
 } from "@/lib/actions/decks";
 import { BulkImportForm } from "./bulk-import-form";
+import { BulkTextImportDialog } from "./bulk-text-import-dialog";
 import { TagSelector } from "./tag-selector";
 import { WysiwygCardEditor, type PendingMedia } from "./wysiwyg-card-editor";
 import { type Tag } from "@/lib/actions/tags";
@@ -362,14 +363,29 @@ export function DeckEditor({ deck, cards: initialCards, initialTags = [] }: Deck
       <Card>
         <CardHeader className="flex flex-row items-center justify-between space-y-0">
           <CardTitle className="text-lg">Kaarten ({cards.length})</CardTitle>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setShowBulkImport(!showBulkImport)}
-          >
-            <Upload className="w-4 h-4 mr-2" />
-            Bulk importeren
-          </Button>
+          <div className="flex gap-2">
+            <BulkTextImportDialog
+              deckId={deck.id}
+              currentCardCount={cards.length}
+              onSuccess={() => {
+                window.location.reload();
+              }}
+              trigger={
+                <Button variant="outline" size="sm">
+                  <FileText className="w-4 h-4 mr-2" />
+                  Tekst importeren
+                </Button>
+              }
+            />
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setShowBulkImport(!showBulkImport)}
+            >
+              <Upload className="w-4 h-4 mr-2" />
+              Media importeren
+            </Button>
+          </div>
         </CardHeader>
         <CardContent className="space-y-4">
           {/* Bulk Import Form */}

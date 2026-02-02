@@ -665,11 +665,17 @@ export function AnnotationCanvas({
         };
         img.onerror = (e) => {
           console.error("Image load error:", e);
-          reject(e);
+          reject(new Error("Kon afbeelding niet laden voor export. Dit kan een CORS-probleem zijn."));
         };
         img.src = imageUrl;
       });
-      ctx.drawImage(img, 0, 0);
+
+      try {
+        ctx.drawImage(img, 0, 0);
+      } catch (drawError) {
+        console.error("drawImage error:", drawError);
+        throw new Error("Kon afbeelding niet tekenen. Mogelijk een CORS-probleem met de afbeeldingsbron.");
+      }
 
       // Draw annotations on top
       for (const annotation of annotations) {
@@ -687,7 +693,16 @@ export function AnnotationCanvas({
       }
 
       // Export as PNG base64
-      const pngBase64 = exportCanvas.toDataURL("image/png");
+      let pngBase64: string;
+      try {
+        pngBase64 = exportCanvas.toDataURL("image/png");
+      } catch (toDataUrlError) {
+        console.error("toDataURL error:", toDataUrlError);
+        throw new Error(
+          "Kon geannoteerde afbeelding niet exporteren. De afbeelding heeft mogelijk geen CORS-headers. " +
+          "Probeer de afbeelding opnieuw toe te voegen via de media picker."
+        );
+      }
       console.log("PNG generated, length:", pngBase64.length, "starts with:", pngBase64.substring(0, 30));
 
       // Create annotation data
@@ -704,6 +719,9 @@ export function AnnotationCanvas({
       console.log("onSave completed");
     } catch (error) {
       console.error("Failed to save annotations:", error);
+      // Show error to user
+      const errorMessage = error instanceof Error ? error.message : "Onbekende fout bij opslaan";
+      alert(`Opslaan mislukt: ${errorMessage}`);
     } finally {
       setIsSaving(false);
     }

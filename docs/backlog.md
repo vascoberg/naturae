@@ -10,7 +10,7 @@
 
 *Waar je deze week aan werkt. Max 2-3 items.*
 
-_(Leeg - kies iets uit "Klaar voor Implementatie")_
+(Momenteel geen actieve items)
 
 ---
 
@@ -23,6 +23,12 @@ _(Leeg - kies iets uit "Klaar voor Implementatie")_
 - `copied_from_deck_id` tracking
 - Media delen (niet dupliceren)
 - "X keer geremixed" teller
+
+### Transfer Deck Ownership
+Deck overdragen naar andere gebruiker (bijv. bij account verwijdering).
+- Admin functie of user-initiated
+- Handig voor populaire publieke decks
+- Gerelateerd aan Clone/Remix (zelfde mechaniek)
 
 ### Private Sharing (Share Tokens)
 Private decks delen via unieke link.
@@ -108,6 +114,11 @@ Quiz zonder visuele hints, puur op gehoor.
 ## Afgerond ✅
 
 ### Februari 2026
+- [x] **Bulk Tekst Import** - Copy/paste import vanuit Excel
+  - Auto-detect separator (tab/komma/puntkomma)
+  - Preview met "wissel kolommen" knop
+  - "Tekst importeren" knop in deck editor
+  - [Docs](features/bulk-text-import.md)
 - [x] **Freemium Limieten** - Opslaglimiet voor gratis accounts
   - 50 MB gratis, 1 GB premium (later)
   - Storage tracking in profiles tabel
@@ -171,10 +182,11 @@ Quiz zonder visuele hints, puur op gehoor.
 - Certificaten/badges
 
 ### Premium/AI Features
+Zie [Premium Features](features/premium-features.md) voor details.
+- AI-powered smart import
 - AI soortherkenning uit foto
-- Auto-tagging
-- Kwaliteitscheck AI
-- Offline sync
+- Excel/PDF import met AI parsing
+- Organisatie features (scholen/clubs)
 
 ### Overig
 - Sentry error tracking
@@ -190,6 +202,8 @@ Quiz zonder visuele hints, puur op gehoor.
 |----------|--------------|
 | [post-mvp-roadmap.md](post-mvp-roadmap.md) | Milestones en validatie doelen |
 | [business-model.md](operations/business-model.md) | Freemium model, pricing |
+| [premium-features.md](features/premium-features.md) | Premium/AI features planning |
+| [bulk-text-import.md](features/bulk-text-import.md) | Copy/paste import feature |
 | [knnv-feedback.md](research/knnv-feedback-jaap-graveland.md) | KNNV gesprek status |
 | [quiz-mode-plan.md](research/quiz-mode-implementation-plan.md) | Quiz features details |
 | [i18n-research.md](research/internationalisering-i18n.md) | Internationalisering |

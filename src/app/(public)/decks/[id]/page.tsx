@@ -4,7 +4,6 @@ import Image from "next/image";
 import { Pencil, Info } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { CardGridView } from "@/components/deck/card-grid-view";
 import { StartStudyButton } from "@/components/deck/start-study-button";
@@ -161,31 +160,38 @@ export default async function DeckPage({ params }: DeckPageProps) {
   return (
     <div className="container mx-auto px-4 py-8">
       {/* Deck Header */}
-      <div className="mb-8">
+      <div className="mb-8 pb-6 border-b">
         <div className="flex items-start justify-between mb-4">
-          <div>
-            <h1 className="text-2xl font-bold mb-2">{deck.title}</h1>
+          <div className="space-y-3">
+            <h1 className="text-3xl font-bold">{deck.title}</h1>
             {deck.description && (
-              <p className="text-muted-foreground mb-2">{deck.description}</p>
+              <p className="text-muted-foreground text-lg">{deck.description}</p>
             )}
-            {!isOwner && authorName && (
-              <p className="text-sm text-muted-foreground flex items-center gap-1.5">
-                door {authorName}
-                {authorProfile?.avatar_url ? (
-                  <Image
-                    src={authorProfile.avatar_url}
-                    alt={authorName}
-                    width={18}
-                    height={18}
-                    className="rounded-full"
-                  />
-                ) : (
-                  <span className="w-[18px] h-[18px] rounded-full bg-muted flex items-center justify-center text-[10px] font-medium">
-                    {authorName.charAt(0).toUpperCase()}
+            {/* Metadata: card count + author */}
+            <p className="text-muted-foreground flex items-center gap-2 flex-wrap">
+              <span className="font-medium">{totalCards} kaarten</span>
+              {!isOwner && authorName && (
+                <>
+                  <span>•</span>
+                  <span className="flex items-center gap-1.5">
+                    door {authorName}
+                    {authorProfile?.avatar_url ? (
+                      <Image
+                        src={authorProfile.avatar_url}
+                        alt={authorName}
+                        width={20}
+                        height={20}
+                        className="rounded-full"
+                      />
+                    ) : (
+                      <span className="w-5 h-5 rounded-full bg-muted flex items-center justify-center text-xs font-medium">
+                        {authorName.charAt(0).toUpperCase()}
+                      </span>
+                    )}
                   </span>
-                )}
-              </p>
-            )}
+                </>
+              )}
+            </p>
           </div>
           <div className="flex gap-2">
             {deck.is_public && <Badge variant="secondary">Openbaar</Badge>}
@@ -193,46 +199,16 @@ export default async function DeckPage({ params }: DeckPageProps) {
           </div>
         </div>
 
-        {/* Stats - alleen voortgang tonen voor ingelogde users */}
-        {isGuest ? (
-          <div className="mb-6 space-y-3">
-            <Card>
-              <CardContent className="pt-4">
-                <p className="text-2xl font-bold">{totalCards}</p>
-                <p className="text-sm text-muted-foreground">Kaarten</p>
-              </CardContent>
-            </Card>
-            {/* Guest disclaimer */}
-            <div className="p-3 rounded-lg bg-muted/50 border border-border/50 flex gap-3">
-              <Info className="w-4 h-4 text-muted-foreground flex-shrink-0 mt-0.5" />
-              <p className="text-sm text-muted-foreground">
-                <Link href="/login" className="text-primary hover:underline">
-                  Log in
-                </Link>{" "}
-                om je leervoortgang op te slaan en te zien welke kaarten je moet herhalen.
-              </p>
-            </div>
-          </div>
-        ) : (
-          <div className="grid grid-cols-3 gap-4 mb-6">
-            <Card>
-              <CardContent className="pt-4">
-                <p className="text-2xl font-bold">{totalCards}</p>
-                <p className="text-sm text-muted-foreground">Kaarten</p>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardContent className="pt-4">
-                <p className="text-2xl font-bold">{newCards}</p>
-                <p className="text-sm text-muted-foreground">Nieuw</p>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardContent className="pt-4">
-                <p className="text-2xl font-bold">{cardsDue}</p>
-                <p className="text-sm text-muted-foreground">Te herhalen</p>
-              </CardContent>
-            </Card>
+        {/* Guest disclaimer */}
+        {isGuest && (
+          <div className="mb-6 p-3 rounded-lg bg-muted/50 border border-border/50 flex gap-3">
+            <Info className="w-4 h-4 text-muted-foreground flex-shrink-0 mt-0.5" />
+            <p className="text-sm text-muted-foreground">
+              <Link href="/login" className="text-primary hover:underline">
+                Log in
+              </Link>{" "}
+              om je leervoortgang op te slaan.
+            </p>
           </div>
         )}
 
