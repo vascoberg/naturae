@@ -189,7 +189,7 @@ export default async function DiscoverPage({ searchParams }: DiscoverPageProps) 
 
               return (
                 <Link key={deck.id} href={`/decks/${deck.id}`}>
-                  <Card className="h-full hover:border-primary/50 hover:shadow-md transition-all cursor-pointer">
+                  <Card className="h-full hover:border-primary/50 hover:shadow-md transition-all cursor-pointer active:scale-[0.98] active:opacity-90">
                     <CardHeader>
                       <CardTitle className="text-base">{deck.title}</CardTitle>
                       {deck.description && (

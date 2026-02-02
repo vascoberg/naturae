@@ -93,7 +93,7 @@ export default async function MyDecksPage() {
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
             {decks.map((deck) => (
               <Link key={deck.id} href={`/decks/${deck.id}`}>
-                <Card className="h-full hover:border-primary/50 transition-colors cursor-pointer">
+                <Card className="h-full hover:border-primary/50 transition-all cursor-pointer active:scale-[0.98] active:opacity-90">
                   <CardHeader>
                     <div className="flex items-start justify-between">
                       <CardTitle className="text-base">{deck.title}</CardTitle>
@@ -157,7 +157,7 @@ export default async function MyDecksPage() {
 
               return (
                 <Link key={deck.id} href={`/decks/${deck.id}`}>
-                  <Card className="h-full hover:border-primary/50 transition-colors cursor-pointer">
+                  <Card className="h-full hover:border-primary/50 transition-all cursor-pointer active:scale-[0.98] active:opacity-90">
                     <CardHeader>
                       <CardTitle className="text-base">{deck.title}</CardTitle>
                       {deck.description && (

@@ -66,7 +66,7 @@ export default async function DashboardPage() {
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
             {decks.slice(0, 6).map((deck) => (
               <Link key={deck.id} href={`/decks/${deck.id}`}>
-                <Card className="h-full hover:border-primary/50 transition-colors cursor-pointer">
+                <Card className="h-full hover:border-primary/50 transition-all cursor-pointer active:scale-[0.98] active:opacity-90">
                   <CardHeader>
                     <CardTitle className="text-base">{deck.title}</CardTitle>
                     {deck.description && (
@@ -116,7 +116,7 @@ export default async function DashboardPage() {
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
             {publicDecks.map((deck) => (
               <Link key={deck.id} href={`/decks/${deck.id}`}>
-                <Card className="h-full hover:border-primary/50 transition-colors cursor-pointer">
+                <Card className="h-full hover:border-primary/50 transition-all cursor-pointer active:scale-[0.98] active:opacity-90">
                   <CardHeader>
                     <CardTitle className="text-base">{deck.title}</CardTitle>
                     {deck.description && (

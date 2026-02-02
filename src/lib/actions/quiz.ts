@@ -73,8 +73,15 @@ function shuffleArray<T>(array: T[]): T[] {
   return shuffled;
 }
 
-function getSpeciesDisplayName(species: SpeciesForDistractor, backText?: string | null): string {
-  return backText || species.common_names?.nl || species.canonical_name || species.scientific_name;
+function getSpeciesDisplayName(
+  species: SpeciesForDistractor,
+  backText?: string | null,
+  deckBackTextMap?: Map<string, string>
+): string {
+  // Prioriteit: 1) meegegeven backText, 2) deck backText map, 3) species common_names, 4) canonical_name, 5) scientific_name
+  if (backText) return backText;
+  if (deckBackTextMap?.has(species.id)) return deckBackTextMap.get(species.id)!;
+  return species.common_names?.nl || species.canonical_name || species.scientific_name;
 }
 
 // ============================================================================
@@ -103,7 +110,8 @@ async function getDistractors(
   correctSpecies: SpeciesForDistractor,
   deckSpeciesIds: string[], // Alle species IDs in het deck
   excludeIds: string[],
-  count: number = 3
+  count: number = 3,
+  deckBackTextMap?: Map<string, string> // Map van speciesId -> back_text uit het deck
 ): Promise<{ distractors: SpeciesForDistractor[]; debug: DistractorDebugLog }> {
   const distractors: SpeciesForDistractor[] = [];
   const genus = correctSpecies.taxonomy?.genus;
@@ -497,6 +505,15 @@ async function getQuizCardsWithOwnMedia(
     .map(card => getSpeciesObject(card.species)?.id)
     .filter((id): id is string => !!id);
 
+  // Build a map of speciesId -> back_text for deck cards (for consistent naming)
+  const deckBackTextMap = new Map<string, string>();
+  for (const card of cards) {
+    const speciesId = getSpeciesObject(card.species)?.id;
+    if (speciesId && card.back_text) {
+      deckBackTextMap.set(speciesId, card.back_text);
+    }
+  }
+
   // Build result cards with distractors
   const resultCards: QuizCard[] = [];
   const debugLogs: DistractorDebugLog[] = [];
@@ -538,7 +555,7 @@ async function getQuizCardsWithOwnMedia(
     if (species) {
       // Alleen de huidige species wordt uitgesloten (binnen getDistractors)
       // Andere "correct answer" species mogen wel als distractor voor andere vragen
-      const result = await getDistractors(supabase, species, deckSpeciesIds, [], 3);
+      const result = await getDistractors(supabase, species, deckSpeciesIds, [], 3, deckBackTextMap);
       distractors = result.distractors;
       debugLogs.push(result.debug);
     } else {
@@ -572,7 +589,7 @@ async function getQuizCardsWithOwnMedia(
     if (species && distractors.length > 0) {
       quizOptions.push(...distractors.map(d => ({
         id: d.id,
-        name: getSpeciesDisplayName(d),
+        name: getSpeciesDisplayName(d, null, deckBackTextMap),
         scientificName: d.scientific_name,
         isCorrect: false,
         speciesId: d.id,
@@ -715,6 +732,15 @@ async function getQuizCardsWithGbifMedia(
     .map(card => getSpeciesObject(card.species)?.id)
     .filter((id): id is string => !!id);
 
+  // Build a map of speciesId -> back_text for deck cards (for consistent naming)
+  const deckBackTextMap = new Map<string, string>();
+  for (const card of cardsWithGbif) {
+    const speciesId = getSpeciesObject(card.species)?.id;
+    if (speciesId && card.back_text) {
+      deckBackTextMap.set(speciesId, card.back_text);
+    }
+  }
+
   // Build result cards with distractors
   const resultCards: QuizCard[] = [];
   const debugLogs: DistractorDebugLog[] = [];
@@ -728,11 +754,11 @@ async function getQuizCardsWithGbifMedia(
 
     // Get distractors for this species (prefer from deck, fallback to same taxonomic class)
     // Alleen de huidige species wordt uitgesloten (binnen getDistractors)
-    const { distractors, debug } = await getDistractors(supabase, species, deckSpeciesIds, [], 3);
+    const { distractors, debug } = await getDistractors(supabase, species, deckSpeciesIds, [], 3, deckBackTextMap);
     debugLogs.push(debug);
 
     // Build options: correct answer + distractors
-    const correctName = getSpeciesDisplayName(species, card.back_text);
+    const correctName = getSpeciesDisplayName(species, card.back_text, deckBackTextMap);
     const quizOptions: QuizOption[] = [
       {
         id: species.id,
@@ -743,7 +769,7 @@ async function getQuizCardsWithGbifMedia(
       },
       ...distractors.map(d => ({
         id: d.id,
-        name: getSpeciesDisplayName(d),
+        name: getSpeciesDisplayName(d, null, deckBackTextMap),
         scientificName: d.scientific_name,
         isCorrect: false,
         speciesId: d.id,
@@ -853,6 +879,15 @@ async function getQuizCardsWithXenoCantoMedia(
     .map(card => getSpeciesObject(card.species)?.id)
     .filter((id): id is string => !!id);
 
+  // Build a map of speciesId -> back_text for deck cards (for consistent naming)
+  const deckBackTextMap = new Map<string, string>();
+  for (const card of cardsWithSpecies) {
+    const speciesId = getSpeciesObject(card.species)?.id;
+    if (speciesId && card.back_text) {
+      deckBackTextMap.set(speciesId, card.back_text);
+    }
+  }
+
   // Build result cards with audio from Xeno-canto
   const resultCards: QuizCard[] = [];
   const debugLogs: DistractorDebugLog[] = [];
@@ -888,11 +923,11 @@ async function getQuizCardsWithXenoCantoMedia(
 
     // Get distractors for this species
     // Alleen de huidige species wordt uitgesloten (binnen getDistractors)
-    const { distractors, debug } = await getDistractors(supabase, species, deckSpeciesIds, [], 3);
+    const { distractors, debug } = await getDistractors(supabase, species, deckSpeciesIds, [], 3, deckBackTextMap);
     debugLogs.push(debug);
 
     // Build options: correct answer + distractors
-    const correctName = getSpeciesDisplayName(species, card.back_text);
+    const correctName = getSpeciesDisplayName(species, card.back_text, deckBackTextMap);
     const quizOptions: QuizOption[] = [
       {
         id: species.id,
@@ -903,7 +938,7 @@ async function getQuizCardsWithXenoCantoMedia(
       },
       ...distractors.map(d => ({
         id: d.id,
-        name: getSpeciesDisplayName(d),
+        name: getSpeciesDisplayName(d, null, deckBackTextMap),
         scientificName: d.scientific_name,
         isCorrect: false,
         speciesId: d.id,
