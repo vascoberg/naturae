@@ -2,10 +2,16 @@
 
 import { useState, useRef } from "react";
 import { Upload, Image, Music, X, Loader2 } from "lucide-react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { createClient } from "@/lib/supabase/client";
-import { addCardMedia, deleteCardMedia } from "@/lib/actions/decks";
+import {
+  addCardMedia,
+  deleteCardMedia,
+  checkStorageLimit,
+  recordStorageUpload,
+} from "@/lib/actions/decks";
 
 interface CardMedia {
   id: string;
@@ -57,6 +63,12 @@ export function CardMediaUpload({
         throw new Error("Niet ingelogd");
       }
 
+      // Check storage limiet vóór upload
+      const storageCheck = await checkStorageLimit(file.size);
+      if (!storageCheck.allowed) {
+        throw new Error(storageCheck.error || "Opslaglimiet bereikt");
+      }
+
       // Generate unique filename
       const ext = file.name.split(".").pop();
       const filename = `${crypto.randomUUID()}.${ext}`;
@@ -74,6 +86,9 @@ export function CardMediaUpload({
         console.error("Upload error:", uploadError);
         throw new Error("Upload mislukt");
       }
+
+      // Registreer upload in storage tracking
+      await recordStorageUpload(file.size);
 
       // Get public URL
       const { data: urlData } = supabase.storage
@@ -105,7 +120,8 @@ export function CardMediaUpload({
       setShowAttribution(false);
     } catch (error) {
       console.error("Error uploading media:", error);
-      alert("Er ging iets mis bij het uploaden");
+      const message = error instanceof Error ? error.message : "Er ging iets mis bij het uploaden";
+      toast.error(message);
     } finally {
       setIsUploading(false);
     }

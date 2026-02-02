@@ -1,8 +1,10 @@
 import { createClient } from "@/lib/supabase/server";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Progress } from "@/components/ui/progress";
 import { ProfileForm } from "@/components/settings/profile-form";
 import { AvatarUpload } from "@/components/settings/avatar-upload";
 import { PasswordForm } from "@/components/settings/password-form";
+import { getStorageUsage, formatBytes } from "@/lib/services/storage-limits";
 
 export default async function SettingsPage() {
   const supabase = await createClient();
@@ -16,6 +18,10 @@ export default async function SettingsPage() {
     .select("username, display_name, avatar_url, bio")
     .eq("id", user!.id)
     .single();
+
+  // Haal storage gebruik op
+  const storage = await getStorageUsage(user!.id);
+  const storagePercentage = Math.min(100, Math.round((storage.used / storage.limit) * 100));
 
   return (
     <div className="container mx-auto px-4 py-8 max-w-2xl">
@@ -44,6 +50,38 @@ export default async function SettingsPage() {
               </label>
               <p className="mt-1">@{profile?.username}</p>
             </div>
+          </CardContent>
+        </Card>
+
+        {/* Storage Usage */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Opslag</CardTitle>
+            <CardDescription>
+              Je gebruikte opslagruimte voor media uploads
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <div className="flex justify-between text-sm">
+              <span>{formatBytes(storage.used)} gebruikt</span>
+              <span className="text-muted-foreground">
+                {formatBytes(storage.limit)} totaal
+              </span>
+            </div>
+            <Progress value={storagePercentage} className="h-2" />
+            {storagePercentage >= 80 && storagePercentage < 100 && (
+              <p className="text-sm text-amber-600">
+                Je opslag raakt bijna vol. Overweeg oude media te verwijderen.
+              </p>
+            )}
+            {storagePercentage >= 100 && (
+              <p className="text-sm text-destructive">
+                Je opslaglimiet is bereikt. Verwijder media om nieuwe uploads mogelijk te maken.
+              </p>
+            )}
+            <p className="text-xs text-muted-foreground">
+              Externe GBIF en Xeno-canto media (in quiz modus) tellen niet mee. Gedownloade media naar je kaarten telt wel mee.
+            </p>
           </CardContent>
         </Card>
 

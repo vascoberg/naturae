@@ -98,9 +98,9 @@ Quiz zonder visuele hints, puur op gehoor.
 | Milestone | Status | Wanneer |
 |-----------|--------|---------|
 | Production Ready | ✅ Afgerond | 01-02-2026 |
+| Freemium Limieten | ✅ Afgerond | 02-02-2026 |
 | Soft Launch (KNNV pilot) | 🔜 Volgende | Wanneer Jaap reageert |
-| Freemium Limieten | 📋 Gepland | Na validatie gebruikers |
-| Stripe Betalingen | 📋 Gepland | Na freemium |
+| Stripe Betalingen | 📋 Gepland | Na soft launch |
 | 100 MAU | 🎯 Doel | Q1 2026 |
 
 ---
@@ -108,6 +108,12 @@ Quiz zonder visuele hints, puur op gehoor.
 ## Afgerond ✅
 
 ### Februari 2026
+- [x] **Freemium Limieten** - Opslaglimiet voor gratis accounts
+  - 50 MB gratis, 1 GB premium (later)
+  - Storage tracking in profiles tabel
+  - UI indicator in settings pagina
+  - Toast meldingen bij limiet
+  - [Docs](features/freemium-limits-plan.md)
 - [x] **Xeno-canto API Integratie** - Alle 5 fasen voltooid
   - Service file, media picker, server action
   - Soortenpagina audio player
@@ -115,10 +121,15 @@ Quiz zonder visuele hints, puur op gehoor.
   - [Docs](features/xeno-canto-audio-integration.md)
 - [x] **Quiz verbeteringen**
   - Distractor algoritme: deck-first priority (soorten uit deck krijgen voorrang)
+  - Distractor namen: gebruiken nu back_text van deck kaarten (consistente naamgeving)
   - Nederlandse namen fix: verbeterde GBIF naam selectie (`preferred` flag, trusted sources)
   - Kapitalisatie normalisatie (eerste letter hoofdletter, rest kleine letters)
   - IJ-uitzondering (IJsgors blijft IJsgors)
   - Offensieve term "negertje" → "Zwart wekkertje"
+- [x] **UX Loading Feedback**
+  - Active states (scale + opacity) op buttons, nav items, deck cards
+  - Loading skeletons voor dashboard, my-decks, discover, settings, deck detail
+  - Species search fix: JSONB query syntax (`->>` voor tekstextractie)
 - [x] Error boundaries (global, public, main)
 - [x] Accessibility fixes (aria-labels)
 - [x] Mobile responsiveness test

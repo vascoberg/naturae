@@ -269,7 +269,8 @@ export function CardSideEditor({
       toast.success("GBIF foto toegevoegd");
     } catch (error) {
       console.error("Error adding GBIF media:", error);
-      toast.error("Er ging iets mis bij het toevoegen van de foto");
+      const message = error instanceof Error ? error.message : "Er ging iets mis bij het toevoegen van de foto";
+      toast.error(message);
     } finally {
       setIsUploading(false);
       setUploadType(null);

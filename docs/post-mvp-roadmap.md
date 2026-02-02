@@ -53,17 +53,18 @@
 
 **Wanneer:** Zodra Jaap reageert of zelf initiatief nemen
 
-### 📋 Milestone 3: Freemium Model
-**Status:** Gepland (na Les 1 validatie)
+### ✅ Milestone 3: Freemium Limieten
+**Status:** Afgerond (02-02-2026)
 
-**Doel:** Gratis vs Pro differentiatie.
+**Doel:** Basis guardrails voor gratis accounts.
 
-- [ ] Usage tracking in database
-- [ ] Limiet warnings in UI
-- [ ] Pricing page
-- [ ] Stripe voorbereiding
+- [x] Usage tracking in database (storage_used_bytes)
+- [x] Limiet warnings in UI (settings pagina)
+- [x] Toast meldingen bij limiet bereikt
+- [ ] Pricing page (later, na validatie)
+- [ ] Stripe voorbereiding (later)
 
-**Referentie:** [business-model.md](operations/business-model.md)
+**Referentie:** [freemium-limits-plan.md](features/freemium-limits-plan.md)
 
 ### 📋 Milestone 4: Premium Live
 **Status:** Gepland (na Les 1 positief)

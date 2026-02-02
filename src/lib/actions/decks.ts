@@ -2,6 +2,59 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import {
+  canUpload,
+  recordUpload,
+  recordDeletion,
+  formatBytes,
+} from "@/lib/services/storage-limits";
+
+/**
+ * Check of een upload is toegestaan gegeven de storage limiet.
+ * Roep aan vóór een client-side upload naar storage.
+ */
+export async function checkStorageLimit(sizeBytes: number): Promise<{
+  allowed: boolean;
+  error?: string;
+  remaining?: number;
+}> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    return { allowed: false, error: "Niet ingelogd" };
+  }
+
+  const check = await canUpload(user.id, sizeBytes);
+  if (!check.allowed) {
+    return {
+      allowed: false,
+      error: `Opslaglimiet bereikt. Je hebt nog ${formatBytes(check.remaining)} vrij, maar dit bestand is ${formatBytes(sizeBytes)}.`,
+      remaining: check.remaining,
+    };
+  }
+
+  return { allowed: true, remaining: check.remaining };
+}
+
+/**
+ * Registreer een succesvolle upload in de storage tracking.
+ * Roep aan ná een succesvolle client-side upload naar storage.
+ */
+export async function recordStorageUpload(sizeBytes: number): Promise<void> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    throw new Error("Niet ingelogd");
+  }
+
+  await recordUpload(user.id, sizeBytes);
+}
 
 export async function createCard(
   deckId: string,
@@ -430,6 +483,14 @@ export async function addGBIFMediaToCard(
   const imageBlob = await imageResponse.blob();
   const contentType = imageResponse.headers.get("content-type") || "image/jpeg";
 
+  // Check storage limiet vóór upload
+  const storageCheck = await canUpload(user.id, imageBlob.size);
+  if (!storageCheck.allowed) {
+    throw new Error(
+      `Opslaglimiet bereikt. Deze afbeelding is ${formatBytes(imageBlob.size)}, maar je hebt nog ${formatBytes(storageCheck.remaining)} vrij.`
+    );
+  }
+
   // Bepaal extensie uit content-type
   let ext = "jpg";
   if (contentType.includes("png")) ext = "png";
@@ -452,6 +513,9 @@ export async function addGBIFMediaToCard(
     console.error("Upload error:", uploadError);
     throw new Error("Kon afbeelding niet uploaden naar storage");
   }
+
+  // Registreer upload in storage tracking
+  await recordUpload(user.id, imageBlob.size);
 
   // Haal publieke URL op
   const { data: urlData } = supabase.storage
@@ -663,10 +727,10 @@ export async function deleteCardMedia(mediaId: string) {
     throw new Error("Niet ingelogd");
   }
 
-  // Get media and card
+  // Get media including URL for storage deletion
   const { data: media } = await supabase
     .from("card_media")
-    .select("id, card_id")
+    .select("id, card_id, url")
     .eq("id", mediaId)
     .single();
 
@@ -695,6 +759,46 @@ export async function deleteCardMedia(mediaId: string) {
     throw new Error("Geen toegang tot deze media");
   }
 
+  // Check of dit een lokale storage URL is en verwijder uit storage
+  // URL format: https://xxx.supabase.co/storage/v1/object/public/media/{path}
+  let deletedBytes = 0;
+  if (media.url && media.url.includes("/storage/v1/object/public/media/")) {
+    try {
+      // Extract storage path from URL
+      const urlParts = media.url.split("/storage/v1/object/public/media/");
+      if (urlParts.length === 2) {
+        const storagePath = decodeURIComponent(urlParts[1]);
+
+        // Haal bestandsgrootte op via list (metadata bevat size)
+        const pathParts = storagePath.split("/");
+        const folder = pathParts.slice(0, -1).join("/");
+        const filename = pathParts[pathParts.length - 1];
+
+        const { data: files } = await supabase.storage
+          .from("media")
+          .list(folder, { search: filename });
+
+        if (files && files.length > 0 && files[0].metadata?.size) {
+          deletedBytes = files[0].metadata.size;
+        }
+
+        // Verwijder uit storage
+        const { error: storageError } = await supabase.storage
+          .from("media")
+          .remove([storagePath]);
+
+        if (storageError) {
+          console.error("Storage delete error:", storageError);
+          // Ga door met database delete, storage cleanup kan later
+        }
+      }
+    } catch (e) {
+      console.error("Error deleting from storage:", e);
+      // Ga door met database delete
+    }
+  }
+
+  // Verwijder uit database
   const { error } = await supabase
     .from("card_media")
     .delete()
@@ -703,6 +807,11 @@ export async function deleteCardMedia(mediaId: string) {
   if (error) {
     console.error("Error deleting card media:", error);
     throw new Error("Kon media niet verwijderen");
+  }
+
+  // Registreer deletion in storage tracking
+  if (deletedBytes > 0) {
+    await recordDeletion(user.id, deletedBytes);
   }
 
   revalidatePath(`/decks/${card.deck_id}`);

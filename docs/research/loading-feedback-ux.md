@@ -488,12 +488,18 @@ button:active, a:active {
 - ~~`CardSideEditor` - Geen upload/delete feedback~~ ✅ Opgelost 01-02-2026
 - `CardGrid` - Stille delete operaties (nog te doen indien nodig)
 
-### Pagina's zonder loading.tsx ❌
-- `/decks/[id]`
-- `/decks/[id]/edit`
-- `/discover`
-- `/settings`
+### Pagina's met loading.tsx ✅
+- `/dashboard` ✅ Toegevoegd 02-02-2026
+- `/my-decks` ✅ Toegevoegd 02-02-2026
+- `/decks/[id]` ✅ Toegevoegd 02-02-2026
+- `/discover` ✅ Toegevoegd 02-02-2026
+- `/settings` ✅ Toegevoegd 02-02-2026
+
+### Active states toegevoegd ✅
+- Buttons: `active:scale-[0.98] active:opacity-90`
+- Sidebar nav items: `active:scale-[0.98] active:bg-muted`
+- Deck cards: `active:scale-[0.98] active:opacity-90`
 
 ---
 
-*Laatst bijgewerkt: 1 februari 2026*
+*Laatst bijgewerkt: 2 februari 2026*
