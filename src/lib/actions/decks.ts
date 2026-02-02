@@ -410,9 +410,19 @@ export async function addGBIFMediaToCard(
   }
 
   // Download de afbeelding van de externe URL
-  console.log(`[GBIF] Downloading image from: ${data.externalUrl.substring(0, 80)}...`);
+  // Als de URL door onze proxy gaat, extract de originele URL (server-side fetch heeft geen CORS)
+  let fetchUrl = data.externalUrl;
+  if (fetchUrl.startsWith("/api/image-proxy?url=")) {
+    const proxyUrl = new URL(fetchUrl, "http://localhost"); // Base URL nodig voor parsing
+    const originalUrl = proxyUrl.searchParams.get("url");
+    if (originalUrl) {
+      fetchUrl = originalUrl;
+    }
+  }
 
-  const imageResponse = await fetch(data.externalUrl);
+  console.log(`[GBIF] Downloading image from: ${fetchUrl.substring(0, 80)}...`);
+
+  const imageResponse = await fetch(fetchUrl);
   if (!imageResponse.ok) {
     throw new Error(`Kon afbeelding niet downloaden: ${imageResponse.status}`);
   }
@@ -489,6 +499,99 @@ export async function addGBIFMediaToCard(
   revalidatePath(`/decks/${card.deck_id}/edit`);
 
   return { id: media.id, url: publicUrl };
+}
+
+/**
+ * Voegt een Xeno-canto audio opname toe aan een kaart.
+ * Audio wordt direct gelinkt naar Xeno-canto (geen lokale opslag).
+ */
+export async function addXenoCantoAudioToCard(
+  cardId: string,
+  deckId: string,
+  data: {
+    xenoCantoId: string;
+    audioUrl: string;
+    sonogramUrl: string;
+    position: "front" | "back" | "both";
+    recordist: string;
+    license: string;
+    pageUrl: string;
+  }
+): Promise<{ id: string; url: string }> {
+  const supabase = await createClient();
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    throw new Error("Niet ingelogd");
+  }
+
+  // Verify card and deck ownership
+  const { data: card } = await supabase
+    .from("cards")
+    .select("id, deck_id")
+    .eq("id", cardId)
+    .single();
+
+  if (!card) {
+    throw new Error("Kaart niet gevonden");
+  }
+
+  const { data: deck } = await supabase
+    .from("decks")
+    .select("user_id")
+    .eq("id", card.deck_id)
+    .single();
+
+  if (!deck || deck.user_id !== user.id) {
+    throw new Error("Geen toegang tot deze kaart");
+  }
+
+  console.log(`[Xeno-canto] Adding audio XC${data.xenoCantoId} to card ${cardId}`);
+
+  // Get next display order
+  const { data: lastMedia } = await supabase
+    .from("card_media")
+    .select("display_order")
+    .eq("card_id", cardId)
+    .eq("position", data.position)
+    .order("display_order", { ascending: false })
+    .limit(1)
+    .single();
+
+  const displayOrder = (lastMedia?.display_order ?? -1) + 1;
+
+  // Format attribution string
+  const attributionSource = `${data.recordist} · ${data.license} · Xeno-canto`;
+
+  // Voeg media record toe
+  const { data: media, error } = await supabase
+    .from("card_media")
+    .insert({
+      card_id: cardId,
+      type: "audio",
+      url: data.audioUrl,
+      position: data.position,
+      display_order: displayOrder,
+      attribution_name: data.recordist,
+      attribution_url: data.pageUrl,
+      attribution_source: attributionSource,
+      license: data.license,
+    })
+    .select("id")
+    .single();
+
+  if (error) {
+    console.error("Error adding Xeno-canto audio:", error);
+    throw new Error("Kon audio niet toevoegen aan database");
+  }
+
+  revalidatePath(`/decks/${card.deck_id}`);
+  revalidatePath(`/decks/${card.deck_id}/edit`);
+
+  return { id: media.id, url: data.audioUrl };
 }
 
 export async function updateCardMediaAttribution(mediaId: string, attribution: string) {

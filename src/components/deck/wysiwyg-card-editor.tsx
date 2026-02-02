@@ -146,8 +146,9 @@ export function WysiwygCardEditor({
   // Card is saveable if there's back text OR a species selected (species serves as the answer)
   const canSave = (backText.trim().length > 0 || speciesId !== null) && !isSaving;
 
-  // GBIF props voor CardSideEditor
+  // Species props voor CardSideEditor
   const speciesGbifKey = selectedSpecies?.gbif_key;
+  const speciesScientificName = selectedSpecies?.scientific_name || null;
   const speciesDisplayName = selectedSpecies?.common_names?.nl ||
     selectedSpecies?.canonical_name ||
     selectedSpecies?.scientific_name ||
@@ -172,6 +173,7 @@ export function WysiwygCardEditor({
           placeholder="Vraag, hint of context (optioneel)"
           speciesGbifKey={speciesGbifKey}
           speciesName={speciesDisplayName}
+          speciesScientificName={speciesScientificName}
           pendingMedia={pendingMedia.find((m) => m.position === "front")}
           onPendingMediaSelect={isNew ? handlePendingMediaSelect : undefined}
           onPendingMediaRemove={isNew ? handlePendingMediaRemove : undefined}
@@ -192,6 +194,7 @@ export function WysiwygCardEditor({
           placeholder="Extra informatie (optioneel)"
           speciesGbifKey={speciesGbifKey}
           speciesName={speciesDisplayName}
+          speciesScientificName={speciesScientificName}
           pendingMedia={pendingMedia.find((m) => m.position === "back")}
           onPendingMediaSelect={isNew ? handlePendingMediaSelect : undefined}
           onPendingMediaRemove={isNew ? handlePendingMediaRemove : undefined}

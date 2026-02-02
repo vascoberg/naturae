@@ -8,16 +8,19 @@ import { Card } from "@/components/ui/card";
 import { Flashcard } from "@/components/flashcard/flashcard";
 import { RatingButtons, Rating } from "@/components/flashcard/rating-buttons";
 import { PublicPhotoFlashcard } from "@/components/study/public-photo-flashcard";
+import { AudioFlashcard } from "@/components/study/audio-flashcard";
 import { QuizSession } from "@/components/study/quiz-session";
 import {
   getStudyCards,
   recordAnswer,
   isUserLoggedIn,
   getPublicPhotoStudyCards,
+  getXenoCantoStudyCards,
   type StudyMode,
   type PublicPhotoStudyCard,
+  type XenoCantoStudyCard,
 } from "@/lib/actions/study";
-import { getQuizCards, type QuizCard } from "@/lib/actions/quiz";
+import { getQuizCards, type QuizCard, type DistractorDebugLog } from "@/lib/actions/quiz";
 import { ArrowLeft, CheckCircle2 } from "lucide-react";
 
 function LoadingSpinner() {
@@ -83,7 +86,7 @@ function StudyPageContent() {
   const mode = searchParams.get("mode") || "smart";
   const limitParam = searchParams.get("limit");
   const limit = limitParam ? parseInt(limitParam, 10) : undefined;
-  const source = searchParams.get("source") as "own" | "gbif" | null;
+  const source = searchParams.get("source") as "own" | "gbif" | "xeno-canto" | null;
   const mediaType = searchParams.get("mediaType") as "image" | "audio" | "mix" | null;
 
   // Key forceert volledige remount van StudySession bij navigatie
@@ -105,6 +108,11 @@ function StudyPageContent() {
   // Openbare foto's modus
   if (mode === "photos") {
     return <PhotoStudySession key={sessionKey} deckId={deckId} limit={limit} />;
+  }
+
+  // Xeno-canto geluiden modus
+  if (mode === "sounds") {
+    return <AudioStudySession key={sessionKey} deckId={deckId} limit={limit} />;
   }
 
   return <StudySession key={sessionKey} deckId={deckId} mode={mode as StudyMode} limit={limit} />;
@@ -145,6 +153,7 @@ function StudySession({ deckId, mode, limit }: StudySessionProps) {
     shuffle: "Shuffle",
     smart: "Slim leren",
     photos: "Openbare foto's",
+    sounds: "Xeno-canto geluiden",
   };
 
   // Use ref to prevent double-fetch in React Strict Mode
@@ -724,7 +733,7 @@ function PhotoStudySession({ deckId, limit }: PhotoStudySessionProps) {
 interface QuizStudySessionProps {
   deckId: string;
   limit?: number;
-  source: "own" | "gbif";
+  source: "own" | "gbif" | "xeno-canto";
   mediaType: "image" | "audio" | "mix";
 }
 
@@ -752,6 +761,20 @@ function QuizStudySession({ deckId, limit, source, mediaType }: QuizStudySession
           source,
           mediaType: source === "own" ? mediaType : undefined,
         });
+
+        // DEBUG: Log distractor selection info
+        if (result._debug) {
+          console.group("🔍 Quiz Distractor Debug");
+          result._debug.forEach((log, i) => {
+            console.group(`Question ${i + 1}: ${log.correctSpecies}`);
+            console.log("Taxonomy:", log.taxonomy);
+            console.log("Deck species:", log.deckSpeciesCount, "| Available:", log.availableDeckCount);
+            console.table(log.priorities.filter(p => p.matches.length > 0 || p.selected.length > 0));
+            console.log("Final distractors:", log.finalDistractors);
+            console.groupEnd();
+          });
+          console.groupEnd();
+        }
 
         if (result.error) {
           setLoadError(result.error);
@@ -845,6 +868,287 @@ function QuizStudySession({ deckId, limit, source, mediaType }: QuizStudySession
           questions={questions}
           onExit={handleExit}
         />
+      </main>
+    </div>
+  );
+}
+
+// ============================================================================
+// Xeno-canto Audio Study Session
+// ============================================================================
+
+interface AudioStudySessionProps {
+  deckId: string;
+  limit?: number;
+}
+
+function AudioStudySession({ deckId, limit }: AudioStudySessionProps) {
+  const router = useRouter();
+
+  const [cards, setCards] = useState<XenoCantoStudyCard[]>([]);
+  const [currentIndex, setCurrentIndex] = useState(0);
+  const [isFlipped, setIsFlipped] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [sessionComplete, setSessionComplete] = useState(false);
+  const [deckTitle, setDeckTitle] = useState("");
+
+  // Stats voor deze sessie (geen FSRS tracking)
+  const [sessionStats, setSessionStats] = useState({
+    reviewed: 0,
+    correct: 0,
+    incorrect: 0,
+  });
+
+  const hasLoadedRef = useRef(false);
+
+  useEffect(() => {
+    if (hasLoadedRef.current) return;
+    hasLoadedRef.current = true;
+
+    async function loadCards() {
+      try {
+        setIsLoading(true);
+        setLoadError(null);
+
+        const result = await getXenoCantoStudyCards(deckId, { shuffle: true, limit });
+
+        if (result.error) {
+          setLoadError(result.error);
+          return;
+        }
+
+        if (result.data.length === 0) {
+          setLoadError("Geen geluiden beschikbaar voor de soorten in dit deck");
+          return;
+        }
+
+        setCards(result.data);
+      } catch (error) {
+        console.error("Error loading cards:", error);
+        setLoadError("Er ging iets mis bij het laden van de geluiden");
+      } finally {
+        setIsLoading(false);
+      }
+    }
+
+    loadCards();
+  }, [deckId]);
+
+  // Laad deck titel
+  useEffect(() => {
+    async function loadDeckTitle() {
+      try {
+        const response = await fetch(`/api/decks/${deckId}`);
+        if (response.ok) {
+          const deck = await response.json();
+          setDeckTitle(deck.title);
+        }
+      } catch {
+        // Ignore error, title is optional
+      }
+    }
+    loadDeckTitle();
+  }, [deckId]);
+
+  const currentCard = cards[currentIndex];
+
+  const handleFlip = () => {
+    setIsFlipped((prev) => !prev);
+  };
+
+  const handleRate = (rating: Rating) => {
+    if (!currentCard) return;
+
+    // Update session stats (geen FSRS opslag)
+    setSessionStats((prev) => ({
+      reviewed: prev.reviewed + 1,
+      correct: rating === "good" ? prev.correct + 1 : prev.correct,
+      incorrect: rating === "again" ? prev.incorrect + 1 : prev.incorrect,
+    }));
+
+    // Ga naar volgende kaart
+    if (currentIndex < cards.length - 1) {
+      setCurrentIndex((prev) => prev + 1);
+      setIsFlipped(false);
+    } else {
+      setSessionComplete(true);
+    }
+  };
+
+  // Keyboard shortcuts
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (sessionComplete || isLoading) return;
+
+      if (e.key === " " || e.key === "Enter") {
+        e.preventDefault();
+        handleFlip();
+      }
+      if (isFlipped) {
+        if (e.key === "1") handleRate("again");
+        else if (e.key === "2") handleRate("hard");
+        else if (e.key === "3") handleRate("good");
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [isFlipped, sessionComplete, isLoading, currentCard]);
+
+  if (isLoading) {
+    return <LoadingSpinner />;
+  }
+
+  if (loadError) {
+    return (
+      <div className="min-h-screen flex items-center justify-center p-4">
+        <Card className="max-w-md w-full p-8 text-center">
+          <h1 className="text-xl font-bold mb-2">Kon geluiden niet laden</h1>
+          <p className="text-muted-foreground mb-6">{loadError}</p>
+          <Button variant="outline" asChild>
+            <Link href={`/decks/${deckId}`}>
+              <ArrowLeft className="w-4 h-4 mr-2" />
+              Terug naar leerset
+            </Link>
+          </Button>
+        </Card>
+      </div>
+    );
+  }
+
+  if (sessionComplete) {
+    return (
+      <div className="min-h-screen flex items-center justify-center p-4">
+        <Card className="max-w-md w-full p-8 text-center">
+          <CheckCircle2 className="w-16 h-16 text-success mx-auto mb-4" />
+          <h1 className="text-2xl font-bold mb-2">Sessie voltooid!</h1>
+          <p className="text-muted-foreground mb-6">
+            Je hebt {sessionStats.reviewed} soort{sessionStats.reviewed !== 1 ? "en" : ""} geoefend
+            met geluiden.
+          </p>
+
+          {sessionStats.reviewed > 0 && (
+            <div className="grid grid-cols-3 gap-4 mb-6 text-sm">
+              <div className="p-3 rounded-lg bg-muted">
+                <div className="font-semibold text-lg">{sessionStats.reviewed}</div>
+                <div className="text-muted-foreground">Bekeken</div>
+              </div>
+              <div className="p-3 rounded-lg bg-success/10">
+                <div className="font-semibold text-lg text-success">
+                  {sessionStats.correct}
+                </div>
+                <div className="text-muted-foreground">Correct</div>
+              </div>
+              <div className="p-3 rounded-lg bg-destructive/10">
+                <div className="font-semibold text-lg text-destructive">
+                  {sessionStats.incorrect}
+                </div>
+                <div className="text-muted-foreground">Opnieuw</div>
+              </div>
+            </div>
+          )}
+
+          <p className="text-sm text-muted-foreground mb-6">
+            Deze modus slaat geen voortgang op. Start een nieuwe sessie voor andere geluiden.
+          </p>
+
+          <div className="flex gap-3 justify-center">
+            <Button variant="outline" asChild>
+              <Link href={`/decks/${deckId}`}>
+                <ArrowLeft className="w-4 h-4 mr-2" />
+                Terug naar leerset
+              </Link>
+            </Button>
+            <Button onClick={() => router.push(`/study/${deckId}?mode=sounds`)}>
+              Nieuwe sessie
+            </Button>
+          </div>
+        </Card>
+      </div>
+    );
+  }
+
+  const progress = ((currentIndex + 1) / cards.length) * 100;
+
+  return (
+    <div className="min-h-screen flex flex-col">
+      {/* Header */}
+      <header className="border-b">
+        <div className="container mx-auto px-4 py-3 flex items-center justify-between">
+          <Button variant="ghost" size="sm" asChild>
+            <Link href={`/decks/${deckId}`}>
+              <ArrowLeft className="w-4 h-4 mr-2" />
+              Stoppen
+            </Link>
+          </Button>
+          <div className="text-center">
+            <span className="text-sm text-muted-foreground block">
+              {deckTitle || "Laden..."}
+            </span>
+            <span className="text-xs text-purple-600 dark:text-purple-400">
+              Xeno-canto geluiden
+            </span>
+          </div>
+          <span className="text-sm font-medium">
+            {currentIndex + 1} / {cards.length}
+          </span>
+        </div>
+        {/* Progress bar */}
+        <div className="h-1 bg-muted">
+          <div
+            className="h-full bg-purple-500 transition-all duration-300"
+            style={{ width: `${progress}%` }}
+          />
+        </div>
+      </header>
+
+      {/* Main content */}
+      <main className="flex-1 flex flex-col items-center p-4 pt-6">
+        <div className="w-full max-w-lg">
+          {currentCard && currentCard.audio && (
+            <>
+              <AudioFlashcard
+                audioStreamUrl={currentCard.audio.streamUrl}
+                sonogramUrl={currentCard.audio.sonogramUrl}
+                speciesId={currentCard.speciesId}
+                speciesName={currentCard.speciesName}
+                scientificName={currentCard.scientificName}
+                backText={currentCard.backText}
+                attribution={{
+                  recordist: currentCard.audio.recordist,
+                  type: currentCard.audio.type,
+                  quality: currentCard.audio.quality,
+                  duration: currentCard.audio.duration,
+                  country: currentCard.audio.country,
+                  license: currentCard.audio.license,
+                  pageUrl: currentCard.audio.pageUrl,
+                }}
+                isFlipped={isFlipped}
+                onFlip={handleFlip}
+              />
+
+              {/* Rating buttons of flip instructie */}
+              <div className="mt-4 md:mt-6">
+                {isFlipped ? (
+                  <RatingButtons onRate={handleRate} disabled={false} />
+                ) : (
+                  <p className="text-center text-muted-foreground text-sm">
+                    <span className="md:hidden">Luister en tik om te draaien</span>
+                    <span className="hidden md:inline">Luister en klik of druk op spatie</span>
+                  </p>
+                )}
+              </div>
+
+              {/* Keyboard shortcuts hint */}
+              {isFlipped && (
+                <p className="hidden md:block text-center text-muted-foreground text-xs mt-4">
+                  Sneltoetsen: 1 = Opnieuw, 2 = Moeilijk, 3 = Goed
+                </p>
+              )}
+            </>
+          )}
+        </div>
       </main>
     </div>
   );

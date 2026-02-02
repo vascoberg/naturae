@@ -34,7 +34,7 @@ export async function searchSpecies(
     .from("species")
     .select("id, scientific_name, canonical_name, common_names, taxonomy, gbif_key, source, gbif_data")
     .or(
-      `scientific_name.ilike.%${query}%,canonical_name.ilike.%${query}%,common_names->nl.ilike.%${query}%`
+      `scientific_name.ilike.%${query}%,canonical_name.ilike.%${query}%,common_names->>nl.ilike.%${query}%`
     )
     .limit(10);
 
@@ -178,9 +178,9 @@ export async function getOrCreateSpecies(
       return { data: null, error: "Soort niet gevonden in GBIF" };
     }
 
-    // 3. Fetch Dutch vernacular name
+    // 3. Fetch Dutch vernacular name (with smart selection)
     const vernacularNames = await fetchGBIFVernacularNames(gbifKey);
-    const dutchName = vernacularNames.find((v) => v.language === "nld" || v.language === "nl");
+    const dutchName = selectBestDutchName(vernacularNames);
 
     // 4. Create species in local database
     const { data: newSpecies, error: insertError } = await supabase
@@ -329,6 +329,56 @@ export async function matchSpeciesByName(
 }
 
 // ============ GBIF API Helpers ============
+
+/**
+ * Select the best Dutch vernacular name from GBIF results
+ *
+ * Priority order:
+ * 1. Name with preferred=true and language nld/nl
+ * 2. Name from trusted Dutch sources (Nederlands Soortenregister, Belgian Species List)
+ * 3. Name from authoritative international sources (IOC World Bird List)
+ * 4. First available Dutch name (fallback)
+ */
+function selectBestDutchName(vernacularNames: GBIFVernacularName[]): GBIFVernacularName | undefined {
+  // Filter to only Dutch names
+  const dutchNames = vernacularNames.filter(
+    (v) => v.language === "nld" || v.language === "nl"
+  );
+
+  if (dutchNames.length === 0) return undefined;
+
+  // Priority 1: Preferred name (official according to GBIF)
+  const preferred = dutchNames.find((v) => v.preferred === true);
+  if (preferred) return preferred;
+
+  // Priority 2: Nederlands Soortenregister (most authoritative for Dutch names)
+  const nsr = dutchNames.find((v) =>
+    v.source?.includes("Nederlands Soortenregister") ||
+    v.source?.includes("Dutch Species Register")
+  );
+  if (nsr) return nsr;
+
+  // Priority 3: Belgian Species List (also authoritative for Dutch)
+  const belgian = dutchNames.find((v) =>
+    v.source?.includes("Belgian Species List")
+  );
+  if (belgian) return belgian;
+
+  // Priority 4: IOC World Bird List (authoritative for birds)
+  const ioc = dutchNames.find((v) =>
+    v.source?.includes("IOC World Bird List")
+  );
+  if (ioc) return ioc;
+
+  // Priority 5: EUNIS (European biodiversity database)
+  const eunis = dutchNames.find((v) =>
+    v.source?.includes("EUNIS")
+  );
+  if (eunis) return eunis;
+
+  // Fallback: first available Dutch name
+  return dutchNames[0];
+}
 
 async function fetchGBIFSuggest(query: string): Promise<GBIFSuggestResult[]> {
   const url = `${GBIF_API_BASE}/species/suggest?q=${encodeURIComponent(query)}&limit=10`;
@@ -639,4 +689,162 @@ export async function getRelatedSpecies(
 
   console.log(`[getRelatedSpecies] Found ${data?.length || 0} species in family "${family}"`);
   return data || [];
+}
+
+/**
+ * Fix Dutch names for existing species using improved name selection
+ * Re-selects the best Dutch name from stored gbif_data.vernacularNames
+ * Returns count of updated species
+ */
+export async function fixDutchNames(): Promise<{
+  updated: number;
+  checked: number;
+  changes: Array<{ scientific_name: string; old_name: string | null; new_name: string }>;
+  errors: string[];
+}> {
+  const supabase = await createClient();
+  let updated = 0;
+  const changes: Array<{ scientific_name: string; old_name: string | null; new_name: string }> = [];
+  const errors: string[] = [];
+
+  // Find all GBIF species with vernacular names stored
+  const { data: speciesWithGbifData } = await supabase
+    .from("species")
+    .select("id, scientific_name, common_names, gbif_data")
+    .eq("source", "gbif")
+    .not("gbif_data", "is", null);
+
+  if (!speciesWithGbifData) {
+    return { updated: 0, checked: 0, changes: [], errors: ["Could not fetch species"] };
+  }
+
+  for (const species of speciesWithGbifData) {
+    const gbifData = species.gbif_data as { vernacularNames?: GBIFVernacularName[] } | null;
+    const vernacularNames = gbifData?.vernacularNames;
+
+    if (!vernacularNames || vernacularNames.length === 0) continue;
+
+    // Use improved selection
+    const bestDutchName = selectBestDutchName(vernacularNames);
+    if (!bestDutchName) continue;
+
+    const currentName = (species.common_names as { nl?: string })?.nl;
+    const newName = bestDutchName.vernacularName;
+
+    // Only update if the name is different
+    if (currentName === newName) continue;
+
+    const { error } = await supabase
+      .from("species")
+      .update({
+        common_names: {
+          ...(species.common_names as Record<string, string>),
+          nl: newName,
+        },
+      })
+      .eq("id", species.id);
+
+    if (error) {
+      errors.push(`Failed to update ${species.scientific_name}: ${error.message}`);
+    } else {
+      console.log(`[fixDutchNames] ${species.scientific_name}: "${currentName}" → "${newName}" (source: ${bestDutchName.source})`);
+      changes.push({
+        scientific_name: species.scientific_name,
+        old_name: currentName || null,
+        new_name: newName,
+      });
+      updated++;
+    }
+  }
+
+  return {
+    updated,
+    checked: speciesWithGbifData.length,
+    changes,
+    errors,
+  };
+}
+
+/**
+ * Refresh Dutch names by fetching fresh vernacular names from GBIF
+ * This is needed because old gbif_data may not have the 'preferred' flag
+ */
+export async function refreshDutchNamesFromGBIF(): Promise<{
+  updated: number;
+  checked: number;
+  changes: Array<{ scientific_name: string; old_name: string | null; new_name: string; source: string }>;
+  errors: string[];
+}> {
+  const supabase = await createClient();
+  let updated = 0;
+  const changes: Array<{ scientific_name: string; old_name: string | null; new_name: string; source: string }> = [];
+  const errors: string[] = [];
+
+  // Find all GBIF species with a gbif_key
+  const { data: speciesWithGbifKey } = await supabase
+    .from("species")
+    .select("id, scientific_name, common_names, gbif_key, gbif_data")
+    .eq("source", "gbif")
+    .not("gbif_key", "is", null);
+
+  if (!speciesWithGbifKey) {
+    return { updated: 0, checked: 0, changes: [], errors: ["Could not fetch species"] };
+  }
+
+  for (const species of speciesWithGbifKey) {
+    try {
+      // Fetch fresh vernacular names from GBIF API
+      const freshVernacularNames = await fetchGBIFVernacularNames(species.gbif_key!);
+
+      if (freshVernacularNames.length === 0) continue;
+
+      // Use improved selection with fresh data (includes 'preferred' flag)
+      const bestDutchName = selectBestDutchName(freshVernacularNames);
+      if (!bestDutchName) continue;
+
+      const currentName = (species.common_names as { nl?: string })?.nl;
+      const newName = bestDutchName.vernacularName;
+
+      // Only update if the name is different
+      if (currentName === newName) continue;
+
+      // Update species with new name AND refresh gbif_data.vernacularNames
+      const currentGbifData = species.gbif_data as Record<string, unknown> | null;
+      const { error } = await supabase
+        .from("species")
+        .update({
+          common_names: {
+            ...(species.common_names as Record<string, string>),
+            nl: newName,
+          },
+          gbif_data: {
+            ...currentGbifData,
+            vernacularNames: freshVernacularNames,
+          },
+        })
+        .eq("id", species.id);
+
+      if (error) {
+        errors.push(`Failed to update ${species.scientific_name}: ${error.message}`);
+      } else {
+        console.log(`[refreshDutchNames] ${species.scientific_name}: "${currentName}" → "${newName}" (source: ${bestDutchName.source}, preferred: ${bestDutchName.preferred})`);
+        changes.push({
+          scientific_name: species.scientific_name,
+          old_name: currentName || null,
+          new_name: newName,
+          source: bestDutchName.source || "unknown",
+        });
+        updated++;
+      }
+    } catch (err) {
+      errors.push(`Error fetching vernacular names for ${species.scientific_name}: ${err}`);
+    }
+  }
+
+  return {
+    updated,
+    checked: speciesWithGbifKey.length,
+    changes,
+    errors,
+  };
 }

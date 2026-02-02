@@ -70,6 +70,8 @@ export interface GBIFVernacularName {
   language: string;
   country?: string;
   source?: string;
+  /** GBIF marks official/preferred names with this flag */
+  preferred?: boolean;
 }
 
 /**

@@ -14,6 +14,8 @@ import {
   ImageIcon,
   Volume2,
   Dices,
+  Music,
+  Globe,
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -22,11 +24,17 @@ import { cn } from "@/lib/utils";
 // Hoofdmodus: Flashcards of Quiz
 export type MainMode = "flashcards" | "quiz";
 
-// Flashcard submodi
-export type FlashcardSubMode = "order" | "shuffle" | "smart" | "photos";
+// Flashcard submodi (voor URL params)
+export type FlashcardSubMode = "order" | "shuffle" | "smart" | "photos" | "sounds";
+
+// Flashcard UI modes (voor weergave in selector)
+type FlashcardUIMode = "order" | "shuffle" | "smart" | "public";
+
+// Openbare media type (voor flashcards met externe bronnen)
+type PublicMediaType = "gbif" | "xeno-canto";
 
 // Quiz media bron
-export type QuizMediaSource = "own" | "gbif";
+export type QuizMediaSource = "own" | "gbif" | "xeno-canto";
 
 // Quiz media type (voor eigen media)
 export type QuizMediaType = "image" | "audio" | "mix";
@@ -62,7 +70,8 @@ export function SessionModeSelector({
 }: SessionModeSelectorProps) {
   const router = useRouter();
   const [mainMode, setMainMode] = useState<MainMode>("flashcards");
-  const [flashcardSubMode, setFlashcardSubMode] = useState<FlashcardSubMode | null>(null);
+  const [flashcardUIMode, setFlashcardUIMode] = useState<FlashcardUIMode | null>(null);
+  const [publicMediaType, setPublicMediaType] = useState<PublicMediaType>("gbif");
   const [cardLimit, setCardLimit] = useState<number | null>(null);
   const [quizQuestionCount, setQuizQuestionCount] = useState<number>(10);
   const [quizMediaSource, setQuizMediaSource] = useState<QuizMediaSource>("gbif");
@@ -86,17 +95,14 @@ export function SessionModeSelector({
     return cardsWithMediaCount; // mix: alle kaarten met media
   };
 
-  const availableQuizOptions = useMemo(() => {
-    const maxCount = quizMediaSource === "own"
-      ? getOwnMediaCount(quizMediaType)
-      : speciesCardsCount;
-    return QUIZ_QUESTION_OPTIONS.filter((count) => count <= maxCount);
-  }, [speciesCardsCount, cardsWithImageCount, cardsWithAudioCount, cardsWithMediaCount, quizMediaSource, quizMediaType]);
-
   // Max aantal vragen voor quiz (afhankelijk van bron en mediatype)
   const maxQuizQuestions = quizMediaSource === "own"
     ? getOwnMediaCount(quizMediaType)
-    : speciesCardsCount;
+    : speciesCardsCount; // GBIF en Xeno-canto gebruiken beide speciesCardsCount
+
+  const availableQuizOptions = useMemo(() => {
+    return QUIZ_QUESTION_OPTIONS.filter((count) => count <= maxQuizQuestions);
+  }, [maxQuizQuestions]);
 
   // Reset quiz question count als deze groter is dan het max bij de nieuwe bron
   useEffect(() => {
@@ -116,9 +122,16 @@ export function SessionModeSelector({
     return Math.min(cardLimit, modeCardCount);
   };
 
-  const flashcardModes = [
+  const flashcardModes: Array<{
+    id: FlashcardUIMode;
+    icon: typeof ListOrdered;
+    title: string;
+    description: string;
+    cardCount: number;
+    cardLabel: string;
+  }> = [
     {
-      id: "order" as FlashcardSubMode,
+      id: "order",
       icon: ListOrdered,
       title: "Volgorde",
       description: "Alle kaarten in vaste volgorde",
@@ -126,7 +139,7 @@ export function SessionModeSelector({
       cardLabel: "kaarten",
     },
     {
-      id: "shuffle" as FlashcardSubMode,
+      id: "shuffle",
       icon: Shuffle,
       title: "Shuffle",
       description: "Alle kaarten in willekeurige volgorde",
@@ -134,7 +147,7 @@ export function SessionModeSelector({
       cardLabel: "kaarten",
     },
     {
-      id: "smart" as FlashcardSubMode,
+      id: "smart",
       icon: Brain,
       title: "Slim leren",
       description: "Alleen kaarten die je moet herhalen",
@@ -143,12 +156,12 @@ export function SessionModeSelector({
     },
   ];
 
-  const publicPhotosMode = hasSpeciesCards
+  const publicMediaMode = hasSpeciesCards
     ? {
-        id: "photos" as FlashcardSubMode,
-        icon: Leaf,
-        title: "Openbare foto's",
-        description: "Leer met gevarieerde natuurfoto's",
+        id: "public" as FlashcardUIMode,
+        icon: Globe,
+        title: "Openbare media",
+        description: "GBIF foto's of Xeno-canto geluiden",
         cardCount: speciesCardsCount,
         cardLabel: "soorten",
       }
@@ -161,14 +174,23 @@ export function SessionModeSelector({
         limit: quizQuestionCount.toString(),
         source: quizMediaSource,
       });
-      // Voeg mediaType toe voor eigen media
+      // Voeg mediaType toe voor eigen media (niet voor GBIF of Xeno-canto)
       if (quizMediaSource === "own") {
         params.set("mediaType", quizMediaType);
       }
       router.push(`/study/${deckId}?${params.toString()}`);
     } else {
-      if (!flashcardSubMode) return;
-      const params = new URLSearchParams({ mode: flashcardSubMode });
+      if (!flashcardUIMode) return;
+
+      // Bepaal de echte submode voor URL
+      let actualMode: FlashcardSubMode;
+      if (flashcardUIMode === "public") {
+        actualMode = publicMediaType === "gbif" ? "photos" : "sounds";
+      } else {
+        actualMode = flashcardUIMode;
+      }
+
+      const params = new URLSearchParams({ mode: actualMode });
       if (cardLimit !== null) {
         params.set("limit", cardLimit.toString());
       }
@@ -182,9 +204,10 @@ export function SessionModeSelector({
     : quizMediaType === "audio"
       ? hasOwnAudio
       : hasOwnMedia;
+  // GBIF en Xeno-canto vereisen beide soorten met species_id
   const canStartQuiz = quizMediaSource === "own" ? canStartOwnQuiz : canUseQuiz;
   const canStart =
-    mainMode === "quiz" ? canStartQuiz : flashcardSubMode !== null;
+    mainMode === "quiz" ? canStartQuiz : flashcardUIMode !== null;
 
   return (
     <div className="space-y-6">
@@ -265,38 +288,38 @@ export function SessionModeSelector({
             Kies een methode
           </p>
 
-          {/* Alle modes inclusief photos in een array voor de grid */}
+          {/* Alle modes inclusief public in een array voor de grid */}
           <div className="grid grid-cols-2 gap-3">
-            {[...flashcardModes, ...(publicPhotosMode ? [publicPhotosMode] : [])].map((mode) => {
+            {[...flashcardModes, ...(publicMediaMode ? [publicMediaMode] : [])].map((mode) => {
               const Icon = mode.icon;
-              const isSelected = flashcardSubMode === mode.id;
+              const isSelected = flashcardUIMode === mode.id;
               const effectiveCount = getEffectiveCardCount(mode.cardCount);
               const isDisabled = effectiveCount === 0;
-              const isPhotosMode = mode.id === "photos";
+              const isPublicMode = mode.id === "public";
 
               return (
                 <Card
                   key={mode.id}
                   className={cn(
                     "cursor-pointer transition-all",
-                    isPhotosMode && "border-green-200 dark:border-green-900",
-                    isSelected && !isPhotosMode && "ring-2 ring-primary border-primary",
-                    isSelected && isPhotosMode && "ring-2 ring-green-500 border-green-500",
+                    isPublicMode && "border-green-200 dark:border-green-900",
+                    isSelected && !isPublicMode && "ring-2 ring-primary border-primary",
+                    isSelected && isPublicMode && "ring-2 ring-green-500 border-green-500",
                     isDisabled && "opacity-50 cursor-not-allowed",
-                    !isDisabled && !isSelected && !isPhotosMode && "hover:border-primary/50",
-                    !isDisabled && !isSelected && isPhotosMode && "hover:border-green-400"
+                    !isDisabled && !isSelected && !isPublicMode && "hover:border-primary/50",
+                    !isDisabled && !isSelected && isPublicMode && "hover:border-green-400"
                   )}
-                  onClick={() => !isDisabled && setFlashcardSubMode(mode.id)}
+                  onClick={() => !isDisabled && setFlashcardUIMode(mode.id)}
                 >
                   <CardContent className="p-3">
                     <div className="flex items-start gap-3">
                       <div
                         className={cn(
                           "p-2 rounded-lg flex-shrink-0",
-                          isSelected && !isPhotosMode && "bg-primary text-primary-foreground",
-                          isSelected && isPhotosMode && "bg-green-500 text-white",
-                          !isSelected && !isPhotosMode && "bg-muted",
-                          !isSelected && isPhotosMode && "bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300"
+                          isSelected && !isPublicMode && "bg-primary text-primary-foreground",
+                          isSelected && isPublicMode && "bg-green-500 text-white",
+                          !isSelected && !isPublicMode && "bg-muted",
+                          !isSelected && isPublicMode && "bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300"
                         )}
                       >
                         <Icon className="w-4 h-4" />
@@ -319,8 +342,40 @@ export function SessionModeSelector({
             })}
           </div>
 
+          {/* Type media selectie (alleen voor openbare media) */}
+          {flashcardUIMode === "public" && (
+            <div className="rounded-lg border bg-muted/30 p-4">
+              <p className="text-sm font-medium mb-3">Type media</p>
+              <div className="grid grid-cols-2 gap-2">
+                {/* GBIF foto's */}
+                <Button
+                  size="sm"
+                  variant={publicMediaType === "gbif" ? "default" : "outline"}
+                  onClick={() => setPublicMediaType("gbif")}
+                  className="flex flex-col h-auto py-3 gap-1"
+                >
+                  <Leaf className="w-5 h-5" />
+                  <span className="text-sm font-medium">Foto's</span>
+                  <span className="text-xs text-muted-foreground">GBIF</span>
+                </Button>
+
+                {/* Xeno-canto geluiden */}
+                <Button
+                  size="sm"
+                  variant={publicMediaType === "xeno-canto" ? "default" : "outline"}
+                  onClick={() => setPublicMediaType("xeno-canto")}
+                  className="flex flex-col h-auto py-3 gap-1"
+                >
+                  <Music className="w-5 h-5" />
+                  <span className="text-sm font-medium">Geluiden</span>
+                  <span className="text-xs text-muted-foreground">Xeno-canto</span>
+                </Button>
+              </div>
+            </div>
+          )}
+
           {/* Guest disclaimer voor Slim leren */}
-          {isGuest && flashcardSubMode === "smart" && (
+          {isGuest && flashcardUIMode === "smart" && (
             <div className="p-3 rounded-lg bg-muted/50 border border-border/50 flex gap-3">
               <Info className="w-4 h-4 text-muted-foreground flex-shrink-0 mt-0.5" />
               <p className="text-sm text-muted-foreground">
@@ -367,8 +422,8 @@ export function SessionModeSelector({
             Kies een methode
           </p>
 
-          {/* Quiz media bronnen als kaarten - zelfde stijl als flashcard modes */}
-          <div className="grid grid-cols-2 gap-3">
+          {/* Quiz media bronnen als kaarten */}
+          <div className="grid grid-cols-3 gap-2">
             {/* Eigen media kaart */}
             <Card
               className={cn(
@@ -380,34 +435,27 @@ export function SessionModeSelector({
               )}
               onClick={() => canUseOwnMediaQuiz && setQuizMediaSource("own")}
             >
-              <CardContent className="p-3">
-                <div className="flex items-start gap-3">
-                  <div
-                    className={cn(
-                      "p-2 rounded-lg flex-shrink-0",
-                      quizMediaSource === "own" && canUseOwnMediaQuiz
-                        ? "bg-green-500 text-white"
-                        : "bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300"
-                    )}
-                  >
-                    <ImageIcon className="w-4 h-4" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-baseline justify-between gap-2">
-                      <h3 className="font-medium text-sm">Eigen media</h3>
-                      <span className="text-sm font-semibold tabular-nums">
-                        {cardsWithMediaCount}
-                      </span>
-                    </div>
-                    <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">
-                      Gebruik je eigen foto's
-                    </p>
-                  </div>
+              <CardContent className="flex flex-col items-center gap-1.5 p-3 text-center">
+                <div
+                  className={cn(
+                    "p-2 rounded-lg",
+                    quizMediaSource === "own" && canUseOwnMediaQuiz
+                      ? "bg-green-500 text-white"
+                      : "bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300"
+                  )}
+                >
+                  <ImageIcon className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="font-medium text-sm">Eigen media</h3>
+                  <p className="text-xs text-muted-foreground">
+                    {cardsWithMediaCount} kaarten
+                  </p>
                 </div>
               </CardContent>
             </Card>
 
-            {/* Openbare foto's kaart */}
+            {/* GBIF foto's kaart */}
             <Card
               className={cn(
                 "cursor-pointer transition-all",
@@ -418,29 +466,53 @@ export function SessionModeSelector({
               )}
               onClick={() => canUseQuiz && setQuizMediaSource("gbif")}
             >
-              <CardContent className="p-3">
-                <div className="flex items-start gap-3">
-                  <div
-                    className={cn(
-                      "p-2 rounded-lg flex-shrink-0",
-                      quizMediaSource === "gbif" && canUseQuiz
-                        ? "bg-green-500 text-white"
-                        : "bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300"
-                    )}
-                  >
-                    <Leaf className="w-4 h-4" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-baseline justify-between gap-2">
-                      <h3 className="font-medium text-sm">Openbare foto's</h3>
-                      <span className="text-sm font-semibold tabular-nums">
-                        {speciesCardsCount}
-                      </span>
-                    </div>
-                    <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">
-                      Gevarieerde natuurfoto's
-                    </p>
-                  </div>
+              <CardContent className="flex flex-col items-center gap-1.5 p-3 text-center">
+                <div
+                  className={cn(
+                    "p-2 rounded-lg",
+                    quizMediaSource === "gbif" && canUseQuiz
+                      ? "bg-green-500 text-white"
+                      : "bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300"
+                  )}
+                >
+                  <Leaf className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="font-medium text-sm">GBIF foto's</h3>
+                  <p className="text-xs text-muted-foreground">
+                    {speciesCardsCount} soorten
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Xeno-canto geluiden kaart */}
+            <Card
+              className={cn(
+                "cursor-pointer transition-all",
+                !canUseQuiz && "opacity-50 cursor-not-allowed",
+                quizMediaSource === "xeno-canto" && canUseQuiz && "ring-2 ring-green-500 border-green-500",
+                quizMediaSource !== "xeno-canto" && canUseQuiz && "hover:border-green-400",
+                "border-green-200 dark:border-green-900"
+              )}
+              onClick={() => canUseQuiz && setQuizMediaSource("xeno-canto")}
+            >
+              <CardContent className="flex flex-col items-center gap-1.5 p-3 text-center">
+                <div
+                  className={cn(
+                    "p-2 rounded-lg",
+                    quizMediaSource === "xeno-canto" && canUseQuiz
+                      ? "bg-green-500 text-white"
+                      : "bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300"
+                  )}
+                >
+                  <Music className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="font-medium text-sm">Xeno-canto</h3>
+                  <p className="text-xs text-muted-foreground">
+                    {speciesCardsCount} soorten
+                  </p>
                 </div>
               </CardContent>
             </Card>
@@ -451,7 +523,7 @@ export function SessionModeSelector({
             <div className="rounded-lg border bg-muted/30 p-4">
               <p className="text-sm font-medium mb-3">Type media</p>
               <div className="grid grid-cols-3 gap-2">
-                {/* Foto's */}
+                {/* Eigen foto's */}
                 <Button
                   size="sm"
                   variant={quizMediaType === "image" ? "default" : "outline"}
@@ -464,7 +536,7 @@ export function SessionModeSelector({
                   <span className="text-xs font-semibold">{cardsWithImageCount}</span>
                 </Button>
 
-                {/* Geluid */}
+                {/* Eigen audio */}
                 <Button
                   size="sm"
                   variant={quizMediaType === "audio" ? "default" : "outline"}
@@ -473,7 +545,7 @@ export function SessionModeSelector({
                   className="flex flex-col h-auto py-2 gap-1"
                 >
                   <Volume2 className="w-4 h-4" />
-                  <span className="text-xs">Geluid</span>
+                  <span className="text-xs">Audio</span>
                   <span className="text-xs font-semibold">{cardsWithAudioCount}</span>
                 </Button>
 

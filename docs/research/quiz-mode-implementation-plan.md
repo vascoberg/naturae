@@ -1476,7 +1476,7 @@ DeckPage
 - [ ] Timer per vraag
 - [ ] "Weet ik niet" optie
 - [ ] Keyboard shortcuts (1-4 voor optie selectie)
-- [ ] Audio quiz met Xeno-canto API (externe geluiden)
+- [x] Audio quiz met Xeno-canto API (externe geluiden) ✅ Fase 2
 - [ ] Difficulty levels
 - [ ] Score leaderboards
 - [ ] Soortenpagina met "meer info" knop
@@ -1492,4 +1492,81 @@ DeckPage
 
 ---
 
-*Laatste update: januari 2026 - Audio quiz support toegevoegd*
+---
+
+## 18. Implementatie Status (Fase 2 - februari 2026)
+
+### Xeno-canto Quiz Mode
+
+Audio quiz met Xeno-canto geluiden is nu volledig geïmplementeerd:
+
+| Component | Bestand | Beschrijving |
+|-----------|---------|--------------|
+| **getQuizCardsWithXenoCantoMedia** | `src/lib/actions/quiz.ts` | Server action die random geluiden ophaalt van Xeno-canto |
+| **SessionModeSelector update** | `src/components/study/session-mode-selector.tsx` | Nieuwe `source=xeno-canto` optie met 🎵 icoon |
+| **Study page routing** | `src/app/(public)/study/[deckId]/page.tsx` | Ondersteuning voor `?source=xeno-canto` |
+
+**Technische werking:**
+1. `getQuizCardsWithXenoCantoMedia` haalt voor elke soort in het deck een random geluid op
+2. Kwaliteitsfilter: alleen opnames met rating B of hoger
+3. Distractors worden gegenereerd met de bestaande 8-niveau taxonomische logica
+4. Audio wordt via de proxy gestreamd (`/api/xeno-canto/stream/[id]`)
+5. Sonogram URL wordt meegestuurd voor visuele weergave
+
+**URL Parameter:**
+```
+/study/[deckId]?mode=quiz&source=xeno-canto&limit=10
+```
+
+### Verbeterde Media Labels
+
+Labels zijn verduidelijkt om onderscheid te maken tussen eigen media en externe bronnen:
+
+| Oud label | Nieuw label | Context |
+|-----------|-------------|---------|
+| "Eigen media" | "Eigen foto's" / "Eigen audio" | Quiz source selectie |
+| "Openbare foto's" | "GBIF foto's" | Quiz source selectie |
+| - | "Xeno-canto" | Nieuwe optie voor audio quiz |
+
+**Quiz source selectie UI:**
+```
+┌─────────────────────────────────────────────────────────────┐
+│  Kies een methode:                                          │
+│  ┌─────────────────┐ ┌─────────────────┐ ┌─────────────────┐│
+│  │ 📷 Eigen foto's │ │ 🌿 GBIF foto's  │ │ 🎵 Xeno-canto   ││
+│  │      12         │ │       18        │ │       18        ││
+│  └─────────────────┘ └─────────────────┘ └─────────────────┘│
+└─────────────────────────────────────────────────────────────┘
+```
+
+### LifeStage Vertalingen (GBIF)
+
+Ontbrekende Nederlandse vertalingen toegevoegd aan `SpeciesPhotoCarousel`:
+
+| Engels | Nederlands |
+|--------|------------|
+| Unknown | Onbekend |
+| unknown | Onbekend |
+| Nymph | Nimf |
+| Subadult | Subadult |
+| Tadpole | Dikkopje |
+| Caterpillar | Rups |
+| Imago | Imago |
+
+### Country Filter Fallback (SpeciesAudioPlayer)
+
+De audio player op soortenpagina's toont nu geluiden uit andere landen als er geen Nederlandse opnames zijn:
+
+```typescript
+// Als geen resultaten met landfilter, probeer zonder
+if (data.recordings.length === 0 && countryFilter !== "all") {
+  // Fallback naar alle landen
+  setCountryFallback(true);
+}
+```
+
+Gebruikers zien een melding: "Geen opnames uit Nederland beschikbaar. Geluiden uit andere landen worden getoond."
+
+---
+
+*Laatste update: februari 2026 - Xeno-canto quiz & verbeterde labels*

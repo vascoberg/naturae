@@ -7,9 +7,11 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { createClient } from "@/lib/supabase/client";
-import { addCardMedia, addGBIFMediaToCard, deleteCardMedia, updateCardMediaAttribution } from "@/lib/actions/decks";
+import { addCardMedia, addGBIFMediaToCard, addXenoCantoAudioToCard, deleteCardMedia, updateCardMediaAttribution } from "@/lib/actions/decks";
 import { GBIFMediaPicker } from "./gbif-media-picker";
+import { XenoCantoMediaPicker } from "./xeno-canto-media-picker";
 import type { GBIFMediaResult } from "@/lib/services/gbif-media";
+import type { XenoCantoResult } from "@/lib/services/xeno-canto";
 import type { PendingMedia } from "./wysiwyg-card-editor";
 
 interface CardMedia {
@@ -39,6 +41,7 @@ interface CardSideEditorProps {
   required?: boolean;
   speciesGbifKey?: number | null;
   speciesName?: string | null;
+  speciesScientificName?: string | null;
   // Props voor pending media (nieuwe kaarten)
   pendingMedia?: PendingMedia;
   onPendingMediaSelect?: (gbifData: GBIFMediaResult, position: "front" | "back") => void;
@@ -60,6 +63,7 @@ export function CardSideEditor({
   required = false,
   speciesGbifKey,
   speciesName,
+  speciesScientificName,
   pendingMedia,
   onPendingMediaSelect,
   onPendingMediaRemove,
@@ -72,6 +76,7 @@ export function CardSideEditor({
   const [editingAttributionId, setEditingAttributionId] = useState<string | null>(null);
   const [editingAttributionValue, setEditingAttributionValue] = useState("");
   const [isGBIFPickerOpen, setIsGBIFPickerOpen] = useState(false);
+  const [isXenoCantoPickerOpen, setIsXenoCantoPickerOpen] = useState(false);
   const imageInputRef = useRef<HTMLInputElement>(null);
   const audioInputRef = useRef<HTMLInputElement>(null);
 
@@ -271,11 +276,53 @@ export function CardSideEditor({
     }
   };
 
+  const handleXenoCantoSelect = async (recording: XenoCantoResult) => {
+    // Voor bestaande kaarten: upload direct
+    if (!cardId || !deckId || !onMediaAdded) return;
+
+    setIsUploading(true);
+    setUploadType("audio");
+
+    try {
+      const result = await addXenoCantoAudioToCard(cardId, deckId, {
+        xenoCantoId: recording.id,
+        audioUrl: recording.fileUrl,
+        sonogramUrl: recording.sonogramUrl,
+        position: side,
+        recordist: recording.recordist,
+        license: recording.license,
+        pageUrl: recording.pageUrl,
+      });
+
+      onMediaAdded({
+        id: result.id,
+        type: "audio",
+        url: result.url,
+        position: side,
+        displayOrder: sideMedia.length,
+        attributionName: recording.recordist,
+        attributionSource: `${recording.recordist} · ${recording.license} · Xeno-canto`,
+        license: recording.license,
+      });
+      toast.success("Xeno-canto geluid toegevoegd");
+    } catch (error) {
+      console.error("Error adding Xeno-canto audio:", error);
+      toast.error("Er ging iets mis bij het toevoegen van het geluid");
+    } finally {
+      setIsUploading(false);
+      setUploadType(null);
+    }
+  };
+
   const canUpload = cardId && deckId && onMediaAdded;
   // GBIF zoeken is mogelijk als:
   // 1. Er een speciesGbifKey is, EN
   // 2. We kunnen uploaden (bestaande kaart) OF we pending media kunnen opslaan (nieuwe kaart)
   const canSearchGBIF = speciesGbifKey && (canUpload || onPendingMediaSelect);
+  // Xeno-canto zoeken is mogelijk als:
+  // 1. Er een speciesScientificName is, EN
+  // 2. We kunnen uploaden (bestaande kaart) - voorlopig geen pending support voor audio
+  const canSearchXenoCanto = speciesScientificName && canUpload;
   const hasImage = imageMedia.length > 0;
   const hasAudio = audioMedia.length > 0;
   // Pending media telt ook als "has image" voor UI doeleinden
@@ -543,6 +590,19 @@ export function CardSideEditor({
                     )}
                   </Button>
                 )}
+                {/* Xeno-canto zoeken voor bestaande kaarten (alleen met species) */}
+                {canSearchXenoCanto && !hasAudio && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setIsXenoCantoPickerOpen(true)}
+                    disabled={isUploading}
+                    title="Zoek geluid in Xeno-canto database"
+                  >
+                    <Search className="w-4 h-4 mr-1" />
+                    Xeno-canto
+                  </Button>
+                )}
               </div>
 
               {!hasAnyMedia && (
@@ -629,6 +689,17 @@ export function CardSideEditor({
           isOpen={isGBIFPickerOpen}
           onClose={() => setIsGBIFPickerOpen(false)}
           onSelect={handleGBIFMediaSelect}
+        />
+      )}
+
+      {/* Xeno-canto Media Picker */}
+      {speciesScientificName && speciesName && (
+        <XenoCantoMediaPicker
+          scientificName={speciesScientificName}
+          speciesName={speciesName}
+          isOpen={isXenoCantoPickerOpen}
+          onClose={() => setIsXenoCantoPickerOpen(false)}
+          onSelect={handleXenoCantoSelect}
         />
       )}
     </div>

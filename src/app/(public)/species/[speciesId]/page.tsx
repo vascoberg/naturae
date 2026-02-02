@@ -6,6 +6,7 @@ import { getSpeciesMediaList } from "@/lib/services/gbif-media";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { SpeciesPhotoCarousel } from "@/components/species/species-photo-carousel";
+import { SpeciesAudioPlayer } from "@/components/species/species-audio-player";
 
 interface SpeciesPageProps {
   params: Promise<{ speciesId: string }>;
@@ -64,6 +65,15 @@ export default async function SpeciesPage({ params }: SpeciesPageProps) {
         <div className="aspect-[4/3] bg-muted rounded-lg flex items-center justify-center">
           <p className="text-muted-foreground">Geen foto&apos;s beschikbaar</p>
         </div>
+      )}
+
+      {/* Audio player - alleen tonen voor soorten met wetenschappelijke naam */}
+      {species.scientific_name && (
+        <SpeciesAudioPlayer
+          scientificName={species.scientific_name}
+          taxonomyClass={species.taxonomy?.class}
+          taxonomyOrder={species.taxonomy?.order}
+        />
       )}
 
       {/* Taxonomy badges */}

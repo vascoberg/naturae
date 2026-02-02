@@ -3,6 +3,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { fsrs, generatorParameters, Rating, State, type Card as FSRSCard, type Grade, createEmptyCard } from "ts-fsrs";
 import { getMediaForSpecies, type GBIFMediaResult } from "@/lib/services/gbif-media";
+import { searchXenoCantoBySpecies, type XenoCantoResult } from "@/lib/services/xeno-canto";
 
 // Initialize FSRS with default parameters
 const f = fsrs(generatorParameters());
@@ -128,7 +129,7 @@ export async function recordAnswer(cardId: string, rating: UserRating) {
   };
 }
 
-export type StudyMode = "order" | "shuffle" | "smart" | "photos";
+export type StudyMode = "order" | "shuffle" | "smart" | "photos" | "sounds";
 
 // Check of user is ingelogd
 export async function isUserLoggedIn(): Promise<boolean> {
@@ -470,5 +471,178 @@ export async function checkPublicPhotosAvailability(
   }
 
   return { available: count > 0, speciesCount: count };
+}
+
+// ============================================================================
+// Xeno-canto Audio Modus
+// ============================================================================
+
+export interface XenoCantoStudyCard {
+  cardId: string;
+  speciesId: string;
+  /** Naam van de soort (back_text van de kaart, of common name als fallback) */
+  speciesName: string;
+  scientificName: string;
+  backText: string | null;
+  audio: {
+    id: string;
+    /** Proxy URL voor streaming (niet direct Xeno-canto URL ivm CORS) */
+    streamUrl: string;
+    /** Sonogram afbeelding URL */
+    sonogramUrl: string;
+    recordist: string;
+    type: string;
+    quality: string;
+    duration: string;
+    country: string;
+    license: string;
+    pageUrl: string;
+  } | null;
+}
+
+/**
+ * Haal kaarten op met Xeno-canto audio voor study sessie
+ * Alleen kaarten met species_id worden meegenomen
+ */
+export async function getXenoCantoStudyCards(
+  deckId: string,
+  options?: { shuffle?: boolean; limit?: number }
+): Promise<{ data: XenoCantoStudyCard[]; error?: string }> {
+  const supabase = await createClient();
+
+  // Check of deck openbaar is of user toegang heeft
+  const { data: { user } } = await supabase.auth.getUser();
+
+  const { data: deck } = await supabase
+    .from("decks")
+    .select("is_public, user_id")
+    .eq("id", deckId)
+    .is("deleted_at", null)
+    .single();
+
+  if (!deck) {
+    return { data: [], error: "Deck niet gevonden" };
+  }
+
+  // Check access
+  if (!deck.is_public && (!user || deck.user_id !== user.id)) {
+    return { data: [], error: "Geen toegang tot dit deck" };
+  }
+
+  // Get all cards with species
+  const { data: cards, error: cardsError } = await supabase
+    .from("cards")
+    .select(`
+      id,
+      front_text,
+      back_text,
+      position,
+      species_id,
+      species_display,
+      species:species_id (
+        id,
+        scientific_name,
+        canonical_name,
+        common_names
+      )
+    `)
+    .eq("deck_id", deckId)
+    .is("deleted_at", null)
+    .not("species_id", "is", null)
+    .order("position", { ascending: true });
+
+  if (cardsError) {
+    return { data: [], error: "Kon kaarten niet ophalen" };
+  }
+
+  if (!cards || cards.length === 0) {
+    return { data: [], error: "Geen kaarten met soorten gevonden" };
+  }
+
+  // Helper om species object te krijgen (Supabase kan array of object retourneren)
+  const getSpeciesObject = (species: unknown) => {
+    if (Array.isArray(species)) return species[0];
+    return species;
+  };
+
+  // Filter cards that have a valid species
+  let cardsWithSpecies = cards.filter((card) => {
+    const species = getSpeciesObject(card.species);
+    return species && typeof species === "object" && "scientific_name" in species;
+  });
+
+  if (cardsWithSpecies.length === 0) {
+    return { data: [], error: "Geen kaarten met soorten gevonden" };
+  }
+
+  // PERFORMANCE: Shuffle en limit VOORDAT we audio ophalen
+  if (options?.shuffle) {
+    cardsWithSpecies = shuffleArray(cardsWithSpecies);
+  }
+
+  // We vragen iets meer kaarten op dan de limit, omdat sommige geen audio hebben
+  const fetchLimit = options?.limit ? Math.min(cardsWithSpecies.length, options.limit * 1.5) : cardsWithSpecies.length;
+  const cardsToFetch = cardsWithSpecies.slice(0, Math.ceil(fetchLimit));
+
+  // Build result cards by fetching audio for each species
+  const resultCards: XenoCantoStudyCard[] = [];
+
+  for (const card of cardsToFetch) {
+    const species = getSpeciesObject(card.species) as {
+      id: string;
+      scientific_name: string;
+      canonical_name: string | null;
+      common_names: { nl?: string } | null;
+    };
+
+    // Fetch audio from Xeno-canto (quality B or better)
+    const audioResult = await searchXenoCantoBySpecies(species.scientific_name, {
+      limit: 1,
+      quality: "B",
+    });
+
+    // Skip cards without audio
+    if (audioResult.error || audioResult.data.length === 0) continue;
+
+    const recording = audioResult.data[0];
+
+    // Prioriteit voor naam:
+    // 1. back_text (de naam die de gebruiker heeft ingevoerd)
+    // 2. Dutch common name
+    // 3. Canonical name
+    // 4. Scientific name (altijd beschikbaar als fallback)
+    const speciesName =
+      card.back_text ||
+      species.common_names?.nl ||
+      species.canonical_name ||
+      species.scientific_name;
+
+    resultCards.push({
+      cardId: card.id,
+      speciesId: species.id,
+      speciesName,
+      scientificName: species.scientific_name,
+      backText: null,
+      audio: {
+        id: recording.id,
+        streamUrl: `/api/xeno-canto/stream/${recording.id}`,
+        sonogramUrl: recording.sonogramUrl,
+        recordist: recording.recordist,
+        type: recording.type,
+        quality: recording.quality,
+        duration: recording.duration,
+        country: recording.country,
+        license: recording.license,
+        pageUrl: recording.pageUrl,
+      },
+    });
+
+    // Stop als we genoeg kaarten hebben
+    if (options?.limit && resultCards.length >= options.limit) {
+      break;
+    }
+  }
+
+  return { data: resultCards };
 }
 

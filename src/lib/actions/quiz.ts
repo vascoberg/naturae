@@ -2,6 +2,7 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { getMediaForSpecies } from "@/lib/services/gbif-media";
+import { searchXenoCantoBySpecies, type XenoCantoResult } from "@/lib/services/xeno-canto";
 
 // ============================================================================
 // Quiz Mode Types
@@ -37,6 +38,12 @@ export interface QuizCard {
     url: string;
     creator: string | null;
     source: string;
+    /** Sonogram image URL (for Xeno-canto audio) */
+    sonogramUrl?: string;
+    /** Recording ID for stream proxy (for Xeno-canto) */
+    xenoCantoId?: string;
+    /** License for Xeno-canto recordings */
+    license?: string;
   };
 }
 
@@ -76,14 +83,19 @@ function getSpeciesDisplayName(species: SpeciesForDistractor, backText?: string 
 
 /**
  * Haal distractors op voor een soort
+ *
+ * Deck-first benadering: eerst alle deck-opties uitputten voordat we naar de database gaan.
+ * Dit zorgt ervoor dat quizvragen zo veel mogelijk soorten uit de leerset gebruiken.
+ *
  * Prioriteit (van meest naar minst gelijkend):
  * 1. Zelfde genus uit deck (bijv. Apus pallidus → Apus apus)
- * 2. Zelfde genus uit hele database (voor kleine decks)
- * 3. Zelfde familie uit deck
- * 4. Zelfde familie uit hele database
- * 5. Zelfde orde uit deck (bijv. Passeriformes)
- * 6. Zelfde orde uit hele database
- * 7. Andere soorten uit deck
+ * 2. Zelfde familie uit deck
+ * 3. Zelfde orde uit deck (bijv. Passeriformes)
+ * 4. Andere soorten uit deck
+ * --- Fallback naar database (alleen als deck niet genoeg opties heeft) ---
+ * 5. Zelfde genus uit hele database
+ * 6. Zelfde familie uit hele database
+ * 7. Zelfde orde uit hele database
  * 8. Zelfde taxonomische klasse uit database (bijv. alle Aves)
  */
 async function getDistractors(
@@ -92,7 +104,7 @@ async function getDistractors(
   deckSpeciesIds: string[], // Alle species IDs in het deck
   excludeIds: string[],
   count: number = 3
-): Promise<SpeciesForDistractor[]> {
+): Promise<{ distractors: SpeciesForDistractor[]; debug: DistractorDebugLog }> {
   const distractors: SpeciesForDistractor[] = [];
   const genus = correctSpecies.taxonomy?.genus;
   const family = correctSpecies.taxonomy?.family;
@@ -105,46 +117,48 @@ async function getDistractors(
     id => !allExcludeIds.includes(id)
   );
 
+  // Debug log voor browser
+  const debug: DistractorDebugLog = {
+    correctSpecies: correctSpecies.scientific_name,
+    taxonomy: { genus, family, order, class: taxonomicClass },
+    deckSpeciesCount: deckSpeciesIds.length,
+    availableDeckCount: availableDeckSpeciesIds.length,
+    priorities: [],
+    finalDistractors: [],
+  };
+
   // Helper om gebruikte IDs bij te houden
   const getUsedIds = () => [...allExcludeIds, ...distractors.map(d => d.id)];
 
+  // ============================================================================
+  // DEEL 1: Deck-opties (prioriteit 1-4)
+  // ============================================================================
+
   // Prioriteit 1: Zelfde genus uit deck (meest gelijkende soorten)
   if (genus && availableDeckSpeciesIds.length > 0 && distractors.length < count) {
-    const { data: deckGenusMatches, error: p1Error } = await supabase
+    const { data: deckGenusMatches } = await supabase
       .from("species")
       .select("id, scientific_name, canonical_name, common_names, taxonomy")
       .in("id", availableDeckSpeciesIds)
       .filter("taxonomy->>genus", "eq", genus)
       .limit(count * 2);
 
+    const matches = deckGenusMatches?.map(s => s.scientific_name) || [];
+    let selected: string[] = [];
+
     if (deckGenusMatches && deckGenusMatches.length > 0) {
       const usedIds = getUsedIds();
       const filtered = deckGenusMatches.filter(s => !usedIds.includes(s.id));
       const shuffled = shuffleArray(filtered as SpeciesForDistractor[]);
       const needed = count - distractors.length;
-      distractors.push(...shuffled.slice(0, needed));
+      const selectedItems = shuffled.slice(0, needed);
+      selected = selectedItems.map(s => s.scientific_name);
+      distractors.push(...selectedItems);
     }
+    debug.priorities.push({ level: `P1: Genus "${genus}" (deck)`, matches, selected });
   }
 
-  // Prioriteit 2: Zelfde genus uit hele database (voor kleine decks)
-  if (genus && distractors.length < count) {
-    const needed = count - distractors.length;
-    const usedIds = getUsedIds();
-
-    const { data: genusMatches } = await supabase
-      .from("species")
-      .select("id, scientific_name, canonical_name, common_names, taxonomy")
-      .filter("taxonomy->>genus", "eq", genus)
-      .not("id", "in", `(${usedIds.join(",")})`)
-      .limit(needed * 2);
-
-    if (genusMatches && genusMatches.length > 0) {
-      const shuffled = shuffleArray(genusMatches as SpeciesForDistractor[]);
-      distractors.push(...shuffled.slice(0, needed));
-    }
-  }
-
-  // Prioriteit 3: Zelfde familie uit deck
+  // Prioriteit 2: Zelfde familie uit deck
   if (family && availableDeckSpeciesIds.length > 0 && distractors.length < count) {
     const usedIds = getUsedIds();
     const remainingDeckIds = availableDeckSpeciesIds.filter(id => !usedIds.includes(id));
@@ -157,33 +171,21 @@ async function getDistractors(
         .filter("taxonomy->>family", "eq", family)
         .limit(count * 2);
 
+      const matches = deckFamilyMatches?.map(s => s.scientific_name) || [];
+      let selected: string[] = [];
+
       if (deckFamilyMatches && deckFamilyMatches.length > 0) {
         const shuffled = shuffleArray(deckFamilyMatches as SpeciesForDistractor[]);
         const needed = count - distractors.length;
-        distractors.push(...shuffled.slice(0, needed));
+        const selectedItems = shuffled.slice(0, needed);
+        selected = selectedItems.map(s => s.scientific_name);
+        distractors.push(...selectedItems);
       }
+      debug.priorities.push({ level: `P2: Family "${family}" (deck)`, matches, selected });
     }
   }
 
-  // Prioriteit 4: Zelfde familie uit hele database
-  if (family && distractors.length < count) {
-    const needed = count - distractors.length;
-    const usedIds = getUsedIds();
-
-    const { data: familyMatches } = await supabase
-      .from("species")
-      .select("id, scientific_name, canonical_name, common_names, taxonomy")
-      .filter("taxonomy->>family", "eq", family)
-      .not("id", "in", `(${usedIds.join(",")})`)
-      .limit(needed * 2);
-
-    if (familyMatches && familyMatches.length > 0) {
-      const shuffled = shuffleArray(familyMatches as SpeciesForDistractor[]);
-      distractors.push(...shuffled.slice(0, needed));
-    }
-  }
-
-  // Prioriteit 5: Zelfde orde uit deck (bijv. alle Passeriformes zangvogels)
+  // Prioriteit 3: Zelfde orde uit deck (bijv. alle Passeriformes zangvogels)
   if (order && availableDeckSpeciesIds.length > 0 && distractors.length < count) {
     const usedIds = getUsedIds();
     const remainingDeckIds = availableDeckSpeciesIds.filter(id => !usedIds.includes(id));
@@ -196,33 +198,21 @@ async function getDistractors(
         .filter("taxonomy->>order", "eq", order)
         .limit(count * 2);
 
+      const matches = deckOrderMatches?.map(s => s.scientific_name) || [];
+      let selected: string[] = [];
+
       if (deckOrderMatches && deckOrderMatches.length > 0) {
         const shuffled = shuffleArray(deckOrderMatches as SpeciesForDistractor[]);
         const needed = count - distractors.length;
-        distractors.push(...shuffled.slice(0, needed));
+        const selectedItems = shuffled.slice(0, needed);
+        selected = selectedItems.map(s => s.scientific_name);
+        distractors.push(...selectedItems);
       }
+      debug.priorities.push({ level: `P3: Order "${order}" (deck)`, matches, selected });
     }
   }
 
-  // Prioriteit 6: Zelfde orde uit hele database
-  if (order && distractors.length < count) {
-    const needed = count - distractors.length;
-    const usedIds = getUsedIds();
-
-    const { data: orderMatches } = await supabase
-      .from("species")
-      .select("id, scientific_name, canonical_name, common_names, taxonomy")
-      .filter("taxonomy->>order", "eq", order)
-      .not("id", "in", `(${usedIds.join(",")})`)
-      .limit(needed * 2);
-
-    if (orderMatches && orderMatches.length > 0) {
-      const shuffled = shuffleArray(orderMatches as SpeciesForDistractor[]);
-      distractors.push(...shuffled.slice(0, needed));
-    }
-  }
-
-  // Prioriteit 7: Andere soorten uit het deck
+  // Prioriteit 4: Andere soorten uit het deck (ongeacht taxonomie)
   if (distractors.length < count && availableDeckSpeciesIds.length > 0) {
     const needed = count - distractors.length;
     const usedIds = getUsedIds();
@@ -235,11 +225,94 @@ async function getDistractors(
         .in("id", remainingDeckIds)
         .limit(needed * 2);
 
+      const matches = deckOtherMatches?.map(s => s.scientific_name) || [];
+      let selected: string[] = [];
+
       if (deckOtherMatches && deckOtherMatches.length > 0) {
         const shuffled = shuffleArray(deckOtherMatches as SpeciesForDistractor[]);
-        distractors.push(...shuffled.slice(0, needed));
+        const selectedItems = shuffled.slice(0, needed);
+        selected = selectedItems.map(s => s.scientific_name);
+        distractors.push(...selectedItems);
       }
+      debug.priorities.push({ level: "P4: Other (deck)", matches, selected });
     }
+  }
+
+  // ============================================================================
+  // DEEL 2: Database fallback (prioriteit 5-8)
+  // Alleen als het deck niet genoeg distractors heeft
+  // ============================================================================
+
+  // Prioriteit 5: Zelfde genus uit hele database
+  if (genus && distractors.length < count) {
+    const needed = count - distractors.length;
+    const usedIds = getUsedIds();
+
+    const { data: genusMatches } = await supabase
+      .from("species")
+      .select("id, scientific_name, canonical_name, common_names, taxonomy")
+      .filter("taxonomy->>genus", "eq", genus)
+      .not("id", "in", `(${usedIds.join(",")})`)
+      .limit(needed * 2);
+
+    const matches = genusMatches?.map(s => s.scientific_name) || [];
+    let selected: string[] = [];
+
+    if (genusMatches && genusMatches.length > 0) {
+      const shuffled = shuffleArray(genusMatches as SpeciesForDistractor[]);
+      const selectedItems = shuffled.slice(0, needed);
+      selected = selectedItems.map(s => s.scientific_name);
+      distractors.push(...selectedItems);
+    }
+    debug.priorities.push({ level: `P5: Genus "${genus}" (DB)`, matches, selected });
+  }
+
+  // Prioriteit 6: Zelfde familie uit hele database
+  if (family && distractors.length < count) {
+    const needed = count - distractors.length;
+    const usedIds = getUsedIds();
+
+    const { data: familyMatches } = await supabase
+      .from("species")
+      .select("id, scientific_name, canonical_name, common_names, taxonomy")
+      .filter("taxonomy->>family", "eq", family)
+      .not("id", "in", `(${usedIds.join(",")})`)
+      .limit(needed * 2);
+
+    const matches = familyMatches?.map(s => s.scientific_name) || [];
+    let selected: string[] = [];
+
+    if (familyMatches && familyMatches.length > 0) {
+      const shuffled = shuffleArray(familyMatches as SpeciesForDistractor[]);
+      const selectedItems = shuffled.slice(0, needed);
+      selected = selectedItems.map(s => s.scientific_name);
+      distractors.push(...selectedItems);
+    }
+    debug.priorities.push({ level: `P6: Family "${family}" (DB)`, matches, selected });
+  }
+
+  // Prioriteit 7: Zelfde orde uit hele database
+  if (order && distractors.length < count) {
+    const needed = count - distractors.length;
+    const usedIds = getUsedIds();
+
+    const { data: orderMatches } = await supabase
+      .from("species")
+      .select("id, scientific_name, canonical_name, common_names, taxonomy")
+      .filter("taxonomy->>order", "eq", order)
+      .not("id", "in", `(${usedIds.join(",")})`)
+      .limit(needed * 2);
+
+    const matches = orderMatches?.map(s => s.scientific_name) || [];
+    let selected: string[] = [];
+
+    if (orderMatches && orderMatches.length > 0) {
+      const shuffled = shuffleArray(orderMatches as SpeciesForDistractor[]);
+      const selectedItems = shuffled.slice(0, needed);
+      selected = selectedItems.map(s => s.scientific_name);
+      distractors.push(...selectedItems);
+    }
+    debug.priorities.push({ level: `P7: Order "${order}" (DB)`, matches, selected });
   }
 
   // Prioriteit 8: Soorten uit zelfde taxonomische klasse uit hele database
@@ -255,29 +328,54 @@ async function getDistractors(
       .not("id", "in", `(${usedIds.join(",")})`)
       .limit(needed * 2);
 
+    const matches = classMatches?.map(s => s.scientific_name) || [];
+    let selected: string[] = [];
+
     if (classMatches && classMatches.length > 0) {
       const shuffled = shuffleArray(classMatches as SpeciesForDistractor[]);
-      distractors.push(...shuffled.slice(0, needed));
+      const selectedItems = shuffled.slice(0, needed);
+      selected = selectedItems.map(s => s.scientific_name);
+      distractors.push(...selectedItems);
     }
+    debug.priorities.push({ level: `P8: Class "${taxonomicClass}" (DB)`, matches, selected });
   }
 
-  return distractors.slice(0, count);
+  // Final distractors
+  const finalDistractors = distractors.slice(0, count);
+  debug.finalDistractors = finalDistractors.map(d => `${d.scientific_name} (${d.common_names?.nl || d.canonical_name || "no name"})`);
+
+  return { distractors: finalDistractors, debug };
 }
 
 /**
  * Haal quiz kaarten op voor een deck
- * Ondersteunt twee bronnen:
+ * Ondersteunt drie bronnen:
  * - "gbif": Gebruik openbare foto's van GBIF (vereist gbif_key op soorten)
  * - "own": Gebruik eigen media van kaarten (image, audio, of mix)
+ * - "xeno-canto": Gebruik geluiden van Xeno-canto (voor vogels, kikkers, etc.)
  */
+// Debug log type voor browser logging
+export interface DistractorDebugLog {
+  correctSpecies: string;
+  taxonomy: { genus?: string; family?: string; order?: string; class?: string };
+  deckSpeciesCount: number;
+  availableDeckCount: number;
+  priorities: Array<{
+    level: string;
+    matches: string[];
+    selected: string[];
+  }>;
+  finalDistractors: string[];
+}
+
 export async function getQuizCards(
   deckId: string,
   options?: {
     limit?: number;
-    source?: "own" | "gbif";
+    source?: "own" | "gbif" | "xeno-canto";
     mediaType?: "image" | "audio" | "mix"; // Alleen relevant voor source="own"
   }
-): Promise<{ data: QuizCard[]; error?: string }> {
+): Promise<{ data: QuizCard[]; error?: string; _debug?: DistractorDebugLog[] }> {
   const supabase = await createClient();
   const source = options?.source || "gbif";
 
@@ -303,6 +401,8 @@ export async function getQuizCards(
   // Verschillende queries afhankelijk van bron
   if (source === "own") {
     return getQuizCardsWithOwnMedia(supabase, deckId, options?.limit, options?.mediaType || "image");
+  } else if (source === "xeno-canto") {
+    return getQuizCardsWithXenoCantoMedia(supabase, deckId, options?.limit);
   } else {
     return getQuizCardsWithGbifMedia(supabase, deckId, options?.limit);
   }
@@ -317,7 +417,7 @@ async function getQuizCardsWithOwnMedia(
   deckId: string,
   limit?: number,
   mediaType: "image" | "audio" | "mix" = "image"
-): Promise<{ data: QuizCard[]; error?: string }> {
+): Promise<{ data: QuizCard[]; error?: string; _debug?: DistractorDebugLog[] }> {
   // Get all cards with their own media AND species (voor distractors)
   const { data: cards, error: cardsError } = await supabase
     .from("cards")
@@ -397,13 +497,9 @@ async function getQuizCardsWithOwnMedia(
     .map(card => getSpeciesObject(card.species)?.id)
     .filter((id): id is string => !!id);
 
-  // Collect species IDs we'll use as correct answers
-  const correctSpeciesIds = cardsToProcess
-    .map(card => getSpeciesObject(card.species)?.id)
-    .filter((id): id is string => !!id);
-
   // Build result cards with distractors
   const resultCards: QuizCard[] = [];
+  const debugLogs: DistractorDebugLog[] = [];
 
   for (const card of cardsToProcess) {
     // Determine which media to use based on mediaType
@@ -440,7 +536,11 @@ async function getQuizCardsWithOwnMedia(
     // Get distractors als er een species is
     let distractors: SpeciesForDistractor[] = [];
     if (species) {
-      distractors = await getDistractors(supabase, species, deckSpeciesIds, correctSpeciesIds, 3);
+      // Alleen de huidige species wordt uitgesloten (binnen getDistractors)
+      // Andere "correct answer" species mogen wel als distractor voor andere vragen
+      const result = await getDistractors(supabase, species, deckSpeciesIds, [], 3);
+      distractors = result.distractors;
+      debugLogs.push(result.debug);
     } else {
       // Geen species: gebruik andere back_text waarden als distractors
       const otherCards = cards
@@ -531,7 +631,7 @@ async function getQuizCardsWithOwnMedia(
     return { data: [], error: "Kon geen quiz vragen genereren" };
   }
 
-  return { data: resultCards };
+  return { data: resultCards, _debug: debugLogs };
 }
 
 /**
@@ -541,7 +641,7 @@ async function getQuizCardsWithGbifMedia(
   supabase: Awaited<ReturnType<typeof createClient>>,
   deckId: string,
   limit?: number
-): Promise<{ data: QuizCard[]; error?: string }> {
+): Promise<{ data: QuizCard[]; error?: string; _debug?: DistractorDebugLog[] }> {
   // Get all cards with species that have gbif_key AND taxonomy
   const { data: cards, error: cardsError } = await supabase
     .from("cards")
@@ -615,13 +715,9 @@ async function getQuizCardsWithGbifMedia(
     .map(card => getSpeciesObject(card.species)?.id)
     .filter((id): id is string => !!id);
 
-  // Collect species IDs we'll use as correct answers (to exclude from being distractors for themselves)
-  const correctSpeciesIds = cardsToFetch
-    .map(card => getSpeciesObject(card.species)?.id)
-    .filter((id): id is string => !!id);
-
   // Build result cards with distractors
   const resultCards: QuizCard[] = [];
+  const debugLogs: DistractorDebugLog[] = [];
 
   for (const card of cardsToFetch) {
     const species = getSpeciesObject(card.species)!;
@@ -631,7 +727,9 @@ async function getQuizCardsWithGbifMedia(
     if (!photo) continue;
 
     // Get distractors for this species (prefer from deck, fallback to same taxonomic class)
-    const distractors = await getDistractors(supabase, species, deckSpeciesIds, correctSpeciesIds, 3);
+    // Alleen de huidige species wordt uitgesloten (binnen getDistractors)
+    const { distractors, debug } = await getDistractors(supabase, species, deckSpeciesIds, [], 3);
+    debugLogs.push(debug);
 
     // Build options: correct answer + distractors
     const correctName = getSpeciesDisplayName(species, card.back_text);
@@ -683,7 +781,168 @@ async function getQuizCardsWithGbifMedia(
     return { data: [], error: "Kon geen quiz vragen genereren (geen foto's gevonden)" };
   }
 
-  return { data: resultCards };
+  return { data: resultCards, _debug: debugLogs };
+}
+
+/**
+ * Quiz met Xeno-canto geluiden
+ * Haalt random geluiden op van Xeno-canto voor soorten in het deck
+ */
+async function getQuizCardsWithXenoCantoMedia(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  deckId: string,
+  limit?: number
+): Promise<{ data: QuizCard[]; error?: string; _debug?: DistractorDebugLog[] }> {
+  // Get all cards with species that have scientific_name
+  const { data: cards, error: cardsError } = await supabase
+    .from("cards")
+    .select(`
+      id,
+      back_text,
+      position,
+      species_id,
+      species:species_id (
+        id,
+        scientific_name,
+        canonical_name,
+        common_names,
+        taxonomy
+      )
+    `)
+    .eq("deck_id", deckId)
+    .is("deleted_at", null)
+    .not("species_id", "is", null)
+    .order("position", { ascending: true });
+
+  if (cardsError) {
+    return { data: [], error: "Kon kaarten niet ophalen" };
+  }
+
+  if (!cards || cards.length === 0) {
+    return { data: [], error: "Geen kaarten met soorten gevonden" };
+  }
+
+  // Helper om species object te krijgen
+  const getSpeciesObject = (species: unknown): SpeciesForDistractor | null => {
+    const s = Array.isArray(species) ? species[0] : species;
+    if (!s || typeof s !== "object") return null;
+    return s as SpeciesForDistractor;
+  };
+
+  // Filter cards that have a valid scientific_name
+  let cardsWithSpecies = cards.filter((card) => {
+    const species = getSpeciesObject(card.species);
+    return species && species.scientific_name;
+  });
+
+  if (cardsWithSpecies.length === 0) {
+    return { data: [], error: "Geen kaarten met soorten gevonden" };
+  }
+
+  // Shuffle en limit VOORDAT we audio ophalen
+  cardsWithSpecies = shuffleArray(cardsWithSpecies);
+
+  // Haal iets meer kaarten op dan de limit (sommige kunnen geen geluid hebben)
+  const fetchLimit = limit
+    ? Math.min(cardsWithSpecies.length, Math.ceil(limit * 1.5))
+    : cardsWithSpecies.length;
+  const cardsToFetch = cardsWithSpecies.slice(0, fetchLimit);
+
+  // Collect all species IDs in the deck (for distractor selection)
+  const deckSpeciesIds = cardsWithSpecies
+    .map(card => getSpeciesObject(card.species)?.id)
+    .filter((id): id is string => !!id);
+
+  // Build result cards with audio from Xeno-canto
+  const resultCards: QuizCard[] = [];
+  const debugLogs: DistractorDebugLog[] = [];
+
+  // Fetch audio for each species (parallel with concurrency limit)
+  const audioPromises = cardsToFetch.map(async (card) => {
+    const species = getSpeciesObject(card.species);
+    if (!species) return null;
+
+    // Fetch random recording from Xeno-canto (quality B or better, limit 5 for randomness)
+    const result = await searchXenoCantoBySpecies(species.scientific_name, {
+      limit: 5,
+      quality: "B",
+    });
+
+    if (result.error || result.data.length === 0) {
+      return null;
+    }
+
+    // Pick a random recording from the results
+    const recording = result.data[Math.floor(Math.random() * result.data.length)];
+
+    return { card, species, recording };
+  });
+
+  const audioResults = await Promise.all(audioPromises);
+
+  // Process results
+  for (const result of audioResults) {
+    if (!result) continue;
+
+    const { card, species, recording } = result;
+
+    // Get distractors for this species
+    // Alleen de huidige species wordt uitgesloten (binnen getDistractors)
+    const { distractors, debug } = await getDistractors(supabase, species, deckSpeciesIds, [], 3);
+    debugLogs.push(debug);
+
+    // Build options: correct answer + distractors
+    const correctName = getSpeciesDisplayName(species, card.back_text);
+    const quizOptions: QuizOption[] = [
+      {
+        id: species.id,
+        name: correctName,
+        scientificName: species.scientific_name,
+        isCorrect: true,
+        speciesId: species.id,
+      },
+      ...distractors.map(d => ({
+        id: d.id,
+        name: getSpeciesDisplayName(d),
+        scientificName: d.scientific_name,
+        isCorrect: false,
+        speciesId: d.id,
+      })),
+    ];
+
+    // Shuffle options so correct answer isn't always first
+    const shuffledOptions = shuffleArray(quizOptions);
+
+    resultCards.push({
+      cardId: card.id,
+      speciesId: species.id,
+      correctAnswer: {
+        name: correctName,
+        scientificName: species.scientific_name,
+      },
+      options: shuffledOptions,
+      mediaType: "audio",
+      audio: {
+        url: `/api/xeno-canto/stream/${recording.id}`, // Use proxy for CORS
+        creator: recording.recordist,
+        source: "Xeno-canto",
+        sonogramUrl: recording.sonogramUrl,
+        xenoCantoId: recording.id,
+        license: recording.license,
+      },
+    });
+
+    // Stop als we genoeg kaarten hebben
+    if (limit && resultCards.length >= limit) {
+      break;
+    }
+  }
+
+  if (resultCards.length === 0) {
+    return { data: [], error: "Kon geen quiz vragen genereren (geen geluiden gevonden)" };
+  }
+
+  return { data: resultCards, _debug: debugLogs };
 }
 
 /**

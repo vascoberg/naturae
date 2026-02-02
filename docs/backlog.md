@@ -2,7 +2,7 @@
 
 > Centrale plek voor alle features, ideeën en taken. Pak wat je wilt, wanneer je wilt.
 
-**Laatste update:** 1 februari 2026
+**Laatste update:** 2 februari 2026
 
 ---
 
@@ -17,13 +17,6 @@ _(Leeg - kies iets uit "Klaar voor Implementatie")_
 ## Klaar voor Implementatie
 
 *Uitgewerkt en klaar om op te pakken wanneer je zin hebt.*
-
-### Xeno-canto API Integratie
-Vogelgeluiden ophalen voor quiz en soortenpagina's.
-- `xeno-canto.ts` service
-- Media picker "Geluiden" tabblad
-- Audio quiz mode
-- [Docs](research/quiz-mode-implementation-plan.md#13-xeno-canto-api---geluiden-integratie)
 
 ### Clone/Remix Deck
 "Remix" knop op publieke deck → kopie naar eigen account.
@@ -115,6 +108,17 @@ Quiz zonder visuele hints, puur op gehoor.
 ## Afgerond ✅
 
 ### Februari 2026
+- [x] **Xeno-canto API Integratie** - Alle 5 fasen voltooid
+  - Service file, media picker, server action
+  - Soortenpagina audio player
+  - Quiz met Xeno-canto geluiden
+  - [Docs](features/xeno-canto-audio-integration.md)
+- [x] **Quiz verbeteringen**
+  - Distractor algoritme: deck-first priority (soorten uit deck krijgen voorrang)
+  - Nederlandse namen fix: verbeterde GBIF naam selectie (`preferred` flag, trusted sources)
+  - Kapitalisatie normalisatie (eerste letter hoofdletter, rest kleine letters)
+  - IJ-uitzondering (IJsgors blijft IJsgors)
+  - Offensieve term "negertje" → "Zwart wekkertje"
 - [x] Error boundaries (global, public, main)
 - [x] Accessibility fixes (aria-labels)
 - [x] Mobile responsiveness test

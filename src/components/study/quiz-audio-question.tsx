@@ -123,69 +123,130 @@ export function QuizAudioQuestion({
 
       {/* Audio player card */}
       <Card className="overflow-hidden">
-        <CardContent className="p-6">
-          {/* Audio element (hidden) */}
-          {question.audio && (
-            <audio
-              ref={audioRef}
-              src={question.audio.url}
-              onCanPlayThrough={() => setAudioLoaded(true)}
-              onError={() => setAudioError(true)}
-              onEnded={handleAudioEnded}
-              onPlay={() => setIsPlaying(true)}
-              onPause={() => setIsPlaying(false)}
-            />
-          )}
+        {/* Audio element (hidden) */}
+        {question.audio && (
+          <audio
+            ref={audioRef}
+            src={question.audio.url}
+            onCanPlayThrough={() => setAudioLoaded(true)}
+            onError={() => setAudioError(true)}
+            onEnded={handleAudioEnded}
+            onPlay={() => setIsPlaying(true)}
+            onPause={() => setIsPlaying(false)}
+          />
+        )}
 
-          {/* Audio player UI */}
-          <div className="flex flex-col items-center gap-4">
-            {audioError ? (
-              <div className="text-center text-muted-foreground py-8">
-                <Volume2 className="w-12 h-12 mx-auto mb-2 opacity-50" />
-                <p className="text-sm">Audio kon niet geladen worden</p>
-              </div>
-            ) : (
-              <>
-                {/* Play button */}
-                <button
-                  onClick={handlePlayPause}
-                  disabled={!audioLoaded}
-                  className={cn(
-                    "w-24 h-24 rounded-full flex items-center justify-center transition-all",
-                    "bg-primary text-primary-foreground",
-                    "hover:bg-primary/90",
-                    "disabled:opacity-50 disabled:cursor-not-allowed",
-                    isPlaying && "bg-primary/80"
-                  )}
-                >
-                  {isPlaying ? (
-                    <Pause className="w-10 h-10" />
-                  ) : (
-                    <Play className="w-10 h-10 ml-1" />
-                  )}
-                </button>
+        {/* Sonogram met play button overlay (Xeno-canto) */}
+        {question.audio?.sonogramUrl ? (
+          <>
+            <div className="relative aspect-[4/3] w-full bg-muted">
+              <img
+                src={question.audio.sonogramUrl}
+                alt="Sonogram"
+                className="w-full h-full object-cover"
+              />
 
-                {/* Status */}
-                <p className="text-sm text-muted-foreground">
-                  {!audioLoaded ? "Laden..." : isPlaying ? "Afspelen..." : "Klik om af te spelen"}
-                </p>
-
-                {/* Attribution */}
-                {question.audio && (
-                  <p className="text-xs text-muted-foreground text-center">
-                    {question.audio.creator && (
-                      <span>Door {question.audio.creator}</span>
+              {/* Play/Pause button overlay */}
+              <div className="absolute inset-0 flex items-center justify-center">
+                {audioError ? (
+                  <div className="text-center text-white bg-black/60 rounded-lg p-4">
+                    <Volume2 className="w-8 h-8 mx-auto mb-2 opacity-70" />
+                    <p className="text-sm">Audio kon niet geladen worden</p>
+                  </div>
+                ) : (
+                  <button
+                    onClick={handlePlayPause}
+                    disabled={!audioLoaded}
+                    className={cn(
+                      "w-16 h-16 rounded-full flex items-center justify-center transition-all",
+                      isPlaying
+                        ? "bg-primary text-primary-foreground scale-110"
+                        : "bg-black/60 text-white hover:bg-black/80 hover:scale-105",
+                      !audioLoaded && "opacity-50 cursor-not-allowed"
                     )}
-                    {question.audio.source && question.audio.creator && " • "}
-                    {question.audio.source && (
-                      <span>{question.audio.source}</span>
+                  >
+                    {isPlaying ? (
+                      <Pause className="w-8 h-8" />
+                    ) : (
+                      <Play className="w-8 h-8 ml-1" />
                     )}
-                  </p>
+                  </button>
                 )}
-              </>
-            )}
-          </div>
-        </CardContent>
+              </div>
+
+              {/* Loading indicator */}
+              {!audioLoaded && !audioError && (
+                <div className="absolute bottom-3 left-3 text-xs text-white bg-black/60 px-2 py-1 rounded">
+                  Laden...
+                </div>
+              )}
+            </div>
+
+            {/* Attribution */}
+            <div className="p-3 border-t bg-muted/30 text-xs text-muted-foreground">
+              <div className="flex justify-between items-center">
+                <span>{question.audio.creator || "Onbekend"}</span>
+                <span>{question.audio.source}</span>
+              </div>
+              {question.audio.license && (
+                <div className="mt-1 text-xs opacity-70">
+                  {question.audio.license}
+                </div>
+              )}
+            </div>
+          </>
+        ) : (
+          /* Fallback: simpele audio player zonder sonogram */
+          <CardContent className="p-6">
+            <div className="flex flex-col items-center gap-4">
+              {audioError ? (
+                <div className="text-center text-muted-foreground py-8">
+                  <Volume2 className="w-12 h-12 mx-auto mb-2 opacity-50" />
+                  <p className="text-sm">Audio kon niet geladen worden</p>
+                </div>
+              ) : (
+                <>
+                  {/* Play button */}
+                  <button
+                    onClick={handlePlayPause}
+                    disabled={!audioLoaded}
+                    className={cn(
+                      "w-24 h-24 rounded-full flex items-center justify-center transition-all",
+                      "bg-primary text-primary-foreground",
+                      "hover:bg-primary/90",
+                      "disabled:opacity-50 disabled:cursor-not-allowed",
+                      isPlaying && "bg-primary/80"
+                    )}
+                  >
+                    {isPlaying ? (
+                      <Pause className="w-10 h-10" />
+                    ) : (
+                      <Play className="w-10 h-10 ml-1" />
+                    )}
+                  </button>
+
+                  {/* Status */}
+                  <p className="text-sm text-muted-foreground">
+                    {!audioLoaded ? "Laden..." : isPlaying ? "Afspelen..." : "Klik om af te spelen"}
+                  </p>
+
+                  {/* Attribution */}
+                  {question.audio && (
+                    <p className="text-xs text-muted-foreground text-center">
+                      {question.audio.creator && (
+                        <span>Door {question.audio.creator}</span>
+                      )}
+                      {question.audio.source && question.audio.creator && " • "}
+                      {question.audio.source && (
+                        <span>{question.audio.source}</span>
+                      )}
+                    </p>
+                  )}
+                </>
+              )}
+            </div>
+          </CardContent>
+        )}
       </Card>
 
       {/* Vraag */}

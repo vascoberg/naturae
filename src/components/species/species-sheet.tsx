@@ -10,6 +10,7 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 import { SpeciesPhotoCarousel } from "./species-photo-carousel";
+import { SpeciesAudioPlayer } from "./species-audio-player";
 import type { Species } from "@/types/species";
 import type { GBIFMediaResult } from "@/lib/services/gbif-media";
 
@@ -150,6 +151,16 @@ export function SpeciesSheet({
                     Geen foto&apos;s beschikbaar
                   </p>
                 </div>
+              )}
+
+              {/* Audio player */}
+              {species?.scientific_name && (
+                <SpeciesAudioPlayer
+                  scientificName={species.scientific_name}
+                  taxonomyClass={species.taxonomy?.class}
+                  taxonomyOrder={species.taxonomy?.order}
+                  compact
+                />
               )}
 
               {/* Wikipedia description */}

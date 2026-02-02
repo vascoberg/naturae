@@ -14,7 +14,7 @@ interface SpeciesPhotoCarouselProps {
 }
 
 // Filter opties
-type LifeStageFilter = "all" | "Adult" | "Juvenile" | "Larva" | "Pupa" | "Egg";
+type LifeStageFilter = "all" | "Adult" | "Subadult" | "Juvenile" | "Imago" | "Nymph" | "Larva" | "Caterpillar" | "Tadpole" | "Pupa" | "Egg" | "Unknown" | "unknown";
 type SexFilter = "all" | "Male" | "Female";
 
 // Helper: formatteer datum
@@ -246,8 +246,15 @@ function PhotoFilters({
 }) {
   // Sorteer life stages in logische volgorde
   const sortedLifeStages = Array.from(lifeStages).sort((a, b) => {
-    const order = ["Adult", "Juvenile", "Larva", "Pupa", "Egg", "Embryo", "Spore"];
-    return order.indexOf(a) - order.indexOf(b);
+    const order = [
+      "Adult", "Subadult", "Juvenile", "Imago", "Nymph",
+      "Larva", "Caterpillar", "Tadpole", "Pupa", "Egg", "Embryo", "Spore",
+      "Unknown", "unknown"
+    ];
+    const indexA = order.indexOf(a);
+    const indexB = order.indexOf(b);
+    // Items not in the order list go to the end
+    return (indexA === -1 ? 999 : indexA) - (indexB === -1 ? 999 : indexB);
   });
 
   return (
@@ -334,6 +341,13 @@ function translateLifeStage(stage: string): string {
     Egg: "Ei",
     Embryo: "Embryo",
     Spore: "Spore",
+    Unknown: "Onbekend",
+    unknown: "Onbekend",
+    Nymph: "Nimf",
+    Subadult: "Subadult",
+    Tadpole: "Dikkopje",
+    Caterpillar: "Rups",
+    Imago: "Imago",
   };
   return translations[stage] || stage;
 }
