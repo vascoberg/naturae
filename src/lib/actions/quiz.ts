@@ -1,7 +1,7 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
-import { getMediaForSpecies } from "@/lib/services/gbif-media";
+import { getRandomSpeciesMedia } from "@/lib/services/gbif-media";
 import { searchXenoCantoBySpecies, type XenoCantoResult } from "@/lib/services/xeno-canto";
 
 // ============================================================================
@@ -706,26 +706,8 @@ async function getQuizCardsWithGbifMedia(
     return { data: [], error: "Geen kaarten met GBIF-gekoppelde soorten gevonden" };
   }
 
-  // Shuffle en limit VOORDAT we foto's ophalen
+  // Shuffle VOORDAT we foto's ophalen
   cardsWithGbif = shuffleArray(cardsWithGbif);
-
-  // Haal iets meer kaarten op dan de limit (sommige kunnen geen foto hebben)
-  const fetchLimit = limit
-    ? Math.min(cardsWithGbif.length, Math.ceil(limit * 1.5))
-    : cardsWithGbif.length;
-  const cardsToFetch = cardsWithGbif.slice(0, fetchLimit);
-
-  // Build species list for batch photo request
-  const speciesList = cardsToFetch.map((card) => {
-    const species = getSpeciesObject(card.species)!;
-    return {
-      gbifKey: species.gbif_key!,
-      cardId: card.id,
-    };
-  });
-
-  // Fetch photos from GBIF (parallel)
-  const photoMap = await getMediaForSpecies(speciesList);
 
   // Collect all species IDs in the deck (for distractor selection)
   const deckSpeciesIds = cardsWithGbif
@@ -741,19 +723,26 @@ async function getQuizCardsWithGbifMedia(
     }
   }
 
-  // Build result cards with distractors
+  // Build result cards - haal foto's één voor één op tot we genoeg hebben
+  // Dit voorkomt dat we 100 parallelle requests doen die kunnen timen
   const resultCards: QuizCard[] = [];
   const debugLogs: DistractorDebugLog[] = [];
 
-  for (const card of cardsToFetch) {
-    const species = getSpeciesObject(card.species)!;
-    const photo = photoMap.get(card.id);
+  for (const card of cardsWithGbif) {
+    // Stop zodra we genoeg kaarten hebben
+    if (limit && resultCards.length >= limit) {
+      break;
+    }
 
-    // Skip cards without photos
+    const species = getSpeciesObject(card.species)!;
+
+    // Haal foto op voor deze specifieke soort
+    const photo = await getRandomSpeciesMedia({ gbifKey: species.gbif_key!, limit: 20 });
+
+    // Skip als geen foto gevonden
     if (!photo) continue;
 
     // Get distractors for this species (prefer from deck, fallback to same taxonomic class)
-    // Alleen de huidige species wordt uitgesloten (binnen getDistractors)
     const { distractors, debug } = await getDistractors(supabase, species, deckSpeciesIds, [], 3, deckBackTextMap);
     debugLogs.push(debug);
 
@@ -796,11 +785,6 @@ async function getQuizCardsWithGbifMedia(
         references: photo.references,
       },
     });
-
-    // Stop als we genoeg kaarten hebben
-    if (limit && resultCards.length >= limit) {
-      break;
-    }
   }
 
   if (resultCards.length === 0) {
@@ -865,14 +849,13 @@ async function getQuizCardsWithXenoCantoMedia(
     return { data: [], error: "Geen kaarten met soorten gevonden" };
   }
 
-  // Shuffle en limit VOORDAT we audio ophalen
+  // Shuffle VOORDAT we audio ophalen
   cardsWithSpecies = shuffleArray(cardsWithSpecies);
 
-  // Haal iets meer kaarten op dan de limit (sommige kunnen geen geluid hebben)
-  const fetchLimit = limit
-    ? Math.min(cardsWithSpecies.length, Math.ceil(limit * 1.5))
-    : cardsWithSpecies.length;
-  const cardsToFetch = cardsWithSpecies.slice(0, fetchLimit);
+  // Haal ALLE kaarten op - we filteren later op basis van beschikbare audio
+  // Dit zorgt ervoor dat we altijd het gevraagde aantal vragen kunnen leveren
+  // (mits er genoeg kaarten met audio zijn)
+  const cardsToFetch = cardsWithSpecies;
 
   // Collect all species IDs in the deck (for distractor selection)
   const deckSpeciesIds = cardsWithSpecies

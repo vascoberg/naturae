@@ -2,7 +2,7 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { fsrs, generatorParameters, Rating, State, type Card as FSRSCard, type Grade, createEmptyCard } from "ts-fsrs";
-import { getMediaForSpecies, type GBIFMediaResult } from "@/lib/services/gbif-media";
+import { getRandomSpeciesMedia, type GBIFMediaResult } from "@/lib/services/gbif-media";
 import { searchXenoCantoBySpecies, type XenoCantoResult } from "@/lib/services/xeno-canto";
 
 // Initialize FSRS with default parameters
@@ -375,33 +375,21 @@ export async function getPublicPhotoStudyCards(
     return { data: [], error: "Geen kaarten met GBIF-gekoppelde soorten gevonden" };
   }
 
-  // PERFORMANCE: Shuffle en limit VOORDAT we foto's ophalen
-  // Dit voorkomt dat we 97 API calls doen als de gebruiker maar 10 kaarten wil
+  // Shuffle VOORDAT we foto's ophalen
   if (options?.shuffle) {
     cardsWithGbif = shuffleArray(cardsWithGbif);
   }
 
-  // We vragen iets meer kaarten op dan de limit, omdat sommige geen foto's hebben
-  // Bijvoorbeeld: limit=10 -> we halen 15 kaarten op, filteren op foto's, en nemen max 10
-  const fetchLimit = options?.limit ? Math.min(cardsWithGbif.length, options.limit * 1.5) : cardsWithGbif.length;
-  const cardsToFetch = cardsWithGbif.slice(0, Math.ceil(fetchLimit));
-
-  // Build species list for batch request (alleen voor gelimiteerde set)
-  const speciesList = cardsToFetch.map((card) => {
-    const species = getSpeciesObject(card.species) as { gbif_key: number };
-    return {
-      gbifKey: species.gbif_key,
-      cardId: card.id,
-    };
-  });
-
-  // Fetch photos from GBIF
-  const photoMap = await getMediaForSpecies(speciesList);
-
-  // Build result cards
+  // Build result cards - haal foto's één voor één op tot we genoeg hebben
+  // Dit voorkomt parallelle requests die kunnen timen en garandeert het juiste aantal
   const resultCards: PublicPhotoStudyCard[] = [];
 
-  for (const card of cardsToFetch) {
+  for (const card of cardsWithGbif) {
+    // Stop zodra we genoeg kaarten hebben
+    if (options?.limit && resultCards.length >= options.limit) {
+      break;
+    }
+
     const species = getSpeciesObject(card.species) as {
       id: string;
       scientific_name: string;
@@ -410,7 +398,8 @@ export async function getPublicPhotoStudyCards(
       gbif_key: number;
     };
 
-    const photo = photoMap.get(card.id);
+    // Haal foto op voor deze specifieke soort
+    const photo = await getRandomSpeciesMedia({ gbifKey: species.gbif_key, limit: 20 });
 
     // Skip cards without photos
     if (!photo) continue;
@@ -440,11 +429,6 @@ export async function getPublicPhotoStudyCards(
         references: photo.references,
       },
     });
-
-    // Stop als we genoeg kaarten hebben
-    if (options?.limit && resultCards.length >= options.limit) {
-      break;
-    }
   }
 
   return { data: resultCards };
@@ -575,19 +559,19 @@ export async function getXenoCantoStudyCards(
     return { data: [], error: "Geen kaarten met soorten gevonden" };
   }
 
-  // PERFORMANCE: Shuffle en limit VOORDAT we audio ophalen
+  // Shuffle VOORDAT we audio ophalen
   if (options?.shuffle) {
     cardsWithSpecies = shuffleArray(cardsWithSpecies);
   }
 
-  // We vragen iets meer kaarten op dan de limit, omdat sommige geen audio hebben
-  const fetchLimit = options?.limit ? Math.min(cardsWithSpecies.length, options.limit * 1.5) : cardsWithSpecies.length;
-  const cardsToFetch = cardsWithSpecies.slice(0, Math.ceil(fetchLimit));
-
-  // Build result cards by fetching audio for each species
+  // Build result cards - haal audio één voor één op tot we genoeg hebben
   const resultCards: XenoCantoStudyCard[] = [];
 
-  for (const card of cardsToFetch) {
+  for (const card of cardsWithSpecies) {
+    // Stop zodra we genoeg kaarten hebben
+    if (options?.limit && resultCards.length >= options.limit) {
+      break;
+    }
     const species = getSpeciesObject(card.species) as {
       id: string;
       scientific_name: string;
