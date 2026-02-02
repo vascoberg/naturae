@@ -90,10 +90,8 @@ export default async function DiscoverPage({ searchParams }: DiscoverPageProps) 
     }
   }
 
-  // Filter eigen decks uit als user ingelogd is
-  if (user) {
-    query = query.neq("user_id", user.id);
-  }
+  // Eigen decks worden ook getoond - zo kunnen makers zien hoe hun deck eruitziet
+  // en is de pagina niet leeg als er nog weinig gebruikers zijn
 
   // Zoeken op titel
   if (searchQuery) {
