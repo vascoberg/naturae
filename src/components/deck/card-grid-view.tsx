@@ -14,13 +14,38 @@ interface CardMedia {
   annotated_url?: string | null;
 }
 
+interface CardSpecies {
+  gbif_key?: number | null;
+  scientific_name?: string | null;
+  canonical_name?: string | null;
+  common_names?: { nl?: string } | null;
+}
+
 interface CardData {
   id: string;
   front_text: string | null;
-  back_text: string;
+  back_text: string | null;
   position: number;
-  species_id?: string | null; // Voor soortenpagina link
+  species_id?: string | null;
+  species?: CardSpecies | CardSpecies[] | null;
   card_media: CardMedia[] | null;
+}
+
+// Helper om species naam te krijgen
+function getSpeciesDisplayName(species: CardSpecies | CardSpecies[] | null | undefined): string | null {
+  if (!species) return null;
+  // Supabase kan een array of object teruggeven
+  const speciesData = Array.isArray(species) ? species[0] : species;
+  if (!speciesData) return null;
+  return speciesData.common_names?.nl || speciesData.canonical_name || speciesData.scientific_name || null;
+}
+
+// Helper om kaart naam te krijgen (back_text of species naam)
+function getCardDisplayName(card: CardData): string {
+  if (card.back_text) return card.back_text;
+  const speciesName = getSpeciesDisplayName(card.species);
+  if (speciesName) return speciesName;
+  return "(Geen naam)";
 }
 
 interface CardGridViewProps {
@@ -86,7 +111,9 @@ export function CardGridView({ cards }: CardGridViewProps) {
                 {/* Card name with optional book icon */}
                 <CardContent className="p-2">
                   <div className="flex items-center gap-1">
-                    <p className="text-sm font-medium truncate flex-1">{card.back_text}</p>
+                    <p className={`text-sm font-medium truncate flex-1 ${!card.back_text && card.species_id ? "italic" : ""}`}>
+                      {getCardDisplayName(card)}
+                    </p>
                     {card.species_id && (
                       <BookOpen
                         className="w-3.5 h-3.5 flex-shrink-0 text-muted-foreground hover:text-primary cursor-pointer transition-colors"
@@ -128,8 +155,8 @@ export function CardGridView({ cards }: CardGridViewProps) {
                       <div className="w-8 h-8 flex-shrink-0" />
                     )}
 
-                    <span className="font-medium truncate flex-1">
-                      {card.back_text}
+                    <span className={`font-medium truncate flex-1 ${!card.back_text && card.species_id ? "italic" : ""}`}>
+                      {getCardDisplayName(card)}
                     </span>
                     {card.species_id && (
                       <BookOpen

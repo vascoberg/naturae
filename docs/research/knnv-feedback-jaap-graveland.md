@@ -68,7 +68,7 @@ Het Naturae project is deels geïnspireerd door een LinkedIn post van Jaap Grave
 
 ---
 
-## Januari 2026 - Uitgebreide feedback na testen
+## 29 januari 2026 - Uitgebreide feedback na testen
 
 > Ha Vasco, hier een update. Ik heb je app even uitgeprobeerd. Was een eye opener dat je natuurlijk ook geluidsbestanden in een app kunt laden. Ik probeerde het ook even in Anki, dat werkte heel eenvoudig.
 >
@@ -87,6 +87,47 @@ Het Naturae project is deels geïnspireerd door een LinkedIn post van Jaap Grave
 > **Zie jij nog in enige mate aanknopingspunten?**
 >
 > Groet, Jaap
+
+### 30 januari 2026 - Reactie Vasco (met video demo)
+
+> Hallo Jaap,
+>
+> Bedankt voor je uitgebreide terugkoppeling en de update van jullie bestuursvergadering. Goed om te horen dat de KNNV potentie ziet in flashcards voor soortherkenning en dat jullie concrete plannen hebben voor een Natuuracademie.
+>
+> Je vraagt of ik aanknopingspunten zie. Die zie ik zeker en ik leg ze graag uit.
+>
+> Vanuit mijn kant begon Naturae als hobbyproject, waarbij ik enerzijds iets kan bouwen om mijn software engineering skills te oefenen en anderzijds mijn soortenkennis als ecoloog kan bijhouden/uitbreiden. Inmiddels heb ik het besproken met mijn zakenpartner Erik. We hebben samen een bedrijf (NOMA) dat zich richt op AI-toepassingen voor ecologische adviesbureaus. Erik is daarin de software engineer en ik de ecoloog (met ook wat technische kennis dus). Erik is enthousiast over Naturae en ziet er kansen in. We zijn dus bereid om hier serieuzer naar te kijken dan alleen een hobbyproject.
+>
+> Dit adresseert direct je terechte zorg over continuïteit: als Naturae onderdeel wordt van een bedrijfsstructuur, is het beheer en de doorontwikkeling beter geborgd. En het geeft jullie een aanspreekpunt voor support en feature requests.
+>
+> Je noemde zelf al de nadelen van Anki en Quizlet. Anki is krachtig maar niet gebruiksvriendelijk. Quizlet is betaald voor het gebruik zoals jullie voor ogen hebben schat ik in: vanaf €36/jaar individueel, of ruim €6.000/jaar voor een organisatie met 2 docenten en 500 leerlingen. Daarnaast is Quizlet een Amerikaans bedrijf. Subsidiegeld zou dan naar een Silicon Valley techbedrijf gaan, zonder enige invloed op de roadmap.
+>
+> Mijn gedachte bij Naturae is dat het een community-gedreven platform kan worden, vergelijkbaar met hoe waarneming.nl werkt: de kracht zit in de gebruikers die content maken, delen en valideren. Het platform is in de basis volledig gratis. Iedereen kan een account aanmaken, eigen leersets maken en delen, en ermee oefenen. Geen betaalmuur voor de kernfunctionaliteit, anders dan bij Quizlet waar je moet betalen voor media-uploads. Er komen wel premium features voor individuele gebruikers die daar behoefte aan hebben (nog nader te bepalen welke). Maar dat is echt optioneel, niet noodzakelijk om het platform goed te kunnen gebruiken.
+>
+> Voor organisaties zoals de KNNV zou er een partnerschap kunnen zijn. Jullie leden kunnen ook gewoon gratis accounts aanmaken en het platform gebruiken. Als partner-organisatie zou de KNNV mee kunnen denken over de roadmap, features kunnen aanvragen die voor jullie leden relevant zijn, en een eigen plek binnen het platform krijgen (denk aan een KNNV-pagina met door jullie experts gecureerde leersets). In ruil daarvoor zou een jaarlijkse bijdrage aan de doorontwikkeling kunnen staan, in ieder geval minder dan de jaarlijkse kosten aan Quizlet.
+>
+> Volgens mij heb je nog niet geprobeerd een account op Naturae aan te maken en te proberen hoe het is om een leerset aan te maken? Hier heb ik namelijk al best wat aandacht aan besteed en er zitten al wat toffe features in. Ik heb een screenrecording gemaakt om je te laten zien wat het platform nu al kan:
+>
+> - Leren zonder account - direct aan de slag met quiz-modus en flashcard-modus
+> - GBIF-integratie - automatisch foto's ophalen in de quiz-modus inclusief attributie en licentie-informatie en koppelen aan taxonomische informatie van GBIF
+> - Eenvoudig leersets maken - met bulk-upload snel een set aanmaken
+> - Foto's toevoegen aan een leerset via GBIF - met een paar klikken zoeken en foto's toevoegen
+> - Annotaties - foto's annoteren om kenmerken aan te wijzen
+>
+> Video: https://youtu.be/vUdDsAzUoV0
+>
+> Ik zie aanknopingspunten voor een samenwerking tussen de KNNV en Naturae:
+>
+> 1. **Naturae als platform voor de KNNV Natuuracademie** - Jullie zouden Naturae kunnen gebruiken voor jullie flashcard-leersets. Wij zorgen voor het technische beheer en doorontwikkeling, de KNNV zorgt voor de inhoudelijke expertise.
+>
+> 2. **Als onderdeel van jullie subsidieaanvraag** - De platformontwikkeling zou daar onderdeel van kunnen zijn. Dat geeft jullie een platform dat door alle natuurliefhebbers die iets willen leren gebruikt kan worden, en waar jullie door de gezamenlijke ontwikkeling invloed op uit kunnen oefenen - in plaats van geld naar een Amerikaans platform waar jullie geen invloed op hebben.
+>
+> Ik ben benieuwd hoe jij hiernaar kijkt. Zie je aanknopingspunten in deze aanpak? En zou je interesse hebben om een keer (online, telefonisch of op locatie) te sparren over hoe dit er concreet uit zou kunnen zien?
+>
+> Groeten,
+> Vasco
+
+**Status:** Wacht op reactie van Jaap (1 februari 2026)
 
 ---
 
@@ -172,5 +213,67 @@ Het Naturae project is deels geïnspireerd door een LinkedIn post van Jaap Grave
 
 ---
 
+## Gedetailleerde Analyse: Jaap's Vereisten vs. Naturae (01-02-2026)
+
+### Expliciete Vereisten van Jaap
+
+| # | Vereiste | Naturae Status | Aansluiting |
+|---|----------|----------------|-------------|
+| 1 | Snel werkend product | ✅ MVP is live | ✅ Volledig |
+| 2 | Beheer geregeld | ⚠️ Hobbyproject → NOMA | ✅ Geadresseerd in reactie |
+| 3 | Bewezen platform gebruiken | ❌ Nieuw platform | 🔶 Nadeel, voordelen genoemd |
+| 4 | Sets makkelijk delen | ✅ Publieke decks | ✅ Volledig |
+| 5 | Gebruiksvriendelijk (vs Anki) | ✅ Focus project | ✅ Volledig |
+| 6 | Gratis media uploads (vs Quizlet) | ✅ Gratis | ✅ Volledig |
+| 7 | Bronvermelding bij foto's | ✅ GBIF attributie automatisch | ✅ Volledig |
+| 8 | Geluidsbestanden | ✅ Audio upload | ✅ Volledig |
+| 9 | Continuïteit gegarandeerd | ⚠️ → NOMA bedrijf | ✅ Geadresseerd in reactie |
+| 10 | Kwaliteit & actualiteit beheer | ⚠️ Geen moderatie systeem | 🔶 Nog te bouwen |
+| 11 | Instructiedocument/video's | ⚠️ Alleen demo video | 🔶 Nog te maken |
+| 12 | Export naar andere platforms | 🚧 Gepland (CSV, Anki) | ✅ In backlog |
+
+### Impliciete Vereisten
+
+| Vereiste | Naturae Status | In Roadmap? |
+|----------|----------------|-------------|
+| Lage kosten | ✅ Gratis tier | ✅ Ja |
+| Geen vendor lock-in | ✅ Export gepland | ✅ Ja |
+| Partner-invloed op roadmap | 🚧 Niet formeel | 🔶 Genoemd in reactie |
+| Branded/gecureerde sets | 🚧 Niet gebouwd | ✅ In Organisatie Tier concept |
+| Samenwerking Observation.org | ❌ Geen integratie | ❌ Niet in roadmap |
+
+### Aansluiting bij Business Model
+
+**Wat past bij Organisatie Tier:**
+- Voor KNNV, IVN, natuurorganisaties ✅
+- Branded decks ✅ (past bij "KNNV-pagina met gecureerde sets")
+- Analytics dashboard ✅ (past bij projectleider behoefte)
+
+**Wat ontbreekt voor KNNV:**
+- [ ] Formele partner-invloed op roadmap
+- [ ] Content validatie/moderatie systeem
+- [ ] Integratie met Observation.org
+
+### Sterke punten van Vasco's reactie
+
+| Jaap's zorg | Vasco's antwoord | Beoordeling |
+|-------------|------------------|-------------|
+| "Liever niet nieuwe app" | Voordelen vs Anki/Quizlet | ✅ Sterk |
+| Continuïteit | NOMA bedrijfsstructuur | ✅ Direct geadresseerd |
+| Kosten Quizlet | Gratis + goedkoper org tier | ✅ Sterk argument |
+| Subsidiegeld naar VS | Nederlands platform | ✅ Politiek slim |
+| Beheer | Technisch beheer door NOMA | ✅ Duidelijk |
+
+### Mogelijke verbeterpunten
+
+| Gap | Status | Aanbeveling |
+|-----|--------|-------------|
+| Concrete pilot voorstel | "Sparren" genoemd | Concreter: "1 soortengroep, 5-10 testers, 2 maanden" |
+| Kosten Organisatie Tier | "Minder dan Quizlet" | Noem indicatie: €500-1000/jaar |
+| Track record | Nieuw platform | Moeilijk te adresseren |
+| Export naar Anki | Gepland maar niet live | Zou "portabiliteit" zorg wegnemen |
+
+---
+
 *Document aangemaakt: januari 2026*
-*Laatste update: januari 2026*
+*Laatste update: 1 februari 2026*

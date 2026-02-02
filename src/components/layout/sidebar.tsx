@@ -147,6 +147,7 @@ export function Sidebar({ username, displayName, onLogout }: SidebarProps) {
         <div className="border-t p-2">
           <button
             onClick={() => setIsCollapsed(!isCollapsed)}
+            aria-label={isCollapsed ? "Sidebar uitklappen" : "Sidebar inklappen"}
             className="flex items-center justify-center w-full p-2 rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
           >
             {isCollapsed ? (
@@ -168,6 +169,7 @@ export function Sidebar({ username, displayName, onLogout }: SidebarProps) {
         <header className="fixed top-0 left-0 right-0 z-40 bg-background border-b h-14 flex items-center px-4">
           <button
             onClick={() => setMobileOpen(!mobileOpen)}
+            aria-label={mobileOpen ? "Menu sluiten" : "Menu openen"}
             className="p-2 -ml-2 rounded-lg hover:bg-muted"
           >
             <div className="w-5 h-5 flex flex-col justify-center gap-1">

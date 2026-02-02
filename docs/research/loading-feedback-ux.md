@@ -3,7 +3,7 @@
 > Onderzoek naar huidige implementatie, industry best practices, en aanbevelingen voor verbetering.
 
 **Datum:** 30 januari 2026
-**Status:** Onderzoek afgerond
+**Status:** Grotendeels geïmplementeerd (01-02-2026)
 
 ---
 
@@ -26,13 +26,13 @@ De Naturae app heeft een gemengde implementatie van loading feedback. Sommige co
 
 | Categorie | Status |
 |-----------|--------|
-| Toast notificaties | ⚠️ Inconsistent (4 componenten, niet in DeckEditor) |
+| Toast notificaties | ✅ Geïmplementeerd in DeckEditor en CardSideEditor (01-02-2026) |
 | Button loading states | ✅ Aanwezig, maar niet uniform (geen LoadingButton component) |
 | Optimistic updates | ✅ Goed geïmplementeerd (LikeButton met rollback) |
 | Progress indicators | ✅ Uitstekend (BulkImport) |
-| Error feedback | ⚠️ 30+ console.error instances zonder UI feedback |
+| Error feedback | ✅ Verbeterd - toast.error() in DeckEditor en CardSideEditor |
 | Quiz completion | ✅ Uitstekende visuele feedback (Trophy, score circle) |
-| Page transitions | ❌ Geen loading.tsx, geen animaties |
+| Page transitions | ✅ Geïmplementeerd (View Transitions API + CSS fallback) |
 | useTransition pattern | ✅ Gebruikt in 5 componenten (modern React pattern) |
 
 ---
@@ -213,23 +213,31 @@ export function LoadingButton({
 
 ## Probleemgebieden
 
-### 1. DeckEditor - Geen Save Feedback ❌
+### 1. DeckEditor - Geen Save Feedback ✅ OPGELOST
 
 **Locatie:** `src/components/deck/deck-editor.tsx`
 
-**Probleem:** Na het aanpassen van deck metadata (titel, beschrijving, cover) krijgt de gebruiker geen bevestiging dat de wijzigingen zijn opgeslagen.
+**Status:** Geïmplementeerd op 01-02-2026
 
 ```typescript
-// Huidige implementatie
+// Nieuwe implementatie
 const handleSave = async () => {
   setIsSaving(true);
-  await updateDeck(deckId, formData);
-  setIsSaving(false);
-  // ← Geen toast of andere feedback
+  try {
+    await updateDeck(deckId, formData);
+    toast.success("Leerset opgeslagen");
+  } catch (error) {
+    toast.error("Opslaan mislukt. Probeer het opnieuw.");
+  } finally {
+    setIsSaving(false);
+  }
 };
 ```
 
-**Impact:** Gebruiker weet niet of wijzigingen zijn opgeslagen.
+**Wat is geïmplementeerd:**
+- Toast feedback voor deck save/delete
+- Toast feedback voor card add/update/delete
+- Foutmeldingen bij mislukte operaties
 
 ### 2. Silent CRUD Failures ❌
 
@@ -445,17 +453,17 @@ button:active, a:active {
 
 ## Implementatie Roadmap
 
-### Fase 1: Foundation (Sprint)
-- [ ] Creëer `LoadingButton` component
-- [ ] Creëer `feedback.ts` utility
-- [ ] Voeg toast toe aan DeckEditor save
-- [ ] Voeg toast toe aan card delete operaties
+### Fase 1: Foundation ✅ AFGEROND (01-02-2026)
+- [ ] Creëer `LoadingButton` component (optioneel - huidige pattern werkt)
+- [ ] Creëer `feedback.ts` utility (optioneel - directe toast calls werken)
+- [x] Voeg toast toe aan DeckEditor save ✅
+- [x] Voeg toast toe aan card delete operaties ✅
 
-### Fase 2: Consistency (Sprint)
-- [ ] Audit alle async operaties (30+ console.error instances)
-- [ ] Vervang inline loading patterns door LoadingButton
-- [ ] Standaardiseer error handling (toast in plaats van console.error)
-- [ ] Voeg feedback toe aan CardSideEditor uploads
+### Fase 2: Consistency ✅ GROTENDEELS AFGEROND (01-02-2026)
+- [ ] Audit alle async operaties (verbeterd maar niet volledig)
+- [ ] Vervang inline loading patterns door LoadingButton (optioneel)
+- [x] Standaardiseer error handling (toast in DeckEditor en CardSideEditor) ✅
+- [x] Voeg feedback toe aan CardSideEditor uploads ✅
 
 ### Fase 3: Polish (Later)
 - [x] ~~Onderzoek page transitions~~ ✅ Geïmplementeerd (View Transitions API + CSS fallback)
@@ -476,9 +484,9 @@ button:active, a:active {
 - `ProfileForm`, `PasswordForm`, `AvatarUpload` - useTransition + toast
 
 ### Componenten die verbetering nodig hebben ⚠️
-- `DeckEditor` - Geen save/delete toast feedback (alleen console.error)
-- `CardSideEditor` - Geen upload/delete feedback
-- `CardGrid` - Stille delete operaties
+- ~~`DeckEditor` - Geen save/delete toast feedback~~ ✅ Opgelost 01-02-2026
+- ~~`CardSideEditor` - Geen upload/delete feedback~~ ✅ Opgelost 01-02-2026
+- `CardGrid` - Stille delete operaties (nog te doen indien nodig)
 
 ### Pagina's zonder loading.tsx ❌
 - `/decks/[id]`
@@ -488,4 +496,4 @@ button:active, a:active {
 
 ---
 
-*Laatst bijgewerkt: 30 januari 2026*
+*Laatst bijgewerkt: 1 februari 2026*

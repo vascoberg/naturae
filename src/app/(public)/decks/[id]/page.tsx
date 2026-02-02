@@ -92,7 +92,10 @@ export default async function DeckPage({ params }: DeckPageProps) {
       position,
       species_id,
       species:species_id (
-        gbif_key
+        gbif_key,
+        scientific_name,
+        canonical_name,
+        common_names
       ),
       card_media (
         id,

@@ -7,8 +7,10 @@ export async function createCard(
   deckId: string,
   data: {
     frontText?: string;
-    backText: string;
+    backText?: string;
     position?: number;
+    speciesId?: string | null;
+    speciesDisplay?: "front" | "back" | "both" | "none";
   }
 ) {
   const supabase = await createClient();
@@ -52,8 +54,10 @@ export async function createCard(
     .insert({
       deck_id: deckId,
       front_text: data.frontText || null,
-      back_text: data.backText,
+      back_text: data.backText || null,
       position,
+      species_id: data.speciesId || null,
+      species_display: data.speciesDisplay || "back",
     })
     .select("id")
     .single();

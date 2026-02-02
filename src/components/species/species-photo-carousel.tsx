@@ -149,6 +149,7 @@ export function SpeciesPhotoCarousel({
             <Button
               variant="secondary"
               size="icon"
+              aria-label="Vorige foto"
               className="absolute left-2 top-1/2 -translate-y-1/2 h-8 w-8 rounded-full opacity-80 hover:opacity-100"
               onClick={goToPrevious}
             >
@@ -157,6 +158,7 @@ export function SpeciesPhotoCarousel({
             <Button
               variant="secondary"
               size="icon"
+              aria-label="Volgende foto"
               className="absolute right-2 top-1/2 -translate-y-1/2 h-8 w-8 rounded-full opacity-80 hover:opacity-100"
               onClick={goToNext}
             >

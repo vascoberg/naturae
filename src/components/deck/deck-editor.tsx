@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Plus, Trash2, Save, GripVertical, Image, Music, Upload, ChevronDown, ChevronUp } from "lucide-react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -12,10 +13,11 @@ import {
   deleteCard,
   updateDeck,
   deleteDeck,
+  addGBIFMediaToCard,
 } from "@/lib/actions/decks";
 import { BulkImportForm } from "./bulk-import-form";
 import { TagSelector } from "./tag-selector";
-import { WysiwygCardEditor } from "./wysiwyg-card-editor";
+import { WysiwygCardEditor, type PendingMedia } from "./wysiwyg-card-editor";
 import { type Tag } from "@/lib/actions/tags";
 
 interface CardMedia {
@@ -86,8 +88,10 @@ export function DeckEditor({ deck, cards: initialCards, initialTags = [] }: Deck
         description: description.trim() || undefined,
         isPublic,
       });
+      toast.success("Leerset opgeslagen");
     } catch (error) {
       console.error("Error saving deck:", error);
+      toast.error("Opslaan mislukt. Probeer het opnieuw.");
     } finally {
       setIsSaving(false);
     }
@@ -99,26 +103,74 @@ export function DeckEditor({ deck, cards: initialCards, initialTags = [] }: Deck
     setIsDeleting(true);
     try {
       await deleteDeck(deck.id);
+      toast.success("Leerset verwijderd");
       router.push("/my-decks");
     } catch (error) {
       console.error("Error deleting deck:", error);
+      toast.error("Verwijderen mislukt. Probeer het opnieuw.");
       setIsDeleting(false);
     }
   };
+
+  const [isAddingCard, setIsAddingCard] = useState(false);
 
   const handleAddCard = async (
     frontText: string,
     backText: string,
     speciesId: string | null,
-    speciesDisplay: "front" | "back" | "both" | "none"
+    speciesDisplay: "front" | "back" | "both" | "none",
+    pendingMedia?: PendingMedia[],
+    species?: CardSpecies | null
   ) => {
-    if (!backText.trim()) return;
+    // Card must have either back text or a species selected
+    if (!backText.trim() && !speciesId) return;
 
+    setIsAddingCard(true);
     try {
       const result = await createCard(deck.id, {
         frontText: frontText.trim() || undefined,
-        backText: backText.trim(),
+        backText: backText.trim() || undefined,
+        speciesId,
+        speciesDisplay,
       });
+
+      // Upload pending media als die er zijn
+      const uploadedMedia: CardMedia[] = [];
+      if (pendingMedia && pendingMedia.length > 0) {
+        for (const pending of pendingMedia) {
+          try {
+            // Format attribution string
+            const attributionParts = [];
+            if (pending.gbifData.creator) attributionParts.push(pending.gbifData.creator);
+            attributionParts.push(pending.gbifData.licenseType);
+            attributionParts.push(pending.gbifData.source);
+            const attributionSource = attributionParts.join(" · ");
+
+            const mediaResult = await addGBIFMediaToCard(result.id, deck.id, {
+              externalUrl: pending.gbifData.identifier,
+              position: pending.position,
+              attributionName: pending.gbifData.creator || undefined,
+              attributionUrl: pending.gbifData.references || undefined,
+              attributionSource,
+              license: pending.gbifData.licenseType,
+            });
+
+            uploadedMedia.push({
+              id: mediaResult.id,
+              type: "image",
+              url: mediaResult.url,
+              position: pending.position,
+              displayOrder: uploadedMedia.length,
+              attributionName: pending.gbifData.creator || null,
+              attributionSource,
+              license: pending.gbifData.licenseType,
+            });
+          } catch (mediaError) {
+            console.error("Error uploading pending media:", mediaError);
+            // Ga door met andere media, toon niet meteen een error
+          }
+        }
+      }
 
       setCards((prev) => [
         ...prev,
@@ -127,18 +179,27 @@ export function DeckEditor({ deck, cards: initialCards, initialTags = [] }: Deck
           frontText: frontText.trim(),
           backText: backText.trim(),
           position: prev.length,
-          media: [],
-          speciesId: null,
-          speciesDisplay: "back",
-          species: null,
+          media: uploadedMedia,
+          speciesId: speciesId,
+          speciesDisplay: speciesDisplay,
+          species: species || null,
         },
       ]);
 
       setNewCardFrontText("");
       setNewCardBackText("");
       setShowNewCardEditor(false);
+
+      if (uploadedMedia.length > 0) {
+        toast.success(`Kaart toegevoegd met ${uploadedMedia.length} foto${uploadedMedia.length > 1 ? "'s" : ""}`);
+      } else {
+        toast.success("Kaart toegevoegd");
+      }
     } catch (error) {
       console.error("Error adding card:", error);
+      toast.error("Kaart toevoegen mislukt");
+    } finally {
+      setIsAddingCard(false);
     }
   };
 
@@ -147,7 +208,9 @@ export function DeckEditor({ deck, cards: initialCards, initialTags = [] }: Deck
     frontText: string,
     backText: string,
     speciesId: string | null,
-    speciesDisplay: "front" | "back" | "both" | "none"
+    speciesDisplay: "front" | "back" | "both" | "none",
+    _pendingMedia?: PendingMedia[],
+    species?: CardSpecies | null
   ) => {
     try {
       await updateCard(cardId, {
@@ -160,14 +223,16 @@ export function DeckEditor({ deck, cards: initialCards, initialTags = [] }: Deck
       setCards((prev) =>
         prev.map((card) =>
           card.id === cardId
-            ? { ...card, frontText, backText, speciesId, speciesDisplay }
+            ? { ...card, frontText, backText, speciesId, speciesDisplay, species: species !== undefined ? species : card.species }
             : card
         )
       );
 
       setExpandedCardId(null);
+      toast.success("Kaart bijgewerkt");
     } catch (error) {
       console.error("Error updating card:", error);
+      toast.error("Kaart bijwerken mislukt");
     }
   };
 
@@ -178,8 +243,10 @@ export function DeckEditor({ deck, cards: initialCards, initialTags = [] }: Deck
       await deleteCard(cardId);
       setCards((prev) => prev.filter((card) => card.id !== cardId));
       setExpandedCardId(null);
+      toast.success("Kaart verwijderd");
     } catch (error) {
       console.error("Error deleting card:", error);
+      toast.error("Kaart verwijderen mislukt");
     }
   };
 
@@ -365,7 +432,15 @@ export function DeckEditor({ deck, cards: initialCards, initialTags = [] }: Deck
                         {card.frontText}
                       </p>
                     )}
-                    <p className="font-medium truncate">{card.backText}</p>
+                    <p className="font-medium truncate">
+                      {card.backText || (card.species ? (
+                        <span className="italic">
+                          {card.species.commonNames?.nl || card.species.canonicalName}
+                        </span>
+                      ) : (
+                        <span className="text-muted-foreground">Geen tekst</span>
+                      ))}
+                    </p>
                   </div>
 
                   <div className="flex-shrink-0 text-muted-foreground">
@@ -389,8 +464,8 @@ export function DeckEditor({ deck, cards: initialCards, initialTags = [] }: Deck
                       speciesId={card.speciesId}
                       speciesDisplay={card.speciesDisplay}
                       species={card.species}
-                      onSave={(frontText, backText, speciesId, speciesDisplay) =>
-                        handleUpdateCard(card.id, frontText, backText, speciesId, speciesDisplay)
+                      onSave={(frontText, backText, speciesId, speciesDisplay, _pendingMedia, species) =>
+                        handleUpdateCard(card.id, frontText, backText, speciesId, speciesDisplay, undefined, species)
                       }
                       onCancel={() => setExpandedCardId(null)}
                       onDelete={() => handleDeleteCard(card.id)}
@@ -418,6 +493,7 @@ export function DeckEditor({ deck, cards: initialCards, initialTags = [] }: Deck
                 frontText={newCardFrontText}
                 backText={newCardBackText}
                 media={[]}
+                deckId={deck.id}
                 onSave={handleAddCard}
                 onCancel={() => {
                   setShowNewCardEditor(false);
@@ -425,10 +501,8 @@ export function DeckEditor({ deck, cards: initialCards, initialTags = [] }: Deck
                   setNewCardBackText("");
                 }}
                 isNew
+                isSaving={isAddingCard}
               />
-              <p className="text-xs text-muted-foreground mt-3">
-                Media kan worden toegevoegd na het opslaan van de kaart.
-              </p>
             </div>
           ) : (
             <Button

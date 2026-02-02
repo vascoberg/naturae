@@ -1,246 +1,184 @@
 # Naturae Backlog
 
-> Geconsolideerde lijst van features na de MVP sprints. Gebaseerd op naturae-mvp-design.md, quiz-mode-implementation-plan.md, en nieuwe ideeën.
+> Centrale plek voor alle features, ideeën en taken. Pak wat je wilt, wanneer je wilt.
+
+**Laatste update:** 1 februari 2026
 
 ---
 
-## Status Overzicht
+## Nu Actief
 
-### Afgerond ✅
+*Waar je deze week aan werkt. Max 2-3 items.*
 
-| Feature | Sprint/Fase | Documentatie |
-|---------|-------------|--------------|
-| Auth, FSRS, Flashcards | Sprint 1 | [implementation-plan.md](implementation-plan.md) |
-| Bulk import, WYSIWYG editor | Sprint 2 | [implementation-plan.md](implementation-plan.md) |
-| Discover, Gastgebruik, Landing | Sprint 3 | [implementation-plan.md](implementation-plan.md) |
-| GBIF Taxonomie Integratie | MVP+ | [research/naturae-taxonomie-feature.md](research/naturae-taxonomie-feature.md) |
-| Foto Annotatie Editor | MVP+ | [features/photo-annotation-plan.md](features/photo-annotation-plan.md) |
-| GBIF Media Learning Mode | MVP+ | [features/gbif-media-learning-mode.md](features/gbif-media-learning-mode.md) |
-| Quiz Mode (Fase 1) | MVP+ | [research/quiz-mode-implementation-plan.md](research/quiz-mode-implementation-plan.md) |
-| CC-BY-NC Licentie Support | MVP+ | Geïntegreerd in gbif-media.ts |
-| **Soortenpagina (Species Page)** | MVP+ | [features/soortenpagina-species-page.md](features/soortenpagina-species-page.md) |
+_(Leeg - kies iets uit "Klaar voor Implementatie")_
 
 ---
 
-## Backlog: Prioriteit Hoog
+## Klaar voor Implementatie
 
-### 1. ~~Licentie Toggle (CC-BY vs CC-BY-NC)~~ ✅ AFGEROND
+*Uitgewerkt en klaar om op te pakken wanneer je zin hebt.*
 
-**Status:** Afgerond (30-01-2026)
+### Xeno-canto API Integratie
+Vogelgeluiden ophalen voor quiz en soortenpagina's.
+- `xeno-canto.ts` service
+- Media picker "Geluiden" tabblad
+- Audio quiz mode
+- [Docs](research/quiz-mode-implementation-plan.md#13-xeno-canto-api---geluiden-integratie)
 
-CC-BY-NC is nu standaard inbegrepen in alle GBIF media queries. Foto's tonen hun licentie type (CC0 groen, CC-BY blauw, CC-BY-NC oranje).
-
----
-
-### 2. Xeno-canto API Integratie
-
-**Status:** Gepland (uit quiz-mode-implementation-plan.md Fase 2)
-**Geschatte omvang:** Medium (8-16 uur)
-
-**Doel:** Vogelgeluiden ophalen van Xeno-canto voor quiz en soortenpagina's.
-
-**Features:**
-- `xeno-canto.ts` service voor API calls
-- Media picker uitbreiden met "Geluiden" tabblad
-- Geluid Quiz mode met Xeno-canto audio
-- Audio preview in picker
-
-**Vereisten:**
-- Xeno-canto API key aanvragen (gratis)
-- `XENO_CANTO_API_KEY` environment variable
-
-**Documentatie:** [quiz-mode-implementation-plan.md sectie 13](research/quiz-mode-implementation-plan.md#13-xeno-canto-api---geluiden-integratie)
-
----
-
-### 3. ~~Soortenpagina (Species Book)~~ ✅ AFGEROND
-
-**Status:** Afgerond (30-01-2026)
-
-Volledig geïmplementeerd met alle 5 fases:
-- ✅ Fase 1: Basis pagina & Sheet/Dialog component
-- ✅ Fase 2: Book icon integratie (quiz, flashcard, card grid)
-- ✅ Fase 3: GBIF metadata (sex, lifeStage, filters)
-- ✅ Fase 4: Wikipedia beschrijving & verwante soorten
-- ✅ Fase 5: Foto picker uitbreiding met metadata
-
-**Documentatie:** [features/soortenpagina-species-page.md](features/soortenpagina-species-page.md)
-
----
-
-### 4. Quiz Media Selectie Verbeteren
-
-**Status:** ✅ Voldoende voor nu
-**Geschatte omvang:** n.v.t.
-
-**Bevinding (jan 2026):** De huidige implementatie is voldoende:
-- MediaType selector (foto/audio/mix) werkt voor eigen media
-- GBIF quiz heeft alleen foto's (audio komt met Xeno-canto integratie)
-- Mix modus selecteert willekeurig per vraag
-
-Eventuele toekomstige verbeteringen (lage prioriteit):
-- "Alleen kaarten met audio EN foto" filter voor mix modus
-- Voorkeur onthouden per deck (localStorage)
-
----
-
-## Backlog: Prioriteit Medium
-
-### 5. Knop Interacties / Loading Feedback
-
-**Status:** Onderzoek afgerond ✅
-**Geschatte omvang:** Klein-Medium (4-8 uur) voor implementatie
-
-**Probleem:** Soms geen zichtbare feedback na klikken op links of knoppen.
-
-**Onderzoek bevindingen:**
-- ✅ Goede patterns: Optimistic updates (LikeButton), progress tracking (BulkImport)
-- ⚠️ Inconsistent: Toast gebruik varieert per component
-- ❌ Missend: DeckEditor save feedback, quiz completion, stille CRUD failures
-
-**Aanbevolen implementatie (uit onderzoek):**
-- Fase 1: LoadingButton component + feedback utilities
-- Fase 2: Toast toevoegen aan alle async operaties
-- ~~Fase 3: Page transitions~~ ✅ Geïmplementeerd (30-01-2026)
-
-**Documentatie:** [research/loading-feedback-ux.md](research/loading-feedback-ux.md)
-
----
-
-### 6. Internationalisering (i18n)
-
-**Status:** Onderzoek afgerond ✅
-**Geschatte omvang:** 16-24 uur voor volledige implementatie
-
-**Aanbevolen aanpak:**
-- URL-based routing (`/nl/...`, `/en/...`)
-- next-intl library
-- `localePrefix: 'as-needed'` (geen `/nl/` voor default taal)
-
-**Huidige meertaligheid:**
-- Tags hebben al `names` JSON veld met `{"nl": "...", "en": "..."}`
-- Species hebben `common_names` met taalcodes
-
-**Documentatie:** [research/internationalisering-i18n.md](research/internationalisering-i18n.md)
-
----
-
-### 7. Quiz Geavanceerde Features (Fase 2-4)
-
-**Status:** Gepland
-**Geschatte omvang:** Medium per feature
-
-**Features uit quiz-mode-implementation-plan.md:**
-- [ ] Timer per vraag (15s, 30s, 60s, uit)
-- [ ] "Weet ik niet" optie met 0 punten
-- [ ] Keyboard shortcuts (1-4 voor optie selectie)
-- [ ] Difficulty levels (aantal opties: 3/4/6)
-- [ ] Score leaderboards per deck
-
----
-
-### 8. Private Sharing (Share Tokens)
-
-**Status:** Gepland (uit naturae-mvp-design.md)
-**Geschatte omvang:** Medium (8-12 uur)
-
-**Features:**
-- Genereer unieke share token voor private deck
-- URL: `/decks/share/{token}`
-- Toegang zonder account
-- Token intrekken mogelijk
-
----
-
-### 9. Clone/Remix Deck
-
-**Status:** Gepland
-**Geschatte omvang:** Medium (8-12 uur)
-
-**Features:**
-- "Remix" knop op publieke deck pagina
-- Kopieert deck + kaarten naar eigen account
-- Media wordt gedeeld (niet gedupliceerd)
+### Clone/Remix Deck
+"Remix" knop op publieke deck → kopie naar eigen account.
 - `copied_from_deck_id` tracking
-- Teller: "X keer geremixed"
+- Media delen (niet dupliceren)
+- "X keer geremixed" teller
+
+### Private Sharing (Share Tokens)
+Private decks delen via unieke link.
+- `/decks/share/{token}` URL
+- Token intrekken mogelijk
+- Toegang zonder account
+
+### Quiz Keyboard Shortcuts
+Snel antwoorden met toetsenbord.
+- 1-4 voor opties
+- Enter voor volgende
+- Esc voor stoppen
+
+### Quiz Timer
+Optionele tijdslimiet per vraag.
+- 15s / 30s / 60s / uit
+- Visuele countdown
+- Auto-volgende bij timeout
+
+### Anki Export
+Deck exporteren als .apkg voor Anki.
+- Onderzoek Anki format nodig
+- Cards + media bundelen
 
 ---
 
-### 10. Website Performance & Snelheid
+## Ideeën & Research
 
-**Status:** Nieuw - onderzoek nodig
-**Geschatte omvang:** Te bepalen na onderzoek
+*Nog uitwerken of onderzoeken voordat het opgepakt kan worden.*
 
-**Doel:** Algehele performance van de website verbeteren qua laadtijd en responsiviteit.
+### Internationalisering (i18n)
+Engels ondersteunen naast Nederlands.
+- next-intl library
+- URL routing `/en/...`
+- [Onderzoek](research/internationalisering-i18n.md) ✅
 
-**Onderzoeken:**
-- [ ] Lighthouse audit uitvoeren (Core Web Vitals)
-- [ ] Bundle size analyseren (next/bundle-analyzer)
-- [ ] Image loading optimalisatie (lazy loading, blur placeholders)
-- [ ] API response times meten
-- [ ] Database query performance (Supabase)
+### Meerdere Media per Kaart
+Variatie: meerdere foto's/geluiden per kaart, random selectie.
+- Database: `card_media` tabel bestaat al
+- UI voor media management
+- Premium feature?
 
-**Mogelijke verbeteringen:**
-- Next.js Image component optimalisatie
-- Code splitting en lazy imports
-- Caching strategie (SWR/React Query)
-- Database indexen toevoegen
-- CDN voor statische assets
-- Server-side caching
+### Streak Tracking
+Dagelijkse leerdoelen en streaks bijhouden.
+- Motivatie feature
+- PWA push notificaties
 
-**Metrics om te meten:**
-- LCP (Largest Contentful Paint) < 2.5s
-- FID (First Input Delay) < 100ms
-- CLS (Cumulative Layout Shift) < 0.1
-- TTFB (Time to First Byte)
+### GBIF Verspreidingskaart
+Kaart met waarnemingen per soort embedden.
+- GBIF occurrence API
+- Leaflet of static image
 
----
+### "Weet ik niet" Optie
+Quiz optie voor 0 punten, toont direct antwoord.
 
-## Backlog: Prioriteit Laag
+### Score Leaderboards
+Highscores per deck.
+- Privacy overwegingen
+- Alleen publieke decks?
 
-### 11. Engagement & Retention Features
+### Omgekeerde Quiz
+Antwoord zien → vraag raden (geluid bij naam).
 
-- [ ] Voortgangstracking dashboard
-- [ ] Streak tracking
-- [ ] Meerdere foto's per kaart
-- [ ] PWA push notificaties
-- [ ] Leerinstellingen per leerset (FSRS presets UI)
-
-### 12. Import/Export Uitbreidingen
-
-- [ ] JSON Import (backup restore)
-- [ ] CSV Import/Export
-- [ ] ZIP Export met media bestanden
-- [ ] Anki Export/Import (.apkg) - onderzoek nodig
-- [ ] Quizlet Import - onderzoek nodig
-
-### 13. Community Features
-
-- [ ] Comments op sets
-- [ ] Uitgebreide gebruikersprofielen
-- [ ] Volg systeem
-- [ ] Challenges/competities
-
-### 14. Premium Features (later)
-
-- [ ] AI-assisted import (soort herkenning uit foto/audio)
-- [ ] Kwaliteitscheck AI
-- [ ] Auto-tagging
-- [ ] Offline synchronisatie
+### Alleen Audio Modus
+Quiz zonder visuele hints, puur op gehoor.
 
 ---
 
-## Ideeën Parking Lot
+## Milestones
 
-*Features die genoemd zijn maar nog niet uitgewerkt:*
+*Grote doelen op de horizon. Zie [roadmap.md](post-mvp-roadmap.md) voor details.*
 
-- Verspreidingskaart per soort (GBIF occurrence map embed)
-- ~~Externe links op soortenpagina (waarneming.nl, xeno-canto, GBIF)~~ ✅ Afgerond
-- ~~"Similar Species" vergelijking~~ ✅ Afgerond (verwante soorten chips)
-- Omgekeerde quiz (antwoord zien → vraag raden)
-- Alleen audio modus (geen visuele hints)
-- Certificaten/badges systeem
+| Milestone | Status | Wanneer |
+|-----------|--------|---------|
+| Production Ready | ✅ Afgerond | 01-02-2026 |
+| Soft Launch (KNNV pilot) | 🔜 Volgende | Wanneer Jaap reageert |
+| Freemium Limieten | 📋 Gepland | Na validatie gebruikers |
+| Stripe Betalingen | 📋 Gepland | Na freemium |
+| 100 MAU | 🎯 Doel | Q1 2026 |
 
 ---
 
-*Laatste update: 30 januari 2026*
+## Afgerond ✅
+
+### Februari 2026
+- [x] Error boundaries (global, public, main)
+- [x] Accessibility fixes (aria-labels)
+- [x] Mobile responsiveness test
+- [x] Lighthouse audit (100/90/96/100)
+- [x] Supabase security migratie
+- [x] Toast feedback (DeckEditor, CardSideEditor)
+- [x] Page transitions (View Transitions API)
+
+### Januari 2026
+- [x] Soortenpagina (Species Page) - alle 5 fases
+- [x] CC-BY-NC Licentie Support
+- [x] Quiz Mode Fase 1
+- [x] GBIF Media Learning Mode
+- [x] Foto Annotatie Editor
+
+### MVP Sprints
+- [x] Auth, FSRS, Flashcards (Sprint 1)
+- [x] Bulk import, WYSIWYG editor (Sprint 2)
+- [x] Discover, Gastgebruik, Landing (Sprint 3)
+- [x] GBIF Taxonomie Integratie
+
+---
+
+## Parking Lot
+
+*Misschien ooit. Lage prioriteit of nog vaag.*
+
+### Performance Optimalisaties
+- Lazy loading flashcard images
+- Dashboard queries paralleliseren
+- Bundle size analyse
+- Slow queries optimaliseren (23 in Supabase)
+
+### Community Features
+- Comments op sets
+- Uitgebreide profielen
+- Volg systeem
+- Challenges/competities
+- Certificaten/badges
+
+### Premium/AI Features
+- AI soortherkenning uit foto
+- Auto-tagging
+- Kwaliteitscheck AI
+- Offline sync
+
+### Overig
+- Sentry error tracking
+- API rate limiting
+- CSV Import/Export
+- JSON Import (backup restore)
+
+---
+
+## Documentatie Index
+
+| Document | Beschrijving |
+|----------|--------------|
+| [post-mvp-roadmap.md](post-mvp-roadmap.md) | Milestones en validatie doelen |
+| [business-model.md](operations/business-model.md) | Freemium model, pricing |
+| [knnv-feedback.md](research/knnv-feedback-jaap-graveland.md) | KNNV gesprek status |
+| [quiz-mode-plan.md](research/quiz-mode-implementation-plan.md) | Quiz features details |
+| [i18n-research.md](research/internationalisering-i18n.md) | Internationalisering |
+
+---
+
+*Tip: Pak wat je leuk vindt. De "Milestones" zijn richtlijnen, geen deadlines.*

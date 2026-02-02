@@ -3,12 +3,14 @@
 import { useState, useRef } from "react";
 import Link from "next/link";
 import { Image as ImageIcon, Music, X, Loader2, RefreshCw, Pencil, PenTool, Search } from "lucide-react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { createClient } from "@/lib/supabase/client";
 import { addCardMedia, addGBIFMediaToCard, deleteCardMedia, updateCardMediaAttribution } from "@/lib/actions/decks";
 import { GBIFMediaPicker } from "./gbif-media-picker";
 import type { GBIFMediaResult } from "@/lib/services/gbif-media";
+import type { PendingMedia } from "./wysiwyg-card-editor";
 
 interface CardMedia {
   id: string;
@@ -37,6 +39,10 @@ interface CardSideEditorProps {
   required?: boolean;
   speciesGbifKey?: number | null;
   speciesName?: string | null;
+  // Props voor pending media (nieuwe kaarten)
+  pendingMedia?: PendingMedia;
+  onPendingMediaSelect?: (gbifData: GBIFMediaResult, position: "front" | "back") => void;
+  onPendingMediaRemove?: (position: "front" | "back") => void;
 }
 
 export function CardSideEditor({
@@ -54,6 +60,9 @@ export function CardSideEditor({
   required = false,
   speciesGbifKey,
   speciesName,
+  pendingMedia,
+  onPendingMediaSelect,
+  onPendingMediaRemove,
 }: CardSideEditorProps) {
   const [isUploading, setIsUploading] = useState(false);
   const [uploadType, setUploadType] = useState<"image" | "audio" | null>(null);
@@ -137,9 +146,10 @@ export function CardSideEditor({
       setAttribution("");
       setShowAttribution(false);
       setReplacingMediaId(null);
+      toast.success(type === "image" ? "Foto toegevoegd" : "Audio toegevoegd");
     } catch (error) {
       console.error("Error uploading media:", error);
-      alert("Er ging iets mis bij het uploaden");
+      toast.error("Er ging iets mis bij het uploaden");
     } finally {
       setIsUploading(false);
       setUploadType(null);
@@ -172,8 +182,10 @@ export function CardSideEditor({
     try {
       await deleteCardMedia(mediaId);
       onMediaDeleted(mediaId);
+      toast.success("Media verwijderd");
     } catch (error) {
       console.error("Error deleting media:", error);
+      toast.error("Media verwijderen mislukt");
     }
   };
 
@@ -199,12 +211,22 @@ export function CardSideEditor({
       onMediaUpdated?.(editingAttributionId, editingAttributionValue);
       setEditingAttributionId(null);
       setEditingAttributionValue("");
+      toast.success("Bronvermelding opgeslagen");
     } catch (error) {
       console.error("Error updating attribution:", error);
+      toast.error("Bronvermelding opslaan mislukt");
     }
   };
 
   const handleGBIFMediaSelect = async (gbifMedia: GBIFMediaResult) => {
+    // Voor nieuwe kaarten: sla op als pending media
+    if (onPendingMediaSelect && !cardId) {
+      onPendingMediaSelect(gbifMedia, side);
+      toast.success("Foto geselecteerd - wordt opgeslagen bij aanmaken kaart");
+      return;
+    }
+
+    // Voor bestaande kaarten: upload direct
     if (!cardId || !deckId || !onMediaAdded) return;
 
     setIsUploading(true);
@@ -239,9 +261,10 @@ export function CardSideEditor({
         attributionSource,
         license: gbifMedia.licenseType,
       });
+      toast.success("GBIF foto toegevoegd");
     } catch (error) {
       console.error("Error adding GBIF media:", error);
-      alert("Er ging iets mis bij het toevoegen van de foto");
+      toast.error("Er ging iets mis bij het toevoegen van de foto");
     } finally {
       setIsUploading(false);
       setUploadType(null);
@@ -249,10 +272,16 @@ export function CardSideEditor({
   };
 
   const canUpload = cardId && deckId && onMediaAdded;
-  const canSearchGBIF = canUpload && speciesGbifKey;
+  // GBIF zoeken is mogelijk als:
+  // 1. Er een speciesGbifKey is, EN
+  // 2. We kunnen uploaden (bestaande kaart) OF we pending media kunnen opslaan (nieuwe kaart)
+  const canSearchGBIF = speciesGbifKey && (canUpload || onPendingMediaSelect);
   const hasImage = imageMedia.length > 0;
   const hasAudio = audioMedia.length > 0;
-  const hasAnyMedia = hasImage || hasAudio;
+  // Pending media telt ook als "has image" voor UI doeleinden
+  const hasPendingImage = !!pendingMedia;
+  const hasAnyImage = hasImage || hasPendingImage;
+  const hasAnyMedia = hasAnyImage || hasAudio;
 
   // Attribution display component met edit functionaliteit
   const AttributionDisplay = ({ mediaItem, variant }: { mediaItem: CardMedia; variant: "image" | "audio" }) => {
@@ -317,7 +346,7 @@ export function CardSideEditor({
       <div className="border rounded-lg bg-card overflow-hidden">
         {/* Media area - boven de tekst */}
         <div className="bg-muted">
-          {/* Afbeelding sectie */}
+          {/* Afbeelding sectie - bestaande media */}
           {hasImage && (
             <div className="relative aspect-[4/3] group">
               <img
@@ -374,6 +403,41 @@ export function CardSideEditor({
             </div>
           )}
 
+          {/* Pending media preview (voor nieuwe kaarten) */}
+          {!hasImage && hasPendingImage && pendingMedia && (
+            <div className="relative aspect-[4/3] group">
+              <img
+                src={pendingMedia.gbifData.identifier}
+                alt=""
+                className="w-full h-full object-cover"
+              />
+              {/* Badge voor pending status */}
+              <span className="absolute top-2 left-2 bg-amber-500 text-white text-[10px] px-1.5 py-0.5 rounded font-medium">
+                Wordt opgeslagen
+              </span>
+              {/* Remove button - altijd zichtbaar */}
+              {onPendingMediaRemove && (
+                <div className="absolute top-2 right-2 flex gap-1">
+                  <button
+                    onClick={() => onPendingMediaRemove(side)}
+                    className="w-7 h-7 bg-background/90 hover:bg-destructive hover:text-destructive-foreground rounded-full flex items-center justify-center shadow-sm"
+                    title="Verwijderen"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              )}
+              {/* Attribution preview */}
+              <p className="absolute bottom-1 left-1 text-[10px] text-white/90 bg-black/50 px-1.5 py-0.5 rounded max-w-[90%] truncate">
+                {[
+                  pendingMedia.gbifData.creator,
+                  pendingMedia.gbifData.licenseType,
+                  pendingMedia.gbifData.source,
+                ].filter(Boolean).join(" · ")}
+              </p>
+            </div>
+          )}
+
           {/* Audio sectie - onder de afbeelding of als enige media */}
           {hasAudio && (
             <div className={`p-3 ${hasImage ? "border-t bg-background/50" : "aspect-[4/3] flex flex-col items-center justify-center"}`}>
@@ -422,26 +486,31 @@ export function CardSideEditor({
           )}
 
           {/* Upload knoppen - als er nog ruimte is voor media */}
-          {canUpload && (!hasImage || !hasAudio) && (
+          {/* Toon als: canUpload (bestaande kaart) OF canSearchGBIF (nieuwe kaart met species) OF nieuwe kaart zonder species */}
+          {(canUpload || canSearchGBIF || onPendingMediaSelect) && (!hasAnyImage || !hasAudio) && (
             <div className={`p-3 ${hasAnyMedia ? "border-t" : "aspect-[4/3] flex flex-col items-center justify-center"}`}>
               <div className={`flex gap-2 flex-wrap justify-center ${hasAnyMedia ? "" : "mb-2"}`}>
-                {!hasImage && (
+                {!hasAnyImage && (
                   <>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => imageInputRef.current?.click()}
-                      disabled={isUploading}
-                    >
-                      {isUploading && uploadType === "image" ? (
-                        <Loader2 className="w-4 h-4 animate-spin" />
-                      ) : (
-                        <>
-                          <ImageIcon className="w-4 h-4 mr-1" />
-                          Foto
-                        </>
-                      )}
-                    </Button>
+                    {/* Foto upload voor bestaande kaarten */}
+                    {canUpload && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => imageInputRef.current?.click()}
+                        disabled={isUploading}
+                      >
+                        {isUploading && uploadType === "image" ? (
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                        ) : (
+                          <>
+                            <ImageIcon className="w-4 h-4 mr-1" />
+                            Foto
+                          </>
+                        )}
+                      </Button>
+                    )}
+                    {/* GBIF zoeken voor zowel nieuwe als bestaande kaarten (alleen met species) */}
                     {canSearchGBIF && (
                       <Button
                         variant="outline"
@@ -456,7 +525,8 @@ export function CardSideEditor({
                     )}
                   </>
                 )}
-                {!hasAudio && (
+                {/* Audio upload voor bestaande kaarten */}
+                {canUpload && !hasAudio && (
                   <Button
                     variant="outline"
                     size="sm"
@@ -477,22 +547,37 @@ export function CardSideEditor({
 
               {!hasAnyMedia && (
                 <>
-                  <p className="text-xs text-muted-foreground text-center mb-2">
-                    Voeg media toe
-                  </p>
-                  <button
-                    onClick={() => setShowAttribution(!showAttribution)}
-                    className="text-xs text-muted-foreground hover:text-foreground"
-                  >
-                    {showAttribution ? "Verberg bronvermelding" : "+ Bronvermelding"}
-                  </button>
-                  {showAttribution && (
-                    <Input
-                      value={attribution}
-                      onChange={(e) => setAttribution(e.target.value)}
-                      placeholder="© Naam, bron"
-                      className="h-7 text-xs max-w-[200px] mt-2"
-                    />
+                  {/* Message based on context */}
+                  {canUpload ? (
+                    <p className="text-xs text-muted-foreground text-center mb-2">
+                      Voeg media toe
+                    </p>
+                  ) : canSearchGBIF ? (
+                    <p className="text-xs text-muted-foreground text-center mb-2">
+                      Zoek foto via GBIF
+                    </p>
+                  ) : (
+                    <p className="text-xs text-muted-foreground text-center mb-2">
+                      Selecteer een soort om GBIF foto&apos;s te zoeken
+                    </p>
+                  )}
+                  {canUpload && (
+                    <>
+                      <button
+                        onClick={() => setShowAttribution(!showAttribution)}
+                        className="text-xs text-muted-foreground hover:text-foreground"
+                      >
+                        {showAttribution ? "Verberg bronvermelding" : "+ Bronvermelding"}
+                      </button>
+                      {showAttribution && (
+                        <Input
+                          value={attribution}
+                          onChange={(e) => setAttribution(e.target.value)}
+                          placeholder="© Naam, bron"
+                          className="h-7 text-xs max-w-[200px] mt-2"
+                        />
+                      )}
+                    </>
                   )}
                 </>
               )}
@@ -500,7 +585,8 @@ export function CardSideEditor({
           )}
 
           {/* Geen upload mogelijkheid en geen media */}
-          {!canUpload && !hasAnyMedia && (
+          {/* Toon alleen als er geen upload mogelijk is EN geen pending media handler EN geen media */}
+          {!canUpload && !onPendingMediaSelect && !hasAnyMedia && (
             <div className="aspect-[4/3] flex items-center justify-center">
               <p className="text-sm text-muted-foreground">Geen media</p>
             </div>
