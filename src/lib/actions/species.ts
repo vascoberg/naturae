@@ -29,12 +29,12 @@ export async function searchSpecies(
   const results: SpeciesSearchResult[] = [];
   const seenGbifKeys = new Set<number>();
 
-  // 1. Search local database first (scientific names + all vernacular names in gbif_data)
+  // 1. Search local database first (scientific names + Dutch and English names)
   const { data: localSpecies, error: dbError } = await supabase
     .from("species")
     .select("id, scientific_name, canonical_name, common_names, taxonomy, gbif_key, source, gbif_data")
     .or(
-      `scientific_name.ilike.%${query}%,canonical_name.ilike.%${query}%,common_names->>nl.ilike.%${query}%`
+      `scientific_name.ilike.%${query}%,canonical_name.ilike.%${query}%,common_names->>nl.ilike.%${query}%,common_names->>en.ilike.%${query}%`
     )
     .limit(10);
 
@@ -178,9 +178,15 @@ export async function getOrCreateSpecies(
       return { data: null, error: "Soort niet gevonden in GBIF" };
     }
 
-    // 3. Fetch Dutch vernacular name (with smart selection)
+    // 3. Fetch vernacular names (Dutch and English)
     const vernacularNames = await fetchGBIFVernacularNames(gbifKey);
     const dutchName = selectBestDutchName(vernacularNames);
+    const englishName = selectBestEnglishName(vernacularNames);
+
+    // Build common_names object with available languages
+    const commonNames: Record<string, string> = {};
+    if (dutchName) commonNames.nl = dutchName.vernacularName;
+    if (englishName) commonNames.en = englishName.vernacularName;
 
     // 4. Create species in local database
     const { data: newSpecies, error: insertError } = await supabase
@@ -188,7 +194,7 @@ export async function getOrCreateSpecies(
       .insert({
         scientific_name: gbifData.scientificName,
         canonical_name: gbifData.canonicalName,
-        common_names: dutchName ? { nl: dutchName.vernacularName } : {},
+        common_names: commonNames,
         taxonomy: {
           kingdom: gbifData.kingdom,
           phylum: gbifData.phylum,
@@ -378,6 +384,49 @@ function selectBestDutchName(vernacularNames: GBIFVernacularName[]): GBIFVernacu
 
   // Fallback: first available Dutch name
   return dutchNames[0];
+}
+
+/**
+ * Select the best English vernacular name from GBIF results
+ *
+ * Priority order:
+ * 1. Name with preferred=true and language eng/en
+ * 2. Name from IOC World Bird List (most authoritative for bird common names)
+ * 3. Name from eBird/Clements checklist
+ * 4. First available English name (fallback)
+ */
+function selectBestEnglishName(vernacularNames: GBIFVernacularName[]): GBIFVernacularName | undefined {
+  // Filter to only English names
+  const englishNames = vernacularNames.filter(
+    (v) => v.language === "eng" || v.language === "en"
+  );
+
+  if (englishNames.length === 0) return undefined;
+
+  // Priority 1: Preferred name (official according to GBIF)
+  const preferred = englishNames.find((v) => v.preferred === true);
+  if (preferred) return preferred;
+
+  // Priority 2: IOC World Bird List (authoritative for bird common names)
+  const ioc = englishNames.find((v) =>
+    v.source?.includes("IOC World Bird List")
+  );
+  if (ioc) return ioc;
+
+  // Priority 3: eBird/Clements Checklist
+  const ebird = englishNames.find((v) =>
+    v.source?.includes("eBird") || v.source?.includes("Clements")
+  );
+  if (ebird) return ebird;
+
+  // Priority 4: Integrated Taxonomic Information System (ITIS)
+  const itis = englishNames.find((v) =>
+    v.source?.includes("ITIS")
+  );
+  if (itis) return itis;
+
+  // Fallback: first available English name
+  return englishNames[0];
 }
 
 async function fetchGBIFSuggest(query: string): Promise<GBIFSuggestResult[]> {

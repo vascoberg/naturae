@@ -5,7 +5,7 @@
  * Auto-detects separator (tab, comma, semicolon).
  */
 
-export type Separator = "\t" | "," | ";";
+export type Separator = "\t" | "," | ";" | " – " | " - ";
 
 export interface ParsedRow {
   front: string;
@@ -31,6 +31,16 @@ function detectSeparator(text: string): Separator {
   // Tab is most common from Excel copy/paste
   if (firstLine.includes("\t")) {
     return "\t";
+  }
+
+  // Em dash (Wikipedia-style lists)
+  if (firstLine.includes(" – ")) {
+    return " – ";
+  }
+
+  // Hyphen with spaces (general lists)
+  if (firstLine.includes(" - ")) {
+    return " - ";
   }
 
   // Semicolon is common in European locales
@@ -111,6 +121,10 @@ export function getSeparatorName(separator: Separator): string {
       return "komma";
     case ";":
       return "puntkomma";
+    case " – ":
+      return "em dash";
+    case " - ":
+      return "streepje";
     default:
       return "onbekend";
   }
