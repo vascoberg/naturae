@@ -1,6 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
+import { toast } from "sonner";
 import { AnnotationCanvas } from "@/components/annotation";
 import { saveAnnotations } from "@/lib/actions/annotations";
 import type { AnnotationData } from "@/types/annotations";
@@ -34,11 +35,16 @@ export function AnnotationPageClient({
     console.log("saveAnnotations result:", result);
 
     if (result.success) {
+      // Show success feedback
+      toast.success("Annotaties opgeslagen");
       // Navigate back to deck editor with the card selected
+      // Use refresh() to ensure the page re-fetches fresh data from server
+      // This fixes the issue where annotated images don't show without hard refresh
       router.push(`/decks/${deckId}/edit?card=${cardId}`);
+      router.refresh();
     } else {
       console.error("Failed to save annotations:", result.error);
-      alert(`Opslaan mislukt: ${result.error}`);
+      toast.error(`Opslaan mislukt: ${result.error}`);
     }
   }
 

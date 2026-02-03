@@ -38,6 +38,35 @@ export async function saveAnnotations(
       return { success: false, error: "Media niet gevonden" };
     }
 
+    const deckId = (media.cards as unknown as { deck_id: string }).deck_id;
+
+    // If no annotations, remove the annotated image entirely
+    if (!annotations.annotations || annotations.annotations.length === 0) {
+      // Delete existing annotated image from storage
+      const filePath = `${user.id}/${deckId}/${media.card_id}/${cardMediaId}-annotated.png`;
+      await supabase.storage.from("media").remove([filePath]);
+
+      // Clear database fields
+      const { error: updateError } = await supabase
+        .from("card_media")
+        .update({
+          annotated_url: null,
+          annotations: null,
+        })
+        .eq("id", cardMediaId);
+
+      if (updateError) {
+        return { success: false, error: "Database update mislukt" };
+      }
+
+      // Revalidate paths
+      revalidatePath(`/decks/${deckId}`);
+      revalidatePath(`/decks/${deckId}/edit`);
+      revalidatePath(`/annotate/${cardMediaId}`);
+
+      return { success: true };
+    }
+
     // Convert base64 to Uint8Array
     const base64Data = annotatedImageBase64.replace(
       /^data:image\/png;base64,/,
@@ -50,7 +79,6 @@ export async function saveAnnotations(
     }
 
     // Upload to storage with proper path for RLS
-    const deckId = (media.cards as unknown as { deck_id: string }).deck_id;
     const filePath = `${user.id}/${deckId}/${media.card_id}/${cardMediaId}-annotated.png`;
 
     const { error: uploadError } = await supabase.storage
@@ -67,19 +95,22 @@ export async function saveAnnotations(
 
     console.log("Upload successful, file path:", filePath);
 
-    // Get public URL
+    // Get public URL with cache-busting timestamp
     const {
       data: { publicUrl },
     } = supabase.storage.from("media").getPublicUrl(filePath);
 
-    console.log("Public URL:", publicUrl);
+    // Add cache-busting query parameter to prevent browser caching old image
+    const cacheBustedUrl = `${publicUrl}?v=${Date.now()}`;
+
+    console.log("Public URL:", cacheBustedUrl);
     console.log("Updating database with annotations:", JSON.stringify(annotations).substring(0, 200));
 
-    // Update database
+    // Update database with cache-busted URL
     const { error: updateError } = await supabase
       .from("card_media")
       .update({
-        annotated_url: publicUrl,
+        annotated_url: cacheBustedUrl,
         annotations: annotations,
       })
       .eq("id", cardMediaId);
@@ -96,7 +127,7 @@ export async function saveAnnotations(
     revalidatePath(`/decks/${deckId}/edit`);
     revalidatePath(`/annotate/${cardMediaId}`);
 
-    return { success: true, annotatedUrl: publicUrl };
+    return { success: true, annotatedUrl: cacheBustedUrl };
   } catch (error) {
     console.error("saveAnnotations error:", error);
     return { success: false, error: "Onbekende fout" };
@@ -166,6 +197,14 @@ export async function removeAnnotations(
 
     if (updateError) {
       return { success: false, error: "Database update mislukt" };
+    }
+
+    // Revalidate paths so the removed annotation shows up immediately
+    if (media) {
+      const deckId = (media.cards as unknown as { deck_id: string }).deck_id;
+      revalidatePath(`/decks/${deckId}`);
+      revalidatePath(`/decks/${deckId}/edit`);
+      revalidatePath(`/annotate/${cardMediaId}`);
     }
 
     return { success: true };

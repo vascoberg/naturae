@@ -690,6 +690,373 @@ Entitlements systeem alleen als nodig voor:
 
 ---
 
+## Marktanalyse: TAM/SAM/SOM
+
+> Schatting van de marktomvang op basis van gebruikersaantallen van natuurwaarnemingsplatforms.
+
+**Gerelateerd:** [Organization Pages - Competitive Analyse](../features/organization-pages.md) voor B2B pricing benchmarks.
+
+### Databronnen (Februari 2026)
+
+| Platform | Bereik | Gebruikers | Waarnemingen | Bron |
+|----------|--------|------------|--------------|------|
+| **waarneming.nl** | Nederland | 100k+ actieve (2023), 230k accounts (2021) | 14M+ (2023) | [CLO](https://www.clo.nl/indicatoren/nl062501-citizen-science-voor-natuur), [Wikipedia](https://nl.wikipedia.org/wiki/Waarneming.nl) |
+| **observation.org** | Wereldwijd | ~500k (doel) | 238M entries, 82M foto's | [LinkedIn](https://www.linkedin.com/company/observation-org), [GBIF](https://www.gbif.org/publisher/c8d737e0-2ff8-42e8-b8fc-6b805d26fc5f) |
+| **iNaturalist** | Wereldwijd | 3.3M observers, ~600k MAU, ~245k uploaders/maand | 200M+ (sept 2024) | [iNat Blog](https://www.inaturalist.org/blog/91752-3-000-000-observers), [BioScience](https://academic.oup.com/bioscience/article/75/11/953/8185761) |
+| **eBird** | Wereldwijd | 122k nieuwe (2024), 1.3M Global Big Day | 2 miljard (juni 2025) | [eBird Year Review 2024](https://ebird.org/news/2024-year-in-review) |
+| **Merlin Bird ID** | Wereldwijd | 7.5M nieuwe (2024) | - | [eBird Year Review 2024](https://ebird.org/news/2024-year-in-review) |
+
+**Opmerking:** "Actieve" gebruiker = minimaal 1 waarneming/jaar. MAU = monthly active users.
+
+### Natuur-specifieke Apps (Identificatie & Leren)
+
+| App | Type | Gebruikers | Details | Bron |
+|-----|------|------------|---------|------|
+| **Merlin Bird ID** | Identificatie | 23M totaal downloads, 12M actief in 2024 | Cornell Lab, Sound ID populairste feature (1.3B IDs) | [eBird 2024 Review](https://ebird.org/news/2024-year-in-review), [Cornell](https://alumni.cornell.edu/cornellians/merlin-bird-app/) |
+| **BirdID** | Leren (quiz) | ~100k downloads | Nord University, 380 Europese soorten, meertalig | [Aptoide](https://birdid-nord-university.en.aptoide.com/app) |
+| **Picture Bird** | Identificatie | 1M+ users | Glority, AI foto/geluid herkenning, 1000+ soorten | [SimilarWeb](https://www.similarweb.com/app/google-play/com.glority.picturebird/statistics/) |
+| **ObsIdentify** | Identificatie | Onbekend | Observation.org, Europa focus, AI herkenning 28k soorten | [Observation.org](https://observation.org/apps/obsidentify/) |
+| **Larkwire** | Leren (quiz) | Onbekend (niche) | Game-based vogelgeluid leren, betaald | [Larkwire](https://www.larkwire.com/) |
+
+**Belangrijke inzichten:**
+- Merlin domineert de identificatie-markt met 23M downloads
+- BirdID is de enige echte concurrent voor quiz-based leren, maar heeft slechts ~100k downloads
+- De leer-markt (quiz/flashcards) is veel kleiner dan identificatie-markt
+- Naturae's niche (alle soortengroepen + GBIF/Xeno-canto + quiz) heeft weinig directe concurrentie
+
+### Total Addressable Market (TAM) - Wereldwijd
+
+De TAM bestaat uit alle mensen die actief bezig zijn met soorten herkennen in de natuur.
+
+| Segment | Geschatte grootte | Onderbouwing |
+|---------|------------------|--------------|
+| **Vogels** | 10-15M actieve birders | eBird cumulatief + Merlin groeicijfers, minus overlap |
+| **Biodiversiteit breed** | 3-5M observers | iNaturalist (3.3M) + Observation.org (~500k), minus overlap |
+| **Overlap correctie** | -20% | Conservatieve schatting; veel birders ook op iNat |
+| **TAM Totaal** | **~10-16M mensen wereldwijd** | Actieve natuurwaarnemers die soorten willen leren |
+
+**Kanttekening:** Niet iedereen die waarneemt wil ook *leren*. Veel gebruikers doen alleen identificatie (Merlin, iNat Seek). De subset die actief wil studeren is kleiner - schatting 30-50% van bovenstaande.
+
+**B2B TAM:** Organisaties die soortherkenning trainen (grove schattingen)
+- Natuurverenigingen: ~5.000 wereldwijd
+- Universiteiten (biologie/ecologie): ~3.000 programma's
+- Adviesbureaus ecologie: ~2.000 bedrijven
+- NME/educatiecentra: ~10.000
+
+### Serviceable Addressable Market (SAM) - Europa
+
+Naturae's realistische markt gegeven taal (NL/EN) en focus:
+
+| Segment | Geschatte grootte | Berekening |
+|---------|------------------|------------|
+| **Nederland** | 150-200k | waarneming.nl actief + casual interesse |
+| **België (NL)** | 50-75k | waarnemingen.be + Vlaamse natuurverenigingen |
+| **West-Europa (EN)** | 500k-1M | UK, Duitsland, Scandinavië (Engels als fallback) |
+| **SAM B2C Totaal** | **~700k-1.3M mensen** | Europese natuurwaarnemers |
+
+**B2B SAM Europa:**
+| Type | Aantal | Voorbeelden |
+|------|--------|-------------|
+| Natuurverenigingen | ~500 | KNNV, IVN, NABU, RSPB |
+| Hogescholen/universiteiten | ~200 | HVHL, WUR, etc. |
+| Ecologische adviesbureaus | ~300 | Arcadis, Tauw, etc. |
+| NME centra | ~500 | Regionale educatiecentra |
+| **Totaal** | **~1.500 organisaties** | |
+
+### Serviceable Obtainable Market (SOM) - Realistische Doelen
+
+Wat Naturae daadwerkelijk kan bereiken in de eerste jaren:
+
+#### B2C (Individuele Gebruikers)
+
+| Fase | Tijdframe | Doelgebruikers | % van SAM |
+|------|-----------|----------------|-----------|
+| Soft launch | Q1 2026 | 100-500 | <0.1% |
+| Groei NL | 2026 | 1.000-5.000 | 0.5-2.5% |
+| Europese expansie | 2027 | 10.000-25.000 | 1-2% |
+| Matuur | 2028+ | 50.000-100.000 | 5-10% |
+
+**Revenue potentieel B2C (bij 10% conversie naar Premium €50/jaar):**
+
+| Users | Premium users | Jaaromzet |
+|-------|---------------|-----------|
+| 1.000 | 100 | €5.000 |
+| 10.000 | 1.000 | €50.000 |
+| 50.000 | 5.000 | €250.000 |
+
+#### B2B (Organisaties)
+
+| Fase | Tijdframe | Organisaties | Revenue model |
+|------|-----------|--------------|---------------|
+| Pilot | Q1 2026 | 1-3 (KNNV) | Gratis/feedback |
+| Early adopters | 2026 | 5-15 | €500-2.000/jaar |
+| Groei | 2027 | 30-50 | €1.000-5.000/jaar |
+| Matuur | 2028+ | 100-200 | €2.000-10.000/jaar |
+
+**Revenue potentieel B2B:**
+
+| Organisaties | Gem. contract | Jaaromzet |
+|--------------|---------------|-----------|
+| 10 | €1.000 | €10.000 |
+| 50 | €2.000 | €100.000 |
+| 150 | €3.000 | €450.000 |
+
+### Marktpositionering
+
+#### Unieke Positie
+
+```
+                    Algemeen leren          Soorten leren
+                    ─────────────────────────────────────
+Grote platformen    │ Quizlet, Anki       │ (leeg)      │
+                    ─────────────────────────────────────
+Niche apps          │ Brainscape          │ BirdID,     │
+                    │                     │ NATURAE ←   │
+                    ─────────────────────────────────────
+```
+
+**Waarom deze positie werkt:**
+1. Quizlet/Anki zijn niet geoptimaliseerd voor media-heavy soortherkenning
+2. BirdID is alleen vogels, geen community/sharing
+3. Naturae combineert GBIF/Xeno-canto data met leerplatform UX
+
+#### Concurrentievoordelen per Segment
+
+| Segment | Concurrent | Naturae's voordeel |
+|---------|------------|-------------------|
+| Hobbyist birders | BirdID | Alle soortengroepen, community decks |
+| Natuurstudenten | Anki + eigen media | Geïntegreerde GBIF/Xeno-canto, minder werk |
+| KNNV/IVN | Losse tools | Centrale plek, voortgang dashboard |
+| Adviesbureaus | Interne training | Standaard platform, extern curriculum |
+
+### Risico's en Aannames
+
+| Aanname | Risico | Mitigatie |
+|---------|--------|-----------|
+| 10% conversie | Kan lager zijn voor niche | Focus op power users, waarde bieden |
+| Europese groei | Taalbarrière voor niet-NL | Snelle EN vertaling, community vertalingen |
+| B2B interesse | Organisaties hebben vaak legacy tools | Gratis pilots, integratie opties |
+| Platform stickiness | Users vertrekken naar Anki/eigen oplossingen | Export mogelijk, maar betere UX als lock-in |
+
+### Conclusie
+
+**B2C:**
+- Realistische markt in NL/BE: 100-200k potentiële users
+- Met Europese expansie: 500k-1M bereikbaar
+- Revenue potentieel: €50k-250k/jaar bij 10-50k users
+
+**B2B:**
+- ~1.500 relevante organisaties in Europa
+- Revenue potentieel: €100k-450k/jaar bij 50-150 organisaties
+- Hogere marges dan B2C, maar langere salescycles
+
+**Aanbeveling:** Start B2C voor validatie en merkbekendheid, ontwikkel B2B als premium/enterprise tier voor stabiele recurring revenue.
+
+---
+
+## Revenue Analyse: TAM/SAM/SOM × Pricing
+
+> Concrete revenue projecties door marktomvang te koppelen aan pricing modellen.
+
+### Samenvatting Pricing Modellen
+
+| Segment | Model | Prijs |
+|---------|-------|-------|
+| **B2C Free** | Freemium | €0 (50 MB) |
+| **B2C Premium** | Jaarabonnement | €50/jaar |
+| **B2B Tiered (Pro)** | Per organisatie | €300/jaar (max 100 leden) |
+| **B2B Per-User** | Volume staffel | €9-24/user/jaar |
+| **B2B Partnership** | Flat fee (non-profit) | €500-2.000/jaar |
+
+### B2C Revenue Projecties
+
+**Aannames:**
+- 10% conversie gratis → Premium (industry standaard freemium)
+- Premium prijs: €50/jaar
+
+| Fase | Users | % van SAM (1M) | Premium (10%) | Revenue/jaar |
+|------|-------|----------------|---------------|--------------|
+| **Soft launch** (Q1 2026) | 500 | 0.05% | 50 | **€2.500** |
+| **NL groei** (2026) | 3.000 | 0.3% | 300 | **€15.000** |
+| **EU uitrol** (2027) | 15.000 | 1.5% | 1.500 | **€75.000** |
+| **Matuur** (2028+) | 75.000 | 7.5% | 7.500 | **€375.000** |
+
+**Gevoeligheidsanalyse conversie:**
+
+| Users | 5% conversie | 10% conversie | 15% conversie |
+|-------|--------------|---------------|---------------|
+| 10.000 | €25.000 | €50.000 | €75.000 |
+| 50.000 | €125.000 | €250.000 | €375.000 |
+| 100.000 | €250.000 | €500.000 | €750.000 |
+
+**Insight:** Bij 10% conversie is 50.000 users nodig voor €250k/jaar. Dit is ~5% van de SAM.
+
+### B2B Revenue Projecties
+
+**SAM:** ~1.500 organisaties in Europa
+
+#### Scenario 1: Tiered Model (€300/jaar per org)
+
+Effectieve prijs: €3-6/user/jaar (zeer competitief vs Quizlet €12-20/user)
+
+| Fase | Organisaties | % van SAM | Revenue/jaar |
+|------|--------------|-----------|--------------|
+| **Pilot** (Q1 2026) | 3 | 0.2% | **€900** (gratis pilots) |
+| **Early adopters** (2026) | 10 | 0.7% | **€3.000** |
+| **Groei** (2027) | 40 | 2.7% | **€12.000** |
+| **Matuur** (2028+) | 150 | 10% | **€45.000** |
+
+**Probleem:** €300/org is te goedkoop voor serieuze revenue.
+
+#### Scenario 2: Per-User Model (€12/user/jaar avg)
+
+Vergelijkbaar met Quizlet volume pricing.
+
+| Fase | Orgs | Avg. users/org | Total seats | Revenue/jaar |
+|------|------|----------------|-------------|--------------|
+| **Pilot** | 3 | 30 | 90 | **€1.080** |
+| **Early adopters** | 10 | 50 | 500 | **€6.000** |
+| **Groei** | 40 | 75 | 3.000 | **€36.000** |
+| **Matuur** | 150 | 100 | 15.000 | **€180.000** |
+
+**Insight:** Per-user schaalt beter dan flat-fee per organisatie.
+
+#### Scenario 3: Partnership Model (non-profit focus)
+
+| Type organisatie | Aantal | Avg. bijdrage | Revenue/jaar |
+|------------------|--------|---------------|--------------|
+| Natuurverenigingen (KNNV, IVN) | 20 | €1.000 | €20.000 |
+| Hogescholen/universiteiten | 15 | €1.500 | €22.500 |
+| NME centra | 30 | €750 | €22.500 |
+| **Totaal (matuur)** | **65** | | **€65.000** |
+
+**Voordeel:** Eenvoudig, voorspelbaar, bouwt relaties
+**Nadeel:** Schaalt niet naar €100k+
+
+#### Scenario 4: Hybrid (Aanbevolen)
+
+Combineer partnership voor non-profits met per-user voor commercieel:
+
+| Segment | Model | Orgs | Revenue |
+|---------|-------|------|---------|
+| **Non-profit** | Partnership €1.000/jaar | 50 | €50.000 |
+| **Commercieel** (bureaus) | Per-user €15/user | 50 orgs × 80 users | €60.000 |
+| **Enterprise** | Custom €5.000+/jaar | 10 | €50.000 |
+| **Totaal (matuur)** | | **110** | **€160.000** |
+
+### Gecombineerde Revenue Scenarios
+
+| Scenario | B2C | B2B | **Totaal** | Tijdframe |
+|----------|-----|-----|------------|-----------|
+| **Minimum Viable** | €15.000 (3k users) | €10.000 (10 orgs) | **€25.000** | 2026 |
+| **Break-even+** | €50.000 (10k users) | €36.000 (40 orgs) | **€86.000** | 2027 |
+| **Sustainable** | €150.000 (30k users) | €100.000 (80 orgs) | **€250.000** | 2028 |
+| **Scale** | €375.000 (75k users) | €180.000 (150 orgs) | **€555.000** | 2029+ |
+
+### Break-Even Analyse
+
+**Geschatte kosten (jaarlijks):**
+
+| Kostenpost | Nu (hobby) | Schaal (10k users) | Schaal (50k users) |
+|------------|------------|--------------------|--------------------|
+| Supabase | €0 (free tier) | €280 (Pro) | €1.000+ |
+| Vercel | €0 (hobby) | €240 (Pro) | €500+ |
+| Domain + misc | €50 | €100 | €200 |
+| Xeno-canto API | €0 | €0 (gratis) | €0 |
+| GBIF API | €0 | €0 (gratis) | €0 |
+| **Totaal infra** | **€50** | **€620** | **€1.700** |
+
+**Personeelskosten (indien fulltime):**
+
+| Rol | Salaris/jaar |
+|-----|--------------|
+| Developer (1 FTE) | €60.000-80.000 |
+| Support/community (0.5 FTE) | €25.000-35.000 |
+| Marketing (0.5 FTE) | €25.000-35.000 |
+| **Totaal** | **€110.000-150.000** |
+
+**Break-even points:**
+
+| Scenario | Benodigd | Vereiste schaal |
+|----------|----------|-----------------|
+| **Hobby (infra only)** | €620/jaar | ~15 Premium users |
+| **Part-time (€30k/jaar)** | €30.620/jaar | 600 Premium + 20 orgs |
+| **Full-time (€80k/jaar)** | €80.620/jaar | 1.600 Premium + 50 orgs |
+| **Klein team (€150k/jaar)** | €150.620/jaar | 3.000 Premium + 80 orgs |
+
+### Key Metrics per Fase
+
+| KPI | Soft Launch | Groei | Matuur |
+|-----|-------------|-------|--------|
+| **MAU** | 200 | 5.000 | 30.000 |
+| **Registered users** | 500 | 15.000 | 75.000 |
+| **Premium conversion** | 8-10% | 10% | 10-12% |
+| **B2B orgs** | 3 | 40 | 150 |
+| **MRR** | €200 | €7.000 | €46.000 |
+| **ARR** | €2.500 | €86.000 | €555.000 |
+
+### Conclusie Revenue Analyse
+
+**B2C (Premium €50/jaar):**
+- Schaalt lineair met users
+- 10% conversie is conservatief voor niche-product (power users)
+- Potentieel €375k/jaar bij 75k users (7.5% van SAM)
+- Laagdrempelig, maar individuele support intensief
+
+**B2B (Hybrid model):**
+- Non-profit partnerships voor stabiele relaties (€50k)
+- Per-user voor commerciële bureaus (€60k)
+- Enterprise custom deals voor grote spelers (€50k)
+- Potentieel €160k/jaar bij 110 organisaties (~7% van SAM)
+- Hogere gemiddelde waarde, langere salescycles
+
+**Aanbeveling:**
+1. **Start B2C** voor product-market fit en brand awareness
+2. **Pilots B2B** met KNNV voor testimonials en case study
+3. **Scale B2B** als stabiele recurring revenue naast B2C
+4. **Target ARR:** €100k-250k in 2028 is haalbaar met 5-10% SAM penetratie
+
+**Risico's:**
+- Lagere conversie dan 10% (educatieve niche kan hoger zijn)
+- B2B salescycles kunnen 6-12 maanden duren
+- Afhankelijkheid van enkele grote organisaties
+
+**Upside:**
+- Niche met weinig directe concurrentie
+- GBIF/Xeno-canto integratie als moat
+- Community effect (decks delen) kan viraal groeien
+
+---
+
+### Bronnen Marktanalyse
+
+**Waarnemingsplatforms:**
+- [Compendium voor de Leefomgeving - Citizen Science](https://www.clo.nl/indicatoren/nl062501-citizen-science-voor-natuur)
+- [iNaturalist - 3 Million Observers](https://www.inaturalist.org/blog/91752-3-000-000-observers)
+- [iNaturalist - BioScience artikel](https://academic.oup.com/bioscience/article/75/11/953/8185761)
+- [eBird 2024 Year in Review](https://ebird.org/news/2024-year-in-review)
+- [eBird 2025 Year in Review](https://ebird.org/news/2025-year-in-review)
+- [Observation.org - GBIF Publisher](https://www.gbif.org/publisher/c8d737e0-2ff8-42e8-b8fc-6b805d26fc5f)
+
+**Natuur-apps:**
+- [Merlin Bird ID - Cornell Cornellians](https://alumni.cornell.edu/cornellians/merlin-bird-app/)
+- [BirdID Europe - Aptoide](https://birdid-nord-university.en.aptoide.com/app)
+- [Picture Bird - SimilarWeb](https://www.similarweb.com/app/google-play/com.glority.picturebird/statistics/)
+- [ObsIdentify - Observation.org](https://observation.org/apps/obsidentify/)
+- [Larkwire](https://www.larkwire.com/)
+
+---
+
+## Gerelateerde Documentatie
+
+| Document | Relatie |
+|----------|---------|
+| [Organization Pages](../features/organization-pages.md) | B2B features, competitive analyse, pricing benchmarks |
+| [Premium Features](../features/premium-features.md) | B2C premium tier details |
+| [Internationalisering](../research/internationalisering-i18n.md) | Strategie voor Europese markt |
+
+---
+
 ## Changelog
 
 | Datum | Wijziging |
@@ -700,3 +1067,6 @@ Entitlements systeem alleen als nodig voor:
 | 2026-02-03 | Pricing analyse toegevoegd (storage-only vs all-in) |
 | 2026-02-03 | Downgrade scenario's en soft lock strategie |
 | 2026-02-03 | Vergelijking subscription/entitlements systemen |
+| 2026-02-03 | Marktanalyse TAM/SAM/SOM toegevoegd |
+| 2026-02-03 | Natuur-apps sectie toegevoegd (Merlin, BirdID, etc.) |
+| 2026-02-03 | Revenue analyse: TAM/SAM/SOM × Pricing toegevoegd |

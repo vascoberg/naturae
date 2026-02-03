@@ -1,14 +1,16 @@
 "use client";
 
 import { useRef, useState, useEffect, useCallback } from "react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import { ArrowRight, Circle, Type, MousePointer2, Trash2 } from "lucide-react";
+import { ArrowRight, Circle, Type, MousePointer2, Trash2, ChevronUp, ChevronDown, Layers, Undo2, Redo2 } from "lucide-react";
 import {
   type Annotation,
   type AnnotationData,
   type AnnotationTool,
   type AnnotationColor,
   ANNOTATION_COLORS,
+  TEXT_BACKGROUNDS,
   generateId,
 } from "@/types/annotations";
 
@@ -43,8 +45,17 @@ export function AnnotationCanvas({
   });
   const [selectedTool, setSelectedTool] = useState<AnnotationTool>("select");
   const [selectedColor, setSelectedColor] = useState<AnnotationColor>("#EF4444");
+  const [selectedStrokeWidth, setSelectedStrokeWidth] = useState(25);
+  const [selectedFontSize, setSelectedFontSize] = useState(32);
+  const [selectedTextBackground, setSelectedTextBackground] = useState<string>(TEXT_BACKGROUNDS[0].value);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
+  const [showLayersPanel, setShowLayersPanel] = useState(false);
+
+  // Undo/redo history
+  const [history, setHistory] = useState<Annotation[][]>(() => [initialAnnotations?.annotations || []]);
+  const [historyIndex, setHistoryIndex] = useState(0);
+  const isUndoRedo = useRef(false);
 
   // Drawing state
   const [isDrawing, setIsDrawing] = useState(false);
@@ -84,6 +95,146 @@ export function AnnotationCanvas({
   useEffect(() => {
     console.log("textInput state changed:", textInput);
   }, [textInput]);
+
+  // Sync toolbar to selected annotation's properties
+  useEffect(() => {
+    if (!selectedId) return;
+
+    const selectedAnnotation = annotations.find((a) => a.id === selectedId);
+    if (!selectedAnnotation) return;
+
+    // Sync color
+    setSelectedColor(selectedAnnotation.color);
+
+    // Sync stroke width for arrow/circle
+    if (selectedAnnotation.type === "arrow" || selectedAnnotation.type === "circle") {
+      setSelectedStrokeWidth(selectedAnnotation.strokeWidth ?? 10);
+    }
+
+    // Sync text background and font size
+    if (selectedAnnotation.type === "text") {
+      setSelectedTextBackground(selectedAnnotation.backgroundColor ?? TEXT_BACKGROUNDS[0].value);
+      setSelectedFontSize(selectedAnnotation.fontSize ?? 32);
+    }
+  }, [selectedId]); // Only run when selection changes
+
+  // Update selected annotation when color changes
+  const handleColorChange = (newColor: string) => {
+    setSelectedColor(newColor);
+
+    // Update selected annotation if any
+    if (selectedId) {
+      setAnnotations((prev) =>
+        prev.map((a) => (a.id === selectedId ? { ...a, color: newColor } : a))
+      );
+    }
+  };
+
+  // Update selected annotation when stroke width changes
+  const handleStrokeWidthChange = (newWidth: number) => {
+    // Clamp to valid range
+    const clampedWidth = Math.max(1, Math.min(100, newWidth));
+    setSelectedStrokeWidth(clampedWidth);
+
+    // Update selected annotation if it's an arrow or circle
+    if (selectedId) {
+      setAnnotations((prev) =>
+        prev.map((a) => {
+          if (a.id !== selectedId) return a;
+          if (a.type === "arrow" || a.type === "circle") {
+            return { ...a, strokeWidth: clampedWidth };
+          }
+          return a;
+        })
+      );
+    }
+  };
+
+  // Update selected annotation when text background changes
+  const handleTextBackgroundChange = (newBackground: string) => {
+    setSelectedTextBackground(newBackground);
+
+    // Update selected annotation if it's text
+    if (selectedId) {
+      setAnnotations((prev) =>
+        prev.map((a) => {
+          if (a.id !== selectedId) return a;
+          if (a.type === "text") {
+            return { ...a, backgroundColor: newBackground };
+          }
+          return a;
+        })
+      );
+    }
+  };
+
+  // Update selected annotation when font size changes
+  const handleFontSizeChange = (newSize: number) => {
+    // Clamp to valid range
+    const clampedSize = Math.max(12, Math.min(100, newSize));
+    setSelectedFontSize(clampedSize);
+
+    // Update selected annotation if it's text
+    if (selectedId) {
+      setAnnotations((prev) =>
+        prev.map((a) => {
+          if (a.id !== selectedId) return a;
+          if (a.type === "text") {
+            return { ...a, fontSize: clampedSize };
+          }
+          return a;
+        })
+      );
+    }
+  };
+
+  // Push current state to history (called after significant changes)
+  const pushToHistory = useCallback((newAnnotations: Annotation[]) => {
+    if (isUndoRedo.current) {
+      isUndoRedo.current = false;
+      return;
+    }
+
+    setHistory((prev) => {
+      // Remove any forward history if we're not at the end
+      const newHistory = prev.slice(0, historyIndex + 1);
+      // Add new state
+      newHistory.push(newAnnotations);
+      // Limit history to 50 states
+      if (newHistory.length > 50) {
+        newHistory.shift();
+        return newHistory;
+      }
+      return newHistory;
+    });
+    setHistoryIndex((prev) => Math.min(prev + 1, 49));
+  }, [historyIndex]);
+
+  // Undo action
+  const handleUndo = useCallback(() => {
+    if (historyIndex <= 0) return;
+
+    isUndoRedo.current = true;
+    const newIndex = historyIndex - 1;
+    setHistoryIndex(newIndex);
+    setAnnotations(history[newIndex]);
+    setSelectedId(null);
+  }, [historyIndex, history]);
+
+  // Redo action
+  const handleRedo = useCallback(() => {
+    if (historyIndex >= history.length - 1) return;
+
+    isUndoRedo.current = true;
+    const newIndex = historyIndex + 1;
+    setHistoryIndex(newIndex);
+    setAnnotations(history[newIndex]);
+    setSelectedId(null);
+  }, [historyIndex, history]);
+
+  // Check if undo/redo are available
+  const canUndo = historyIndex > 0;
+  const canRedo = historyIndex < history.length - 1;
 
   // Render annotations on canvas
   const render = useCallback(() => {
@@ -134,40 +285,54 @@ export function AnnotationCanvas({
     isSelected: boolean,
     isHovered: boolean = false
   ) {
-    const { startX, startY, endX, endY, color } = arrow;
-    const headLength = 15;
+    const { startX, startY, endX, endY, color, strokeWidth = 2 } = arrow;
+
+    // Scale arrowhead proportionally with stroke width
+    const headLength = Math.max(15, strokeWidth * 3);
+    const headWidth = Math.max(10, strokeWidth * 2);
     const angle = Math.atan2(endY - startY, endX - startX);
+
+    // Calculate where the line should stop (at the base of the arrowhead)
+    const lineEndX = endX - headLength * Math.cos(angle);
+    const lineEndY = endY - headLength * Math.sin(angle);
+
+    // Set stroke width
+    ctx.lineWidth = isSelected ? strokeWidth + 1 : isHovered ? strokeWidth + 0.5 : strokeWidth;
+    ctx.strokeStyle = color;
+    ctx.fillStyle = color;
+    ctx.lineCap = "round";
 
     // Draw hover glow
     if (isHovered) {
       ctx.save();
-      ctx.strokeStyle = "rgba(59, 130, 246, 0.5)"; // Blue glow
-      ctx.lineWidth = 6;
+      ctx.strokeStyle = "rgba(59, 130, 246, 0.5)";
+      ctx.lineWidth = strokeWidth + 4;
       ctx.beginPath();
       ctx.moveTo(startX, startY);
-      ctx.lineTo(endX, endY);
+      ctx.lineTo(lineEndX, lineEndY);
       ctx.stroke();
       ctx.restore();
       ctx.strokeStyle = color;
+      ctx.lineWidth = strokeWidth;
     }
 
-    // Draw line
+    // Draw line (stopping before arrowhead)
     ctx.beginPath();
     ctx.moveTo(startX, startY);
-    ctx.lineTo(endX, endY);
+    ctx.lineTo(lineEndX, lineEndY);
     ctx.stroke();
 
-    // Draw arrowhead
+    // Draw arrowhead as filled triangle
+    const perpAngle = angle + Math.PI / 2;
+    const baseX1 = lineEndX + headWidth * Math.cos(perpAngle);
+    const baseY1 = lineEndY + headWidth * Math.sin(perpAngle);
+    const baseX2 = lineEndX - headWidth * Math.cos(perpAngle);
+    const baseY2 = lineEndY - headWidth * Math.sin(perpAngle);
+
     ctx.beginPath();
-    ctx.moveTo(endX, endY);
-    ctx.lineTo(
-      endX - headLength * Math.cos(angle - Math.PI / 6),
-      endY - headLength * Math.sin(angle - Math.PI / 6)
-    );
-    ctx.lineTo(
-      endX - headLength * Math.cos(angle + Math.PI / 6),
-      endY - headLength * Math.sin(angle + Math.PI / 6)
-    );
+    ctx.moveTo(endX, endY); // Tip of arrow
+    ctx.lineTo(baseX1, baseY1); // Base corner 1
+    ctx.lineTo(baseX2, baseY2); // Base corner 2
     ctx.closePath();
     ctx.fill();
 
@@ -190,17 +355,21 @@ export function AnnotationCanvas({
     isSelected: boolean,
     isHovered: boolean = false
   ) {
-    const { centerX, centerY, radius } = circle;
+    const { centerX, centerY, radius, strokeWidth = 2 } = circle;
+
+    // Set stroke width
+    ctx.lineWidth = isSelected ? strokeWidth + 1 : isHovered ? strokeWidth + 0.5 : strokeWidth;
 
     // Draw hover glow
     if (isHovered) {
       ctx.save();
       ctx.strokeStyle = "rgba(59, 130, 246, 0.5)"; // Blue glow
-      ctx.lineWidth = 6;
+      ctx.lineWidth = strokeWidth + 4;
       ctx.beginPath();
       ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
       ctx.stroke();
       ctx.restore();
+      ctx.lineWidth = strokeWidth;
     }
 
     ctx.beginPath();
@@ -223,7 +392,7 @@ export function AnnotationCanvas({
     isSelected: boolean,
     isHovered: boolean = false
   ) {
-    const { x, y, text: label, fontSize, color } = text;
+    const { x, y, text: label, fontSize, color, backgroundColor = "rgba(0,0,0,0.7)" } = text;
 
     ctx.font = `bold ${fontSize}px sans-serif`;
     const metrics = ctx.measureText(label);
@@ -240,9 +409,11 @@ export function AnnotationCanvas({
       ctx.restore();
     }
 
-    // Draw background
-    ctx.fillStyle = "rgba(0, 0, 0, 0.7)";
-    ctx.fillRect(x - padding, y - fontSize - padding, bgWidth, bgHeight);
+    // Draw background (if not transparent)
+    if (backgroundColor && backgroundColor !== "transparent") {
+      ctx.fillStyle = backgroundColor;
+      ctx.fillRect(x - padding, y - fontSize - padding, bgWidth, bgHeight);
+    }
 
     // Draw text
     ctx.fillStyle = color;
@@ -536,6 +707,7 @@ export function AnnotationCanvas({
         id: "preview",
         type: "arrow",
         color: selectedColor,
+        strokeWidth: selectedStrokeWidth,
         startX: drawStart.x,
         startY: drawStart.y,
         endX: pos.x,
@@ -549,6 +721,7 @@ export function AnnotationCanvas({
         id: "preview",
         type: "circle",
         color: selectedColor,
+        strokeWidth: selectedStrokeWidth,
         centerX: drawStart.x,
         centerY: drawStart.y,
         radius,
@@ -558,11 +731,13 @@ export function AnnotationCanvas({
 
   // Handle mouse up
   function handleMouseUp() {
-    // Reset drag/resize state
+    // Reset drag/resize state and save to history
     if (isDragging || resizeHandle) {
       setIsDragging(false);
       setResizeHandle(null);
       setDragStart(null);
+      // Push to history after drag/resize completes
+      pushToHistory(annotations);
       return;
     }
 
@@ -572,7 +747,10 @@ export function AnnotationCanvas({
     if (previewAnnotation && previewAnnotation.id === "preview") {
       // Add the annotation with a real ID
       const newAnnotation = { ...previewAnnotation, id: generateId() };
-      setAnnotations((prev) => [...prev, newAnnotation]);
+      const newAnnotations = [...annotations, newAnnotation];
+      setAnnotations(newAnnotations);
+      // Push to history
+      pushToHistory(newAnnotations);
       // Auto-select the new annotation and switch to select mode
       setSelectedId(newAnnotation.id);
       setSelectedTool("select");
@@ -591,12 +769,16 @@ export function AnnotationCanvas({
         id: newId,
         type: "text",
         color: selectedColor,
+        backgroundColor: selectedTextBackground,
         x: textInput.x,
         y: textInput.y,
         text: textInput.value.trim(),
-        fontSize: 16,
+        fontSize: selectedFontSize,
       };
-      setAnnotations((prev) => [...prev, newText]);
+      const newAnnotations = [...annotations, newText];
+      setAnnotations(newAnnotations);
+      // Push to history
+      pushToHistory(newAnnotations);
       // Auto-select the new annotation and switch to select mode
       setSelectedId(newId);
       setSelectedTool("select");
@@ -607,14 +789,68 @@ export function AnnotationCanvas({
   // Delete selected annotation
   function handleDelete() {
     if (selectedId) {
-      setAnnotations((prev) => prev.filter((a) => a.id !== selectedId));
+      const newAnnotations = annotations.filter((a) => a.id !== selectedId);
+      setAnnotations(newAnnotations);
+      pushToHistory(newAnnotations);
       setSelectedId(null);
     }
+  }
+
+  // Move annotation up in layer order (towards front)
+  function moveLayerUp(id: string) {
+    setAnnotations((prev) => {
+      const index = prev.findIndex((a) => a.id === id);
+      if (index === -1 || index === prev.length - 1) return prev; // Already at top
+      const newArr = [...prev];
+      [newArr[index], newArr[index + 1]] = [newArr[index + 1], newArr[index]];
+      return newArr;
+    });
+  }
+
+  // Move annotation down in layer order (towards back)
+  function moveLayerDown(id: string) {
+    setAnnotations((prev) => {
+      const index = prev.findIndex((a) => a.id === id);
+      if (index === -1 || index === 0) return prev; // Already at bottom
+      const newArr = [...prev];
+      [newArr[index], newArr[index - 1]] = [newArr[index - 1], newArr[index]];
+      return newArr;
+    });
+  }
+
+  // Get annotation type icon
+  function getAnnotationIcon(type: Annotation["type"]) {
+    switch (type) {
+      case "arrow": return "➡️";
+      case "circle": return "⭕";
+      case "text": return "T";
+    }
+  }
+
+  // Get annotation label for layers panel
+  function getAnnotationLabel(annotation: Annotation) {
+    if (annotation.type === "text") {
+      return annotation.text.length > 15 ? annotation.text.slice(0, 15) + "..." : annotation.text;
+    }
+    return annotation.type === "arrow" ? "Pijl" : "Cirkel";
   }
 
   // Handle keyboard shortcuts
   useEffect(() => {
     function handleKeyDown(e: KeyboardEvent) {
+      // Undo: Cmd+Z / Ctrl+Z
+      if ((e.metaKey || e.ctrlKey) && e.key === "z" && !e.shiftKey) {
+        e.preventDefault();
+        handleUndo();
+        return;
+      }
+      // Redo: Cmd+Shift+Z / Ctrl+Shift+Z or Ctrl+Y
+      if ((e.metaKey || e.ctrlKey) && (e.key === "y" || (e.key === "z" && e.shiftKey))) {
+        e.preventDefault();
+        handleRedo();
+        return;
+      }
+
       if (e.key === "Delete" || e.key === "Backspace") {
         if (selectedId && !textInput) {
           e.preventDefault();
@@ -632,7 +868,7 @@ export function AnnotationCanvas({
     }
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [selectedId, textInput]);
+  }, [selectedId, textInput, handleUndo, handleRedo]);
 
   // Handle save
   async function handleSave() {
@@ -721,7 +957,7 @@ export function AnnotationCanvas({
       console.error("Failed to save annotations:", error);
       // Show error to user
       const errorMessage = error instanceof Error ? error.message : "Onbekende fout bij opslaan";
-      alert(`Opslaan mislukt: ${errorMessage}`);
+      toast.error(`Opslaan mislukt: ${errorMessage}`);
     } finally {
       setIsSaving(false);
     }
@@ -843,7 +1079,7 @@ export function AnnotationCanvas({
       </main>
 
       {/* Toolbar */}
-      <footer className="border-t p-4 bg-background">
+      <footer className="border-t p-4 bg-background relative">
         <div className="flex items-center justify-center gap-4 flex-wrap">
           {/* Tool selection */}
           <div className="flex gap-1">
@@ -882,20 +1118,144 @@ export function AnnotationCanvas({
           </div>
 
           {/* Color selection */}
-          <div className="flex gap-1">
+          <div className="flex gap-1 flex-wrap items-center">
             {ANNOTATION_COLORS.map((color) => (
               <button
                 key={color}
-                onClick={() => setSelectedColor(color)}
-                className={`w-6 h-6 rounded-full border-2 ${
+                onClick={() => handleColorChange(color)}
+                className={`w-5 h-5 rounded-full border-2 ${
                   selectedColor === color
-                    ? "border-primary ring-2 ring-primary ring-offset-2"
+                    ? "border-primary ring-2 ring-primary ring-offset-1"
                     : "border-muted-foreground/30"
                 }`}
                 style={{ backgroundColor: color }}
                 title={color}
               />
             ))}
+            {/* Custom color picker */}
+            <div className="relative">
+              <input
+                type="color"
+                value={selectedColor}
+                onChange={(e) => handleColorChange(e.target.value)}
+                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                title="Kies een kleur"
+              />
+              <div
+                className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
+                  !ANNOTATION_COLORS.includes(selectedColor as typeof ANNOTATION_COLORS[number])
+                    ? "border-primary ring-2 ring-primary ring-offset-1"
+                    : "border-muted-foreground/30"
+                }`}
+                style={{
+                  background: !ANNOTATION_COLORS.includes(selectedColor as typeof ANNOTATION_COLORS[number])
+                    ? selectedColor
+                    : "conic-gradient(red, yellow, lime, aqua, blue, magenta, red)"
+                }}
+              />
+            </div>
+          </div>
+
+          {/* Stroke width slider - show for arrow/circle tools OR when arrow/circle is selected */}
+          {(selectedTool === "arrow" || selectedTool === "circle" ||
+            (selectedId && annotations.find(a => a.id === selectedId)?.type === "arrow") ||
+            (selectedId && annotations.find(a => a.id === selectedId)?.type === "circle")) && (
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-muted-foreground">Dikte:</span>
+              <input
+                type="range"
+                min={1}
+                max={50}
+                step={1}
+                value={selectedStrokeWidth}
+                onChange={(e) => handleStrokeWidthChange(Number(e.target.value))}
+                className="w-20 h-2 accent-primary cursor-pointer"
+              />
+              <input
+                type="number"
+                min={1}
+                max={100}
+                value={selectedStrokeWidth}
+                onChange={(e) => {
+                  const val = parseInt(e.target.value) || 1;
+                  handleStrokeWidthChange(Math.max(1, Math.min(100, val)));
+                }}
+                className="w-12 text-xs text-center border rounded px-1 py-0.5 bg-background"
+              />
+              <span className="text-xs text-muted-foreground">px</span>
+            </div>
+          )}
+
+          {/* Text controls - show for text tool OR when text annotation is selected */}
+          {(selectedTool === "text" ||
+            (selectedId && annotations.find(a => a.id === selectedId)?.type === "text")) && (
+            <>
+              {/* Font size slider */}
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-muted-foreground">Grootte:</span>
+                <input
+                  type="range"
+                  min={12}
+                  max={72}
+                  step={1}
+                  value={selectedFontSize}
+                  onChange={(e) => handleFontSizeChange(Number(e.target.value))}
+                  className="w-20 h-2 accent-primary cursor-pointer"
+                />
+                <input
+                  type="number"
+                  min={12}
+                  max={100}
+                  value={selectedFontSize}
+                  onChange={(e) => {
+                    const val = parseInt(e.target.value) || 12;
+                    handleFontSizeChange(Math.max(12, Math.min(100, val)));
+                  }}
+                  className="w-12 text-xs text-center border rounded px-1 py-0.5 bg-background"
+                />
+                <span className="text-xs text-muted-foreground">px</span>
+              </div>
+              {/* Text background */}
+              <div className="flex items-center gap-1">
+                <span className="text-xs text-muted-foreground mr-1">Achtergrond:</span>
+                {TEXT_BACKGROUNDS.map((bg) => (
+                  <button
+                    key={bg.value}
+                    onClick={() => handleTextBackgroundChange(bg.value)}
+                    className={`px-2 py-1 text-xs rounded border ${
+                      selectedTextBackground === bg.value
+                        ? "border-primary bg-primary/10"
+                        : "border-muted-foreground/30 hover:bg-muted"
+                    }`}
+                    title={bg.label}
+                  >
+                    {bg.label}
+                  </button>
+                ))}
+              </div>
+            </>
+          )}
+
+          {/* Undo/Redo buttons */}
+          <div className="flex gap-1">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleUndo}
+              disabled={!canUndo}
+              title="Ongedaan maken (Ctrl+Z)"
+            >
+              <Undo2 className="w-4 h-4" />
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleRedo}
+              disabled={!canRedo}
+              title="Opnieuw (Ctrl+Shift+Z)"
+            >
+              <Redo2 className="w-4 h-4" />
+            </Button>
           </div>
 
           {/* Delete button */}
@@ -908,7 +1268,98 @@ export function AnnotationCanvas({
           >
             <Trash2 className="w-4 h-4" />
           </Button>
+
+          {/* Layers toggle button */}
+          <Button
+            variant={showLayersPanel ? "default" : "outline"}
+            size="sm"
+            onClick={() => setShowLayersPanel(!showLayersPanel)}
+            title="Lagen"
+            disabled={annotations.length === 0}
+          >
+            <Layers className="w-4 h-4" />
+            {annotations.length > 0 && (
+              <span className="ml-1 text-xs">{annotations.length}</span>
+            )}
+          </Button>
         </div>
+
+        {/* Floating Layers panel - positioned above toolbar */}
+        {showLayersPanel && annotations.length > 0 && (
+          <div className="absolute bottom-full right-4 mb-2 w-64 bg-background border rounded-lg shadow-lg p-3 z-50">
+            <div className="text-xs font-medium text-muted-foreground mb-2">Lagen (boven = voorgrond)</div>
+            <div className="flex flex-col gap-1 max-h-48 overflow-y-auto">
+              {/* Show in reverse order: last item (top layer) first */}
+              {[...annotations].reverse().map((annotation, reversedIndex) => {
+                const actualIndex = annotations.length - 1 - reversedIndex;
+                const isTop = actualIndex === annotations.length - 1;
+                const isBottom = actualIndex === 0;
+
+                return (
+                  <div
+                    key={annotation.id}
+                    onClick={() => setSelectedId(annotation.id)}
+                    className={`flex items-center gap-2 px-2 py-1.5 rounded cursor-pointer text-sm ${
+                      selectedId === annotation.id
+                        ? "bg-primary/10 border border-primary"
+                        : "bg-muted/50 hover:bg-muted border border-transparent"
+                    }`}
+                  >
+                    {/* Type icon */}
+                    <span className="w-5 text-center">
+                      {getAnnotationIcon(annotation.type)}
+                    </span>
+
+                    {/* Color indicator */}
+                    <span
+                      className="w-3 h-3 rounded-full border border-muted-foreground/30"
+                      style={{ backgroundColor: annotation.color }}
+                    />
+
+                    {/* Label */}
+                    <span className="flex-1 truncate text-xs">
+                      {getAnnotationLabel(annotation)}
+                    </span>
+
+                    {/* Up/Down buttons */}
+                    <div className="flex gap-0.5">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          moveLayerUp(annotation.id);
+                        }}
+                        disabled={isTop}
+                        className={`p-0.5 rounded ${
+                          isTop
+                            ? "text-muted-foreground/30 cursor-not-allowed"
+                            : "hover:bg-background text-muted-foreground hover:text-foreground"
+                        }`}
+                        title="Naar voren"
+                      >
+                        <ChevronUp className="w-3.5 h-3.5" />
+                      </button>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          moveLayerDown(annotation.id);
+                        }}
+                        disabled={isBottom}
+                        className={`p-0.5 rounded ${
+                          isBottom
+                            ? "text-muted-foreground/30 cursor-not-allowed"
+                            : "hover:bg-background text-muted-foreground hover:text-foreground"
+                        }`}
+                        title="Naar achteren"
+                      >
+                        <ChevronDown className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
       </footer>
     </div>
   );

@@ -1,9 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import { LayoutGrid, List, Music, BookOpen } from "lucide-react";
+import { LayoutGrid, List, Music, BookOpen, ZoomIn } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { SpeciesSheet } from "@/components/species/species-sheet";
 
 interface CardMedia {
@@ -55,6 +56,7 @@ interface CardGridViewProps {
 export function CardGridView({ cards }: CardGridViewProps) {
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const [speciesSheetId, setSpeciesSheetId] = useState<string | null>(null);
+  const [viewingImage, setViewingImage] = useState<string | null>(null);
 
   return (
     <section>
@@ -89,13 +91,23 @@ export function CardGridView({ cards }: CardGridViewProps) {
             return (
               <Card key={card.id} className="overflow-hidden">
                 {/* Thumbnail area */}
-                <div className="aspect-[4/3] bg-muted relative">
+                <div className="aspect-[4/3] bg-muted relative group">
                   {imageMedia ? (
-                    <img
-                      src={imageMedia.annotated_url || imageMedia.url}
-                      alt=""
-                      className="w-full h-full object-cover"
-                    />
+                    <>
+                      <img
+                        src={imageMedia.annotated_url || imageMedia.url}
+                        alt=""
+                        className="w-full h-full object-cover cursor-pointer"
+                        onClick={() => setViewingImage(imageMedia.annotated_url || imageMedia.url)}
+                      />
+                      <button
+                        onClick={() => setViewingImage(imageMedia.annotated_url || imageMedia.url)}
+                        className="absolute bottom-2 right-2 w-7 h-7 bg-background/90 hover:bg-background rounded-full flex items-center justify-center shadow-sm opacity-0 group-hover:opacity-100 transition-opacity"
+                        title="Vergroten"
+                      >
+                        <ZoomIn className="w-3.5 h-3.5" />
+                      </button>
+                    </>
                   ) : audioMedia ? (
                     <div className="w-full h-full flex items-center justify-center">
                       <Music className="w-8 h-8 text-muted-foreground" />
@@ -145,7 +157,9 @@ export function CardGridView({ cards }: CardGridViewProps) {
                       <img
                         src={imageMedia.annotated_url || imageMedia.url}
                         alt=""
-                        className="w-8 h-8 object-cover rounded flex-shrink-0"
+                        className="w-8 h-8 object-cover rounded flex-shrink-0 cursor-pointer hover:opacity-80 transition-opacity"
+                        onClick={() => setViewingImage(imageMedia.annotated_url || imageMedia.url)}
+                        title="Klik om te vergroten"
                       />
                     ) : audioMedia ? (
                       <div className="w-8 h-8 bg-muted rounded flex items-center justify-center flex-shrink-0">
@@ -178,6 +192,20 @@ export function CardGridView({ cards }: CardGridViewProps) {
         open={!!speciesSheetId}
         onOpenChange={(open) => !open && setSpeciesSheetId(null)}
       />
+
+      {/* Image Viewer Dialog */}
+      <Dialog open={!!viewingImage} onOpenChange={(open) => !open && setViewingImage(null)}>
+        <DialogContent className="max-w-4xl p-2">
+          <DialogTitle className="sr-only">Afbeelding vergroten</DialogTitle>
+          {viewingImage && (
+            <img
+              src={viewingImage}
+              alt=""
+              className="w-full h-auto max-h-[80vh] object-contain rounded"
+            />
+          )}
+        </DialogContent>
+      </Dialog>
     </section>
   );
 }

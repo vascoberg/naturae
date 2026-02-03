@@ -54,8 +54,8 @@ export default function NewDeckPage() {
         throw insertError;
       }
 
-      // Redirect naar deck pagina waar kaarten toegevoegd kunnen worden
-      router.push(`/decks/${deck.id}`);
+      // Redirect direct naar edit mode zodat gebruiker meteen kaarten kan toevoegen
+      router.push(`/decks/${deck.id}/edit`);
     } catch (err) {
       console.error("Error creating deck:", err);
       setError("Er ging iets mis bij het aanmaken van de leerset");

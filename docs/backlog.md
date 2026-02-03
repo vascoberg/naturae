@@ -18,12 +18,18 @@
 
 *Kleine verbeteringen die snel opgepakt kunnen worden.*
 
-### Homepage Content Update
-De homepage content is geschreven toen Naturae alleen flashcards had. Nu zijn er quiz-modus, soortenpagina's, annotaties, etc.
+### Homepage Content Update ✅
+~~De homepage content is geschreven toen Naturae alleen flashcards had.~~
 
-**Te updaten:**
-- **Tagline:** "Ontdek flashcards gemaakt door de community en leer vogels, planten, insecten en meer te herkennen." → Bredere focus op leerplatform
-- **"Hoe het werkt" sectie:** Verouderd, noemt alleen flashcards
+**Afgerond 3 feb 2026:**
+- [x] H1: "Leer de natuur kennen"
+- [x] Tagline: "Ontdek leersets van de community en leer soorten herkennen op beeld en geluid."
+- [x] "Hoe het werkt" sectie: Updated met quiz-modus en soortenpagina's
+- [x] Zoekbalk placeholder: "Zoek op titel of soort..."
+
+### Nieuwe Deck Flow Fix ✅
+**Afgerond 3 feb 2026:**
+- [x] Na aanmaken deck direct naar edit modus (ipv overzichtspagina)
 
 ### Cookie Banner / Privacy Compliance
 Naturae tracked niets behalve Vercel Analytics. Is een cookie banner nodig?
@@ -55,19 +61,50 @@ Private decks delen via unieke link.
 - Token intrekken mogelijk
 - Toegang zonder account
 
-### Zoeken op Soort in Discover
-Op `/discover` kun je nu zoeken op leerset-titel. Uitbreiden naar zoeken op soort:
-- Gebruiker zoekt "Koolmees"
-- Alle publieke decks waar "Koolmees" in voorkomt worden getoond
-- Technisch: zoeken in `cards.back_text` of `species.canonical_name`
+### Zoeken op Soort in Discover ✅
+~~Op `/discover` kun je nu zoeken op leerset-titel.~~
 
-### Annotatie Tool Verbeteringen
-De annotatie-editor werkt, maar kan gebruiksvriendelijker. [Rosanne feedback]
-- Verschillende diktes voor cirkels en pijlen
-- Achtergrondkleur voor tekstblokjes (nu alleen tekst)
-- Meer kleuren opties
-- Undo/redo functionaliteit
-- Mobile touch support verbeteren
+**Afgerond 3 feb 2026:**
+- [x] Zoeken op soortnaam via `cards.back_text`
+- [x] Gecombineerde query: titel OR soortnaam match
+- [x] Placeholder aangepast naar "Zoek op titel of soort..."
+
+### Annotatie Tool Verbeteringen ✅
+De annotatie-editor is sterk verbeterd. [Rosanne feedback]
+
+**Afgerond:**
+- [x] Stroke width slider (1-50, default 25) + numerieke input
+- [x] Font size slider (12-100, default 32) + numerieke input
+- [x] Color picker met 7 presets + native picker
+- [x] Edit bestaande annotaties (kleur/dikte/grootte wijzigen)
+- [x] Layers panel voor z-index control
+- [x] Proportionele pijlpunten
+- [x] Image viewer in deck editor (klik om te vergroten)
+- [x] Diverse bug fixes (hard refresh, delete, label)
+
+**Nog te doen (lage prioriteit):**
+- [x] Undo/redo functionaliteit (Ctrl+Z / Cmd+Z)
+- [ ] Mobile touch support verbeteren
+
+[Documentatie](features/annotation-tool-improvements.md)
+
+### Flashcard Layout Verbetering
+De huidige flashcard-weergave maakt slecht gebruik van schermruimte vergeleken met Quizlet.
+
+**Probleem:**
+- Kaart te klein in het midden van het scherm
+- Veel lege ruimte rondom
+- Afbeeldingen en annotaties zijn nauwelijks zichtbaar
+- Sidebar neemt ruimte in tijdens leermodus
+
+**Gewenst:**
+- Grotere kaarten die meer schermruimte benutten
+- Media (afbeelding/audio) prominent weergegeven
+- Antwoordopties goed zichtbaar
+- Responsive: werkt op desktop en mobiel
+- Niet per se donkere achtergrond zoals Quizlet, maar wel immersief
+
+**Referentie:** Quizlet flashcard-modus als benchmark
 
 ### Quiz Keyboard Shortcuts
 Snel antwoorden met toetsenbord.
@@ -111,13 +148,24 @@ Organisatiefunctionaliteit voor KNNV, onderwijsinstellingen (HVHL) en adviesbure
 **Gerelateerd:**
 - [Premium Features - Organisatie tier](features/premium-features.md)
 - [KNNV Feedback Jaap](research/knnv-feedback-jaap-graveland.md)
-- [Quizlet Group Features](research/group-features-quizlet.md)
 
 ### Internationalisering (i18n)
-Engels ondersteunen naast Nederlands.
+Engels ondersteunen naast Nederlands voor internationale uitrol.
+
+**Waarom prioriteit:**
+- Platform is inherent internationaal (GBIF + Xeno-canto = alle soorten wereldwijd)
+- Tagging systeem ondersteunt al regio/land filtering
+- Latijnse soortnamen zijn universeel → cross-taal bruikbaar
+
+**Technisch:**
 - next-intl library
 - URL routing `/en/...`
-- [Onderzoek](research/internationalisering-i18n.md) ✅
+- [Uitgebreid onderzoek + implementatieplan](research/internationalisering-i18n.md) ✅
+
+**Launch strategie:**
+- Reddit posts op r/ecology, r/birding, r/botany etc.
+- Transparant over vertaalkwaliteit → community feedback uitnodigen
+- Andere aanpak dan NL soft launch (LinkedIn)
 
 ### Meerdere Media per Kaart
 Variatie: meerdere foto's/geluiden per kaart, random selectie.

@@ -2,10 +2,11 @@
 
 import { useState, useRef } from "react";
 import Link from "next/link";
-import { Image as ImageIcon, Music, X, Loader2, RefreshCw, Pencil, PenTool, Search } from "lucide-react";
+import { Image as ImageIcon, Music, X, Loader2, RefreshCw, Pencil, PenTool, Search, ZoomIn } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { createClient } from "@/lib/supabase/client";
 import { addCardMedia, addGBIFMediaToCard, addXenoCantoAudioToCard, deleteCardMedia, updateCardMediaAttribution } from "@/lib/actions/decks";
 import { GBIFMediaPicker } from "./gbif-media-picker";
@@ -77,6 +78,7 @@ export function CardSideEditor({
   const [editingAttributionValue, setEditingAttributionValue] = useState("");
   const [isGBIFPickerOpen, setIsGBIFPickerOpen] = useState(false);
   const [isXenoCantoPickerOpen, setIsXenoCantoPickerOpen] = useState(false);
+  const [viewingImage, setViewingImage] = useState<string | null>(null);
   const imageInputRef = useRef<HTMLInputElement>(null);
   const audioInputRef = useRef<HTMLInputElement>(null);
 
@@ -400,8 +402,17 @@ export function CardSideEditor({
               <img
                 src={imageMedia[0].annotatedUrl || imageMedia[0].url}
                 alt=""
-                className="w-full h-full object-cover"
+                className="w-full h-full object-cover cursor-pointer"
+                onClick={() => setViewingImage(imageMedia[0].annotatedUrl || imageMedia[0].url)}
               />
+              {/* Zoom button - zichtbaar bij hover */}
+              <button
+                onClick={() => setViewingImage(imageMedia[0].annotatedUrl || imageMedia[0].url)}
+                className="absolute bottom-2 right-2 w-8 h-8 bg-background/90 hover:bg-background rounded-full flex items-center justify-center shadow-sm opacity-0 group-hover:opacity-100 transition-opacity"
+                title="Vergroten"
+              >
+                <ZoomIn className="w-4 h-4" />
+              </button>
               {/* Badge voor geannoteerde afbeelding */}
               {imageMedia[0].annotatedUrl && (
                 <span className="absolute top-2 left-2 bg-primary text-primary-foreground text-[10px] px-1.5 py-0.5 rounded font-medium">
@@ -457,8 +468,17 @@ export function CardSideEditor({
               <img
                 src={pendingMedia.gbifData.identifier}
                 alt=""
-                className="w-full h-full object-cover"
+                className="w-full h-full object-cover cursor-pointer"
+                onClick={() => setViewingImage(pendingMedia.gbifData.identifier)}
               />
+              {/* Zoom button */}
+              <button
+                onClick={() => setViewingImage(pendingMedia.gbifData.identifier)}
+                className="absolute bottom-2 right-2 w-8 h-8 bg-background/90 hover:bg-background rounded-full flex items-center justify-center shadow-sm opacity-0 group-hover:opacity-100 transition-opacity"
+                title="Vergroten"
+              >
+                <ZoomIn className="w-4 h-4" />
+              </button>
               {/* Badge voor pending status */}
               <span className="absolute top-2 left-2 bg-amber-500 text-white text-[10px] px-1.5 py-0.5 rounded font-medium">
                 Wordt opgeslagen
@@ -703,6 +723,20 @@ export function CardSideEditor({
           onSelect={handleXenoCantoSelect}
         />
       )}
+
+      {/* Image Viewer Dialog */}
+      <Dialog open={!!viewingImage} onOpenChange={(open) => !open && setViewingImage(null)}>
+        <DialogContent className="max-w-4xl p-2 sm:p-4" showCloseButton>
+          <DialogTitle className="sr-only">Afbeelding vergroten</DialogTitle>
+          {viewingImage && (
+            <img
+              src={viewingImage}
+              alt=""
+              className="w-full h-auto max-h-[80vh] object-contain rounded"
+            />
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

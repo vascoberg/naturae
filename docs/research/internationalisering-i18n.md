@@ -519,12 +519,223 @@ Optie voor later: community-bijdragen aan vertalingen via:
 
 ---
 
-## 10. Bronnen
+## 10. Globale Visie & Waarom i18n
 
+### Platform is Inherent Internationaal
+
+Naturae kan wereldwijd gebruikt worden omdat:
+
+1. **GBIF API** - Biedt toegang tot soorten van over de hele wereld
+2. **Xeno-canto API** - Vogelgeluiden uit alle landen
+3. **Tagging systeem** - Gebruikers kunnen al filteren op land, werelddeel of regio
+4. **User-generated content** - Leersets in elke taal mogelijk
+
+De technische basis voor internationaal gebruik is er al. Alleen de UI is nog Nederlands-only.
+
+### Ontdekken van Leersets
+
+Bij internationalisering moet het ontdekken van leersets intuïtief blijven:
+
+- **Taalfilter op /discover** - Leersets per taal tonen
+- **Regio tags prominent** - "Europe", "North America", etc.
+- **Automatische detectie** - Browser-taal → relevante content eerst tonen
+- **Crossover mogelijk** - Een Duitser kan ook Nederlandse vogelsets gebruiken (Latijnse namen zijn universeel)
+
+---
+
+## 11. Internationale Launch Strategie
+
+### Anders dan Soft Launch
+
+De Nederlandse soft launch ging via LinkedIn (persoonlijk netwerk, KNNV, natuurgemeenschap). Voor internationaal is een andere aanpak nodig.
+
+### Reddit als Launch Kanaal
+
+**Waarom Reddit:**
+- r/ecology, r/biology, r/naturalists hebben veel verkeer
+- Internationale community van natuurliefhebbers
+- Techsavvy gebruikers die nieuwe tools proberen
+- Oprechte feedback cultuur
+
+**Potentiële Subreddits (geverifieerd februari 2026):**
+
+| Subreddit | Members | Focus | Relevantie |
+|-----------|---------|-------|------------|
+| [r/birding](https://reddit.com/r/birding) | **681k** | Birdwatching, foto's | Hoog - grootste natuur-community |
+| [r/plants](https://reddit.com/r/plants) | **502k** | Algemeen planten | Medium |
+| [r/ecology](https://reddit.com/r/ecology) | **200k+** | Ecologie breed | Hoog - doelgroep |
+| [r/botany](https://reddit.com/r/botany) | **200k+** | Plantenkunde | Hoog |
+| [r/naturalists](https://reddit.com/r/naturalists) | **50k+** | Natuurliefhebbers | Hoog - perfecte fit |
+| [r/whatsthisbird](https://reddit.com/r/whatsthisbird) | **44k** | Vogelidentificatie | Medium |
+| [r/wildlifebiology](https://reddit.com/r/wildlifebiology) | **~30k** | Wildlife professionals | Hoog |
+| [r/FieldBiology](https://reddit.com/r/FieldBiology) | **~20k** | Veldwerk | Hoog |
+| [r/Ornithology](https://reddit.com/r/Ornithology) | **14k** | Vogelwetenschap | Hoog (maar strenge regels) |
+
+**Let op:** r/biology (3M+) is te breed en generiek voor effectieve promotie.
+
+### Reddit Regels & Strategie
+
+**Belangrijke regels om te weten:**
+
+| Regel | Wat het betekent |
+|-------|------------------|
+| **10% regel** | Max 10% van je Reddit-activiteit mag promotioneel zijn |
+| **9:1 ratio** | 9 waardevolle comments voor elke promotionele post |
+| **Karma vereiste** | Veel subreddits vereisen 30-50+ karma voordat je mag posten |
+| **Cross-posting** | Niet tegelijk naar meerdere subs posten → spam detectie |
+| **Sidebar lezen** | Elke subreddit heeft eigen regels |
+
+**Huidige situatie:** Nog nooit op Reddit gepost of gecomment. Dit betekent:
+- 0 karma → posts worden mogelijk automatisch geblokkeerd
+- Geen track record → moderators zijn wantrouwiger
+
+**Voorbereiding nodig (2-4 weken voor launch):**
+1. Account aanmaken (indien nog niet gedaan)
+2. Lid worden van relevante subreddits
+3. Regelmatig nuttige comments plaatsen (niet promotioneel)
+4. Doel: 50+ karma opbouwen
+5. Dan pas eerste promotionele post
+
+### Gefaseerde Posting Strategie
+
+**Waarom niet overal tegelijk posten:**
+- Veel overlap in gebruikers tussen natuur-subreddits
+- Reddit's spam detectie triggert bij cross-posting
+- Moderators van natuur-subs praten met elkaar
+- Dezelfde post 3x zien → spam-gevoel bij users
+
+**Aanbevolen aanpak:**
+
+```
+Week 1:  r/ecology
+         → Breed publiek, laagdrempelig
+         → Verzamel feedback, beantwoord ALLE comments
+
+Week 2:  r/birding
+         → Grootste community, vogelfocus
+         → Pas post aan op basis van week 1 feedback
+
+Week 3:  r/botany OF r/naturalists
+         → Kies op basis van welke content je hebt
+
+Week 4+: Kleinere niche communities
+         → r/FieldBiology, r/wildlifebiology
+         → r/Ornithology (strenge regels, lees sidebar!)
+```
+
+**Per post:**
+- Wacht 2-3 weken tussen posts in zelfde subreddit
+- Pas titel/content aan per community (r/birding wil foto's, r/botany wil details)
+- Reageer actief op ELKE comment - dit bouwt goodwill
+
+### Post Template (Concept)
+
+```
+Title: I built a free species learning platform with GBIF & Xeno-canto integration - feedback welcome!
+
+Hey [subreddit],
+
+I'm an ecologist from the Netherlands, and I got frustrated that no app
+combines species learning with proper nature data sources. Quizlet has
+no GBIF integration. Merlin/iNaturalist are great for ID but not for
+learning. BirdID only does birds.
+
+So I built Naturae (naturae.app) - a flashcard/quiz platform specifically
+for learning species identification.
+
+What makes it different:
+- GBIF integration: Add species with verified photos + automatic attribution
+- Xeno-canto: Learn bird songs with real recordings
+- Photo annotations: Mark distinguishing features on images
+- Quiz mode with taxonomically-smart distractors (related species as wrong answers)
+- All taxon groups: birds, plants, insects, mammals, fungi...
+
+The platform is free and I just added English (+ other languages).
+I'm not 100% sure if the translations make sense everywhere -
+I'd love feedback from native speakers!
+
+You can:
+- Browse existing learning sets on /discover
+- Create your own sets (account required)
+- Study with flashcards or quiz mode
+
+Happy to answer questions or hear feedback. This is a passion project
+born from my own frustration, and I want it to be useful for the community.
+
+[Link to naturae.app]
+```
+
+**Sterke punten van dit verhaal:**
+- "Ecologist" geeft credibiliteit in de doelgroep
+- "Frustration" is relatable - mensen herkennen het probleem
+- Concrete vergelijking met bekende apps (Quizlet, Merlin, BirdID)
+- Gap in de markt wordt duidelijk
+- Authentiek, niet commercieel
+
+### Eerlijkheid over Vertalingen
+
+Belangrijk punt: transparant zijn dat vertalingen mogelijk niet perfect zijn.
+
+- Vertalingen worden initieel via i18n library gegenereerd
+- Native speakers kunnen feedback geven
+- Community contributions welkom (via GitHub of feedback form)
+- Toont authenticiteit en uitnodiging tot meehelpen
+
+### Timing & Voorbereiding
+
+**Fase 0: Reddit Account Opbouwen (2-4 weken)**
+- [ ] Reddit account aanmaken
+- [ ] Lid worden van r/ecology, r/birding, r/botany, r/naturalists
+- [ ] Dagelijks 1-2 nuttige comments plaatsen (niet promotioneel)
+- [ ] Doel: 50+ karma bereiken
+- [ ] Sidebar regels lezen van target subreddits
+
+**Fase 1: i18n Implementatie**
+- Engels als tweede taal toevoegen
+- Testen met kleine groep (Rosanne's contacten?)
+
+**Fase 2: Launch Posts (gefaseerd)**
+- Week 1: r/ecology
+- Week 2: r/birding
+- Week 3+: Overige subreddits
+
+**Fase 3: Follow-up**
+- Actief reageren op ALLE comments
+- Bug reports snel fixen
+- Feedback verwerken
+
+### Succes Metrics
+
+| Metric | Doel eerste maand |
+|--------|-------------------|
+| Signups uit Reddit | 50-100 |
+| Nieuwe publieke decks | 10-20 |
+| Bug reports / feedback | Actief verzamelen |
+| Upvotes op post | N/A (niet primair doel) |
+
+---
+
+## 12. Bronnen
+
+### Technisch
 - [next-intl Documentatie](https://next-intl-docs.vercel.app/)
 - [Next.js Internationalization](https://nextjs.org/docs/app/building-your-application/routing/internationalization)
 - [ICU Message Format](https://unicode-org.github.io/icu/userguide/format_parse/messages/) (voor plurals, etc.)
 
+### Reddit Marketing
+- [Reddit Spam Rules](https://support.reddithelp.com/hc/en-us/articles/360043504051-Spam)
+- [How to Promote on Reddit Without Getting Banned](https://vyper.ai/blog/promote-on-reddit/)
+- [Reddit Self-Promotion Guide](https://www.growandconvert.com/marketing/reddit-marketing/)
+- [r/birding Stats](https://gummysearch.com/r/birding/) - 681k members
+
+### Gerelateerde Documentatie
+
+| Document | Relatie |
+|----------|---------|
+| [Business Model - Marktanalyse](../operations/business-model.md#marktanalyse-tamsomsom) | Europese SAM/SOM cijfers |
+| [Organization Pages](../features/organization-pages.md) | B2B strategie voor EU markt |
+| [Backlog](../backlog.md) | i18n als backlog item |
+
 ---
 
-*Laatste update: 30 januari 2026*
+*Laatste update: 3 februari 2026*
