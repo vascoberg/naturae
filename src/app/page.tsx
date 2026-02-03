@@ -118,11 +118,11 @@ export default async function Home() {
         <div className="container mx-auto px-4 relative">
           <div className="max-w-xl text-left">
             <h1 className="text-4xl md:text-5xl font-bold tracking-tight mb-6">
-              Leer soorten herkennen
+              Leer de natuur kennen
             </h1>
             <p className="text-xl text-muted-foreground mb-10">
-              Ontdek flashcards gemaakt door de community en leer vogels,
-              planten, insecten en meer te herkennen.
+              Ontdek leersets van de community en leer soorten herkennen op
+              beeld en geluid.
             </p>
 
             {/* Search bar */}
@@ -132,7 +132,7 @@ export default async function Home() {
                 <Input
                   type="search"
                   name="q"
-                  placeholder="Zoek leersets..."
+                  placeholder="Zoek op titel of soort..."
                   className="pl-12 pr-4 py-6 text-lg rounded-full border-2 focus-visible:ring-primary"
                 />
               </div>
@@ -242,17 +242,18 @@ export default async function Home() {
               </div>
               <h3 className="font-semibold mb-2">Kies een leerset</h3>
               <p className="text-sm text-muted-foreground">
-                Blader door openbare leersets of maak je eigen collectie.
+                Ontdek leersets van de community of maak je eigen collectie met
+                foto&apos;s en geluiden.
               </p>
             </div>
             <div className="text-center">
               <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-4">
                 <span className="text-xl">2</span>
               </div>
-              <h3 className="font-semibold mb-2">Oefen met flashcards</h3>
+              <h3 className="font-semibold mb-2">Quiz of flashcards</h3>
               <p className="text-sm text-muted-foreground">
-                Bekijk foto&apos;s en geluiden, draai de kaart om en check je
-                antwoord.
+                Test jezelf met meerkeuze quizzen of oefen op je eigen tempo met
+                flashcards.
               </p>
             </div>
             <div className="text-center">
@@ -261,7 +262,8 @@ export default async function Home() {
               </div>
               <h3 className="font-semibold mb-2">Leer effectief</h3>
               <p className="text-sm text-muted-foreground">
-                Slim herhalen zorgt dat je het onthoudt. Op je eigen tempo.
+                Slim herhalen zorgt dat je het onthoudt. Verdiep je met
+                soortenpagina&apos;s.
               </p>
             </div>
           </div>

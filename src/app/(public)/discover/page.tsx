@@ -31,6 +31,20 @@ export default async function DiscoverPage({ searchParams }: DiscoverPageProps) 
     data: { user },
   } = await supabase.auth.getUser();
 
+  // Als er een zoekopdracht is, zoek ook in kaarten (back_text = soortnaam)
+  let deckIdsFromCardSearch: string[] | null = null;
+  if (searchQuery) {
+    const { data: matchingCards } = await supabase
+      .from("cards")
+      .select("deck_id")
+      .ilike("back_text", `%${searchQuery}%`)
+      .is("deleted_at", null);
+
+    if (matchingCards && matchingCards.length > 0) {
+      deckIdsFromCardSearch = [...new Set(matchingCards.map((c) => c.deck_id))];
+    }
+  }
+
   // Als tags geselecteerd zijn, haal eerst deck IDs op die deze tags hebben
   let deckIdsWithTags: string[] | null = null;
   if (selectedTagSlugs.length > 0) {
@@ -93,9 +107,15 @@ export default async function DiscoverPage({ searchParams }: DiscoverPageProps) 
   // Eigen decks worden ook getoond - zo kunnen makers zien hoe hun deck eruitziet
   // en is de pagina niet leeg als er nog weinig gebruikers zijn
 
-  // Zoeken op titel
+  // Zoeken op titel OF soortnaam (back_text van kaarten)
   if (searchQuery) {
-    query = query.ilike("title", `%${searchQuery}%`);
+    if (deckIdsFromCardSearch && deckIdsFromCardSearch.length > 0) {
+      // Zoek op titel OF deck bevat kaart met matchende soortnaam
+      query = query.or(`title.ilike.%${searchQuery}%,id.in.(${deckIdsFromCardSearch.join(",")})`);
+    } else {
+      // Alleen zoeken op titel (geen kaarten gevonden)
+      query = query.ilike("title", `%${searchQuery}%`);
+    }
   }
 
   // Sorteren
@@ -145,7 +165,7 @@ export default async function DiscoverPage({ searchParams }: DiscoverPageProps) 
               type="search"
               name="q"
               defaultValue={searchQuery}
-              placeholder="Zoek op titel..."
+              placeholder="Zoek op titel of soort..."
               className="pl-10"
             />
           </div>

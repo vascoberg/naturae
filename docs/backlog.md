@@ -14,6 +14,25 @@
 
 ---
 
+## Quick Wins & UX Polish
+
+*Kleine verbeteringen die snel opgepakt kunnen worden.*
+
+### Homepage Content Update
+De homepage content is geschreven toen Naturae alleen flashcards had. Nu zijn er quiz-modus, soortenpagina's, annotaties, etc.
+
+**Te updaten:**
+- **Tagline:** "Ontdek flashcards gemaakt door de community en leer vogels, planten, insecten en meer te herkennen." → Bredere focus op leerplatform
+- **"Hoe het werkt" sectie:** Verouderd, noemt alleen flashcards
+
+### Cookie Banner / Privacy Compliance
+Naturae tracked niets behalve Vercel Analytics. Is een cookie banner nodig?
+- [ ] Onderzoek: wat eist AVG voor Vercel Analytics?
+- [ ] Bestaande privacy pagina: `/privacy`
+- [ ] Conclusie documenteren
+
+---
+
 ## Klaar voor Implementatie
 
 *Uitgewerkt en klaar om op te pakken wanneer je zin hebt.*
@@ -35,6 +54,20 @@ Private decks delen via unieke link.
 - `/decks/share/{token}` URL
 - Token intrekken mogelijk
 - Toegang zonder account
+
+### Zoeken op Soort in Discover
+Op `/discover` kun je nu zoeken op leerset-titel. Uitbreiden naar zoeken op soort:
+- Gebruiker zoekt "Koolmees"
+- Alle publieke decks waar "Koolmees" in voorkomt worden getoond
+- Technisch: zoeken in `cards.back_text` of `species.canonical_name`
+
+### Annotatie Tool Verbeteringen
+De annotatie-editor werkt, maar kan gebruiksvriendelijker. [Rosanne feedback]
+- Verschillende diktes voor cirkels en pijlen
+- Achtergrondkleur voor tekstblokjes (nu alleen tekst)
+- Meer kleuren opties
+- Undo/redo functionaliteit
+- Mobile touch support verbeteren
 
 ### Quiz Keyboard Shortcuts
 Snel antwoorden met toetsenbord.
@@ -58,6 +91,27 @@ Deck exporteren als .apkg voor Anki.
 ## Ideeën & Research
 
 *Nog uitwerken of onderzoeken voordat het opgepakt kan worden.*
+
+### Organisatie Pagina's
+Organisatiefunctionaliteit voor KNNV, onderwijsinstellingen (HVHL) en adviesbureaus.
+
+**Uitgebreide planning:** [organization-pages.md](features/organization-pages.md)
+
+**Doelgroepen:**
+- KNNV (natuurvereniging) - cursusmateriaal, gecureerde sets
+- HVHL (onderwijs) - lesmateriaal, toetsen, studentvoortgang
+- De Boominspecteurs (adviesbureau) - interne training, certificering
+
+**MVP scope:**
+- Organisatie landing page met branding
+- Gecureerde/aanbevolen leersets
+- Voortgang dashboard voor beheerders
+- Leden uitnodigen via link/code
+
+**Gerelateerd:**
+- [Premium Features - Organisatie tier](features/premium-features.md)
+- [KNNV Feedback Jaap](research/knnv-feedback-jaap-graveland.md)
+- [Quizlet Group Features](research/group-features-quizlet.md)
 
 ### Internationalisering (i18n)
 Engels ondersteunen naast Nederlands.
@@ -203,6 +257,7 @@ Zie [Premium Features](features/premium-features.md) voor details.
 | [post-mvp-roadmap.md](post-mvp-roadmap.md) | Milestones en validatie doelen |
 | [business-model.md](operations/business-model.md) | Freemium model, pricing |
 | [premium-features.md](features/premium-features.md) | Premium/AI features planning |
+| [organization-pages.md](features/organization-pages.md) | Organisatie features planning |
 | [bulk-text-import.md](features/bulk-text-import.md) | Copy/paste import feature |
 | [knnv-feedback.md](research/knnv-feedback-jaap-graveland.md) | KNNV gesprek status |
 | [quiz-mode-plan.md](research/quiz-mode-implementation-plan.md) | Quiz features details |

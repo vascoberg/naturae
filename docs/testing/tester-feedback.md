@@ -14,6 +14,7 @@
 | # | Issue | Status | Details |
 |---|-------|--------|---------|
 | 1 | Annotaties worden niet opgeslagen | ✅ Fixed | Error feedback toegevoegd + CORS handling verbeterd. Werkt nu correct. |
+| 11 | Annotaties vereisen hard refresh | Open | Na annotatie opslaan worden annotaties niet direct zichtbaar in deck overview. Hard refresh (Cmd+Shift+R) nodig. Waarschijnlijk cache/revalidation issue. |
 
 ### Performance
 
@@ -38,6 +39,7 @@
 |---|-------------|--------|---------|
 | 9 | Annotatie modal sluiten na opslaan | Open | "En dat als die annotatie is opgeslagen je foto verdwijnt en je door kunt gaan" |
 | 10 | Annotaties bekijken op flashcard | Backlog | "als je op de afbeelding van je flashcard drukt wil je eigenlijk ook dat hij 'oppopt'" |
+| 12 | Annotatie tool opties uitbreiden | Backlog | Verschillende diktes cirkels/pijlen, achtergrondkleur tekstblokjes, meer kleuren |
 
 ### Positieve Feedback
 
