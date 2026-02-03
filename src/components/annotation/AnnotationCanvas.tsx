@@ -3,6 +3,7 @@
 import { useRef, useState, useEffect, useCallback } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ArrowRight, Circle, Type, MousePointer2, Trash2, ChevronUp, ChevronDown, Layers, Undo2, Redo2 } from "lucide-react";
 import {
   type Annotation,
@@ -1156,10 +1157,8 @@ export function AnnotationCanvas({
             </div>
           </div>
 
-          {/* Stroke width slider - show for arrow/circle tools OR when arrow/circle is selected */}
-          {(selectedTool === "arrow" || selectedTool === "circle" ||
-            (selectedId && annotations.find(a => a.id === selectedId)?.type === "arrow") ||
-            (selectedId && annotations.find(a => a.id === selectedId)?.type === "circle")) && (
+          {/* Stroke width slider - show only for arrow/circle tools */}
+          {(selectedTool === "arrow" || selectedTool === "circle") && (
             <div className="flex items-center gap-2">
               <span className="text-xs text-muted-foreground">Dikte:</span>
               <input
@@ -1186,9 +1185,8 @@ export function AnnotationCanvas({
             </div>
           )}
 
-          {/* Text controls - show for text tool OR when text annotation is selected */}
-          {(selectedTool === "text" ||
-            (selectedId && annotations.find(a => a.id === selectedId)?.type === "text")) && (
+          {/* Text controls - show only for text tool */}
+          {selectedTool === "text" && (
             <>
               {/* Font size slider */}
               <div className="flex items-center gap-2">
@@ -1215,23 +1213,21 @@ export function AnnotationCanvas({
                 />
                 <span className="text-xs text-muted-foreground">px</span>
               </div>
-              {/* Text background */}
-              <div className="flex items-center gap-1">
-                <span className="text-xs text-muted-foreground mr-1">Achtergrond:</span>
-                {TEXT_BACKGROUNDS.map((bg) => (
-                  <button
-                    key={bg.value}
-                    onClick={() => handleTextBackgroundChange(bg.value)}
-                    className={`px-2 py-1 text-xs rounded border ${
-                      selectedTextBackground === bg.value
-                        ? "border-primary bg-primary/10"
-                        : "border-muted-foreground/30 hover:bg-muted"
-                    }`}
-                    title={bg.label}
-                  >
-                    {bg.label}
-                  </button>
-                ))}
+              {/* Text background dropdown */}
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-muted-foreground">Achtergrond:</span>
+                <Select value={selectedTextBackground} onValueChange={handleTextBackgroundChange}>
+                  <SelectTrigger className="h-7 w-24 text-xs">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent side="top" className="min-w-24">
+                    {TEXT_BACKGROUNDS.map((bg) => (
+                      <SelectItem key={bg.value} value={bg.value} className="text-xs">
+                        {bg.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
             </>
           )}

@@ -345,7 +345,7 @@ export function DeckEditor({ deck, cards: initialCards, initialTags = [] }: Deck
           <div className="flex gap-3 pt-2">
             <Button onClick={handleSaveDeck} disabled={isSaving || !title.trim()}>
               <Save className="w-4 h-4 mr-2" />
-              {isSaving ? "Opslaan..." : "Opslaan"}
+              {isSaving ? "Opslaan..." : "Instellingen opslaan"}
             </Button>
             <Button
               variant="destructive"
