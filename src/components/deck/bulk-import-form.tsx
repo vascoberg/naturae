@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useRef } from "react";
 import { Upload, Music, Image, Loader2, Check, X, FileAudio, FileImage, Search, AlertCircle, CheckCircle2, HelpCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -11,7 +11,11 @@ import { parseImageFilename } from "@/lib/import/parse-image-filename";
 import { parseAudioMetadata, embeddedImageToFile } from "@/lib/import/parse-audio-metadata";
 import { addCardsToDeck } from "@/lib/actions/import";
 import { matchSpeciesByName, searchSpecies, getOrCreateSpecies } from "@/lib/actions/species";
-import type { ImportCardPreview, ImportProgress, ImportResult, SpeciesMatch, SpeciesMatchStatus } from "@/lib/import/types";
+import { checkStorageLimit, recordStorageUpload } from "@/lib/actions/decks";
+import { ImportSettingsPanel } from "./import-settings";
+import { SpeciesSelector } from "@/components/species/species-selector";
+import type { ImportCardPreview, ImportProgress, ImportResult, SpeciesMatch, SpeciesMatchStatus, ImportSettings } from "@/lib/import/types";
+import { DEFAULT_IMPORT_SETTINGS } from "@/lib/import/types";
 
 interface BulkImportFormProps {
   deckId: string;
@@ -41,6 +45,52 @@ function generateUniqueId(): string {
   return `import-${Date.now()}-${++idCounter}-${Math.random().toString(36).substring(2, 8)}`;
 }
 
+// Helper om naam te formatteren op basis van taal setting
+function getDisplayName(
+  card: ImportCardPreview,
+  settings: ImportSettings
+): string {
+  const species = card.speciesMatch;
+
+  // Fallback naar dutchName van card als geen species match
+  if (!species) {
+    return card.dutchName;
+  }
+
+  switch (settings.nameLanguage) {
+    case "nl":
+      return species.dutchName || card.dutchName;
+    case "scientific":
+      return species.scientificName;
+    case "en":
+      return species.englishName || species.dutchName || card.dutchName;
+    case "nl_scientific":
+      const dutch = species.dutchName || card.dutchName;
+      return `${dutch}\n${species.scientificName}`;
+    default:
+      return card.dutchName;
+  }
+}
+
+// Helper om card texts te bepalen op basis van settings
+function getCardTexts(
+  card: ImportCardPreview,
+  settings: ImportSettings
+): { frontText: string; backText: string } {
+  const displayName = getDisplayName(card, settings);
+
+  const frontText =
+    settings.namePosition === "front" || settings.namePosition === "both"
+      ? displayName
+      : "";
+  const backText =
+    settings.namePosition === "back" || settings.namePosition === "both"
+      ? displayName
+      : "";
+
+  return { frontText, backText };
+}
+
 export function BulkImportForm({ deckId, onSuccess, onCancel }: BulkImportFormProps) {
   const supabase = createClient();
 
@@ -52,11 +102,25 @@ export function BulkImportForm({ deckId, onSuccess, onCancel }: BulkImportFormPr
   });
   const [error, setError] = useState<string | null>(null);
   const [isMatchingSpecies, setIsMatchingSpecies] = useState(false);
+  const [importSettings, setImportSettings] = useState<ImportSettings>(DEFAULT_IMPORT_SETTINGS);
+  const abortMatchingRef = useRef(false);
+  const abortUploadRef = useRef(false);
+
+  // Stop species matching
+  const stopMatchingSpecies = useCallback(() => {
+    abortMatchingRef.current = true;
+  }, []);
+
+  // Stop upload
+  const stopUpload = useCallback(() => {
+    abortUploadRef.current = true;
+  }, []);
 
   // Species matching voor alle kaarten uitvoeren
   const matchAllSpecies = useCallback(async () => {
     if (cards.length === 0) return;
 
+    abortMatchingRef.current = false;
     setIsMatchingSpecies(true);
     setProgress({
       current: 0,
@@ -66,6 +130,16 @@ export function BulkImportForm({ deckId, onSuccess, onCancel }: BulkImportFormPr
     });
 
     for (let i = 0; i < cards.length; i++) {
+      // Check for abort
+      if (abortMatchingRef.current) {
+        setProgress((prev) => ({
+          ...prev,
+          status: "idle",
+          message: `Gestopt na ${i} van ${cards.length} soorten`,
+        }));
+        break;
+      }
+
       const card = cards[i];
 
       setProgress((prev) => ({
@@ -105,7 +179,7 @@ export function BulkImportForm({ deckId, onSuccess, onCancel }: BulkImportFormPr
           if (result.data) {
             match = {
               speciesId: result.data.id,
-              scientificName: result.data.scientific_name,
+              scientificName: result.data.canonical_name || result.data.scientific_name,
               dutchName: result.data.common_names?.nl || null,
               gbifKey: result.data.gbif_key,
               confidence: "exact",
@@ -120,7 +194,7 @@ export function BulkImportForm({ deckId, onSuccess, onCancel }: BulkImportFormPr
             // Converteer naar SpeciesMatch format
             suggestions = searchResult.data.slice(0, 5).map((s) => ({
               speciesId: s.id,
-              scientificName: s.scientific_name,
+              scientificName: s.canonical_name || s.scientific_name,
               dutchName: s.dutch_name,
               gbifKey: s.gbif_key,
               confidence: s.source === "local" ? "high" as const : "low" as const,
@@ -137,7 +211,7 @@ export function BulkImportForm({ deckId, onSuccess, onCancel }: BulkImportFormPr
                 if (speciesResult.data) {
                   match = {
                     speciesId: speciesResult.data.id,
-                    scientificName: speciesResult.data.scientific_name,
+                    scientificName: speciesResult.data.canonical_name || speciesResult.data.scientific_name,
                     dutchName: speciesResult.data.common_names?.nl || null,
                     gbifKey: speciesResult.data.gbif_key,
                     confidence: dutchNameMatch ? "exact" : "high",
@@ -146,7 +220,7 @@ export function BulkImportForm({ deckId, onSuccess, onCancel }: BulkImportFormPr
               } else {
                 match = {
                   speciesId: firstResult.id,
-                  scientificName: firstResult.scientific_name,
+                  scientificName: firstResult.canonical_name || firstResult.scientific_name,
                   dutchName: firstResult.dutch_name,
                   gbifKey: firstResult.gbif_key,
                   confidence: dutchNameMatch ? "exact" : "high",
@@ -198,12 +272,16 @@ export function BulkImportForm({ deckId, onSuccess, onCancel }: BulkImportFormPr
     }
 
     setIsMatchingSpecies(false);
-    setProgress({
-      current: cards.length,
-      total: cards.length,
-      status: "idle",
-      message: "Soorten zoeken voltooid",
-    });
+
+    // Only show "completed" message if not aborted
+    if (!abortMatchingRef.current) {
+      setProgress({
+        current: cards.length,
+        total: cards.length,
+        status: "idle",
+        message: "Soorten zoeken voltooid",
+      });
+    }
   }, [cards]);
 
   // Selecteer een suggestie voor een kaart
@@ -219,7 +297,7 @@ export function BulkImportForm({ deckId, onSuccess, onCancel }: BulkImportFormPr
                   speciesMatchStatus: "matched" as SpeciesMatchStatus,
                   speciesMatch: {
                     speciesId: result.data!.id,
-                    scientificName: result.data!.scientific_name,
+                    scientificName: result.data!.canonical_name || result.data!.scientific_name,
                     dutchName: result.data!.common_names?.nl || null,
                     gbifKey: result.data!.gbif_key,
                     confidence: "high",
@@ -402,6 +480,31 @@ export function BulkImportForm({ deckId, onSuccess, onCancel }: BulkImportFormPr
     }
 
     setError(null);
+    abortUploadRef.current = false;
+
+    // Calculate total upload size
+    const totalSize = cards.reduce((sum, card) => {
+      let size = 0;
+      if (card.audioFile) size += card.audioFile.size;
+      if (card.imageFile) size += card.imageFile.size;
+      return sum + size;
+    }, 0);
+
+    // Check storage limit before starting
+    setProgress({
+      current: 0,
+      total: cards.length,
+      status: "processing",
+      message: "Opslaglimiet controleren...",
+    });
+
+    const storageCheck = await checkStorageLimit(totalSize);
+    if (!storageCheck.allowed) {
+      setError(storageCheck.error || "Opslaglimiet bereikt");
+      setProgress({ current: 0, total: 0, status: "error" });
+      return;
+    }
+
     setProgress({
       current: 0,
       total: cards.length,
@@ -419,9 +522,20 @@ export function BulkImportForm({ deckId, onSuccess, onCancel }: BulkImportFormPr
     }
 
     const uploadedCards: ImportResult[] = [];
+    let totalUploadedBytes = 0;
 
     // Upload files
     for (let i = 0; i < cards.length; i++) {
+      // Check for abort
+      if (abortUploadRef.current) {
+        setProgress((prev) => ({
+          ...prev,
+          status: "idle",
+          message: `Gestopt na ${i} van ${cards.length} bestanden`,
+        }));
+        break;
+      }
+
       const card = cards[i];
 
       setProgress((prev) => ({
@@ -439,6 +553,7 @@ export function BulkImportForm({ deckId, onSuccess, onCancel }: BulkImportFormPr
       try {
         let audioUrl: string | null = null;
         let imageUrl: string | null = null;
+        let cardUploadedBytes = 0;
 
         // Generate unique timestamp for this card
         const timestamp = Date.now();
@@ -459,6 +574,7 @@ export function BulkImportForm({ deckId, onSuccess, onCancel }: BulkImportFormPr
             .from("media")
             .getPublicUrl(audioPath);
           audioUrl = audioUrlData.publicUrl;
+          cardUploadedBytes += card.audioFile.size;
         }
 
         // Upload image if available
@@ -473,19 +589,31 @@ export function BulkImportForm({ deckId, onSuccess, onCancel }: BulkImportFormPr
               .from("media")
               .getPublicUrl(imagePath);
             imageUrl = imageUrlData.publicUrl;
+            cardUploadedBytes += card.imageFile.size;
           }
         }
 
+        // Track uploaded bytes
+        totalUploadedBytes += cardUploadedBytes;
+
+        // Get card texts based on settings
+        const { frontText, backText } = getCardTexts(card, importSettings);
+
+        // Determine image URLs based on photo position setting
+        const frontImageUrl = importSettings.photoPosition === "front" ? imageUrl : null;
+        const backImageUrl = importSettings.photoPosition === "back" ? imageUrl : null;
+
         uploadedCards.push({
           position: card.position,
-          dutchName: card.dutchName,
-          scientificName: card.scientificName,
+          frontText,
+          backText,
+          frontImageUrl,
+          backImageUrl,
+          audioUrl,
+          speciesId: card.speciesMatch?.speciesId || null,
           artist: card.artist,
           copyright: card.copyright,
           sourceUrl: card.sourceUrl,
-          audioUrl,
-          imageUrl,
-          speciesId: card.speciesMatch?.speciesId || null,
         });
 
         setCards((prev) =>
@@ -503,6 +631,16 @@ export function BulkImportForm({ deckId, onSuccess, onCancel }: BulkImportFormPr
           )
         );
       }
+    }
+
+    // Record storage usage for successfully uploaded files
+    if (totalUploadedBytes > 0) {
+      await recordStorageUpload(totalUploadedBytes);
+    }
+
+    // If aborted, don't continue to adding cards
+    if (abortUploadRef.current) {
+      return;
     }
 
     // Add cards to deck
@@ -622,6 +760,15 @@ export function BulkImportForm({ deckId, onSuccess, onCancel }: BulkImportFormPr
         </div>
       )}
 
+      {/* Import settings */}
+      {cards.length > 0 && (
+        <ImportSettingsPanel
+          settings={importSettings}
+          onChange={setImportSettings}
+          disabled={isUploading || isMatchingSpecies}
+        />
+      )}
+
       {/* Species matching section */}
       {cards.length > 0 && (
         <div className="p-4 bg-primary/5 border border-primary/20 rounded-lg space-y-3">
@@ -632,24 +779,26 @@ export function BulkImportForm({ deckId, onSuccess, onCancel }: BulkImportFormPr
                 Automatisch soorten herkennen uit bestandsnamen
               </p>
             </div>
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={matchAllSpecies}
-              disabled={isUploading || isMatchingSpecies || cards.length === 0}
-            >
-              {isMatchingSpecies ? (
-                <>
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  Zoeken...
-                </>
-              ) : (
-                <>
-                  <Search className="w-4 h-4 mr-2" />
-                  Soorten zoeken
-                </>
-              )}
-            </Button>
+            {isMatchingSpecies ? (
+              <Button
+                size="sm"
+                variant="destructive"
+                onClick={stopMatchingSpecies}
+              >
+                <X className="w-4 h-4 mr-2" />
+                Stop
+              </Button>
+            ) : (
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={matchAllSpecies}
+                disabled={isUploading || cards.length === 0}
+              >
+                <Search className="w-4 h-4 mr-2" />
+                Soorten zoeken
+              </Button>
+            )}
           </div>
 
           {/* Species matching stats */}
@@ -783,6 +932,39 @@ export function BulkImportForm({ deckId, onSuccess, onCancel }: BulkImportFormPr
                         </div>
                       </div>
                     )}
+
+                    {/* Manual species search for not found or suggested */}
+                    {(card.speciesMatchStatus === "not_found" || card.speciesMatchStatus === "suggested") && (
+                      <div className="mt-2">
+                        <SpeciesSelector
+                          value={null}
+                          onChange={(speciesId, species) => {
+                            if (species) {
+                              setCards((prev) =>
+                                prev.map((c) =>
+                                  c.id === card.id
+                                    ? {
+                                        ...c,
+                                        speciesMatchStatus: "matched" as SpeciesMatchStatus,
+                                        speciesMatch: {
+                                          speciesId: species.id,
+                                          scientificName: species.canonical_name || species.scientific_name,
+                                          dutchName: species.common_names?.nl || null,
+                                          englishName: species.common_names?.en || null,
+                                          gbifKey: species.gbif_key,
+                                          confidence: "manual",
+                                        },
+                                        speciesSuggestions: [],
+                                      }
+                                    : c
+                                )
+                              );
+                            }
+                          }}
+                          placeholder="Zoek soort..."
+                        />
+                      </div>
+                    )}
                   </div>
 
                   {/* Species status icon */}
@@ -817,24 +999,29 @@ export function BulkImportForm({ deckId, onSuccess, onCancel }: BulkImportFormPr
       {/* Action buttons */}
       {cards.length > 0 && (
         <div className="flex gap-3">
-          <Button
-            onClick={handleImport}
-            disabled={isUploading || isDone || cards.length === 0 || isMatchingSpecies}
-          >
-            {isUploading ? (
-              <>
-                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                Importeren...
-              </>
-            ) : isDone ? (
-              <>
-                <Check className="w-4 h-4 mr-2" />
-                Voltooid
-              </>
-            ) : (
-              `${cards.length} kaarten importeren`
-            )}
-          </Button>
+          {isUploading ? (
+            <Button
+              variant="destructive"
+              onClick={stopUpload}
+            >
+              <X className="w-4 h-4 mr-2" />
+              Stop uploaden
+            </Button>
+          ) : (
+            <Button
+              onClick={handleImport}
+              disabled={isDone || cards.length === 0 || isMatchingSpecies}
+            >
+              {isDone ? (
+                <>
+                  <Check className="w-4 h-4 mr-2" />
+                  Voltooid
+                </>
+              ) : (
+                `${cards.length} kaarten importeren`
+              )}
+            </Button>
+          )}
           <Button
             variant="outline"
             onClick={() => {

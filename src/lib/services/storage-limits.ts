@@ -79,11 +79,20 @@ export async function recordUpload(
   userId: string,
   sizeBytes: number
 ): Promise<void> {
+  console.log(`[Storage] Recording upload: ${formatBytes(sizeBytes)} for user ${userId}`);
+
   const supabase = await createClient();
-  await supabase.rpc("increment_storage_used", {
+  const { error } = await supabase.rpc("increment_storage_used", {
     user_id: userId,
     bytes: sizeBytes,
   });
+
+  if (error) {
+    console.error("[Storage] Failed to record upload:", error);
+    // Don't throw - storage tracking failure shouldn't block the user
+  } else {
+    console.log(`[Storage] Successfully recorded ${formatBytes(sizeBytes)}`);
+  }
 }
 
 /**
@@ -94,10 +103,15 @@ export async function recordDeletion(
   sizeBytes: number
 ): Promise<void> {
   const supabase = await createClient();
-  await supabase.rpc("decrement_storage_used", {
+  const { error } = await supabase.rpc("decrement_storage_used", {
     user_id: userId,
     bytes: sizeBytes,
   });
+
+  if (error) {
+    console.error("Failed to record storage deletion:", error);
+    // Don't throw - storage tracking failure shouldn't block the user
+  }
 }
 
 /**

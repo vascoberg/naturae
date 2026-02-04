@@ -101,11 +101,11 @@ export async function addCardsToDeck(
     // Create all cards with species koppeling
     const cardsToInsert = cards.map((card, index) => ({
       deck_id: deckId,
-      front_text: null, // Media is the front
-      back_text: card.dutchName,
+      front_text: card.frontText || null,
+      back_text: card.backText || null,
       position: startPosition + card.position + index,
       species_id: card.speciesId || null,
-      species_display: card.speciesId ? "back" : null, // Default: soort tonen op achterkant
+      species_display: card.speciesId ? "back" : null,
     }));
 
     const { data: insertedCards, error: cardsError } = await supabase
@@ -143,12 +143,12 @@ export async function addCardsToDeck(
 
       let displayOrder = 0;
 
-      // Image media
-      if (card.imageUrl) {
+      // Front image
+      if (card.frontImageUrl) {
         mediaToInsert.push({
           card_id: insertedCard.id,
           type: "image",
-          url: card.imageUrl,
+          url: card.frontImageUrl,
           position: "front",
           display_order: displayOrder++,
           attribution_name: card.artist,
@@ -157,7 +157,21 @@ export async function addCardsToDeck(
         });
       }
 
-      // Audio media
+      // Back image
+      if (card.backImageUrl) {
+        mediaToInsert.push({
+          card_id: insertedCard.id,
+          type: "image",
+          url: card.backImageUrl,
+          position: "back",
+          display_order: displayOrder++,
+          attribution_name: card.artist,
+          attribution_url: card.sourceUrl,
+          attribution_source: card.copyright,
+        });
+      }
+
+      // Audio media (always on front for now)
       if (card.audioUrl) {
         mediaToInsert.push({
           card_id: insertedCard.id,

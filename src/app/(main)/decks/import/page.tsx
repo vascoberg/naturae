@@ -14,7 +14,9 @@ import { parseImageFilename } from "@/lib/import/parse-image-filename";
 import { parseAudioMetadata, embeddedImageToFile } from "@/lib/import/parse-audio-metadata";
 import { createDeckWithCards } from "@/lib/actions/import";
 import { matchSpeciesByName, searchSpecies, getOrCreateSpecies } from "@/lib/actions/species";
-import type { ImportCardPreview, ImportProgress, ImportResult, SpeciesMatch, SpeciesMatchStatus } from "@/lib/import/types";
+import { ImportSettingsPanel } from "@/components/deck/import-settings";
+import type { ImportCardPreview, ImportProgress, ImportResult, SpeciesMatch, SpeciesMatchStatus, ImportSettings } from "@/lib/import/types";
+import { DEFAULT_IMPORT_SETTINGS } from "@/lib/import/types";
 
 const AUDIO_EXTENSIONS = /\.(mp3|wav|ogg|webm|m4a|flac)$/i;
 const IMAGE_EXTENSIONS = /\.(jpe?g|png|gif|webp|bmp|svg)$/i;
@@ -33,6 +35,51 @@ function looksLikeFilename(name: string): boolean {
   return filenamePatterns.some(pattern => pattern.test(name));
 }
 
+// Helper om naam te formatteren op basis van taal setting
+function getDisplayName(
+  card: ImportCardPreview,
+  settings: ImportSettings
+): string {
+  const species = card.speciesMatch;
+
+  if (!species) {
+    return card.dutchName;
+  }
+
+  switch (settings.nameLanguage) {
+    case "nl":
+      return species.dutchName || card.dutchName;
+    case "scientific":
+      return species.scientificName;
+    case "en":
+      return species.englishName || species.dutchName || card.dutchName;
+    case "nl_scientific":
+      const dutch = species.dutchName || card.dutchName;
+      return `${dutch}\n${species.scientificName}`;
+    default:
+      return card.dutchName;
+  }
+}
+
+// Helper om card texts te bepalen op basis van settings
+function getCardTexts(
+  card: ImportCardPreview,
+  settings: ImportSettings
+): { frontText: string; backText: string } {
+  const displayName = getDisplayName(card, settings);
+
+  const frontText =
+    settings.namePosition === "front" || settings.namePosition === "both"
+      ? displayName
+      : "";
+  const backText =
+    settings.namePosition === "back" || settings.namePosition === "both"
+      ? displayName
+      : "";
+
+  return { frontText, backText };
+}
+
 export default function ImportPage() {
   const router = useRouter();
   const supabase = createClient();
@@ -47,6 +94,7 @@ export default function ImportPage() {
   });
   const [error, setError] = useState<string | null>(null);
   const [isMatchingSpecies, setIsMatchingSpecies] = useState(false);
+  const [importSettings, setImportSettings] = useState<ImportSettings>(DEFAULT_IMPORT_SETTINGS);
 
   // Species matching voor alle kaarten uitvoeren
   const matchAllSpecies = useCallback(async () => {
@@ -100,7 +148,7 @@ export default function ImportPage() {
           if (result.data) {
             match = {
               speciesId: result.data.id,
-              scientificName: result.data.scientific_name,
+              scientificName: result.data.canonical_name || result.data.scientific_name,
               dutchName: result.data.common_names?.nl || null,
               gbifKey: result.data.gbif_key,
               confidence: "exact",
@@ -115,7 +163,7 @@ export default function ImportPage() {
             // Converteer naar SpeciesMatch format
             suggestions = searchResult.data.slice(0, 5).map((s) => ({
               speciesId: s.id,
-              scientificName: s.scientific_name,
+              scientificName: s.canonical_name || s.scientific_name,
               dutchName: s.dutch_name,
               gbifKey: s.gbif_key,
               confidence: s.source === "local" ? "high" as const : "low" as const,
@@ -132,7 +180,7 @@ export default function ImportPage() {
                 if (speciesResult.data) {
                   match = {
                     speciesId: speciesResult.data.id,
-                    scientificName: speciesResult.data.scientific_name,
+                    scientificName: speciesResult.data.canonical_name || speciesResult.data.scientific_name,
                     dutchName: speciesResult.data.common_names?.nl || null,
                     gbifKey: speciesResult.data.gbif_key,
                     confidence: dutchNameMatch ? "exact" : "high",
@@ -141,7 +189,7 @@ export default function ImportPage() {
               } else {
                 match = {
                   speciesId: firstResult.id,
-                  scientificName: firstResult.scientific_name,
+                  scientificName: firstResult.canonical_name || firstResult.scientific_name,
                   dutchName: firstResult.dutch_name,
                   gbifKey: firstResult.gbif_key,
                   confidence: dutchNameMatch ? "exact" : "high",
@@ -215,7 +263,7 @@ export default function ImportPage() {
                   speciesMatchStatus: "matched" as SpeciesMatchStatus,
                   speciesMatch: {
                     speciesId: result.data!.id,
-                    scientificName: result.data!.scientific_name,
+                    scientificName: result.data!.canonical_name || result.data!.scientific_name,
                     dutchName: result.data!.common_names?.nl || null,
                     gbifKey: result.data!.gbif_key,
                     confidence: "high",
@@ -482,17 +530,24 @@ export default function ImportPage() {
           }
         }
 
+        // Get card texts based on settings
+        const { frontText, backText } = getCardTexts(card, importSettings);
+
+        // Determine image URLs based on photo position setting
+        const frontImageUrl = importSettings.photoPosition === "front" ? imageUrl : null;
+        const backImageUrl = importSettings.photoPosition === "back" ? imageUrl : null;
+
         uploadedCards.push({
           position: card.position,
-          dutchName: card.dutchName,
-          scientificName: card.scientificName,
+          frontText,
+          backText,
+          frontImageUrl,
+          backImageUrl,
+          audioUrl,
+          speciesId: card.speciesMatch?.speciesId || null,
           artist: card.artist,
           copyright: card.copyright,
           sourceUrl: card.sourceUrl,
-          audioUrl,
-          imageUrl,
-          // Species koppeling meesturen
-          speciesId: card.speciesMatch?.speciesId || null,
         });
 
         setCards((prev) =>
@@ -684,6 +739,13 @@ export default function ImportPage() {
                   />
                 </div>
               </div>
+
+              {/* Import settings */}
+              <ImportSettingsPanel
+                settings={importSettings}
+                onChange={setImportSettings}
+                disabled={isUploading || isMatchingSpecies}
+              />
 
               {/* Species matching section */}
               <div className="p-4 bg-primary/5 border border-primary/20 rounded-lg space-y-3">

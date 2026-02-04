@@ -2,7 +2,7 @@
 
 > Centrale plek voor alle features, ideeën en taken. Pak wat je wilt, wanneer je wilt.
 
-**Laatste update:** 2 februari 2026
+**Laatste update:** 4 februari 2026
 
 ---
 
@@ -10,7 +10,18 @@
 
 *Waar je deze week aan werkt. Max 2-3 items.*
 
-(Momenteel geen actieve items)
+### KNNV Demo Pagina (voor meeting Jaap)
+**Deadline:** Volgende week (meeting met Jaap)
+
+Basic organisatie pagina met KNNV styling als demo/concept.
+- Niet volledig functioneel, maar als eerste idee wat mogelijk is
+- KNNV branding/kleuren
+- Features die op een organisatie pagina kunnen komen:
+  - Gecureerde leersets
+  - Organisatie logo en beschrijving
+  - Leden overzicht (mockup)
+
+Gerelateerd: [Organisatie Pagina's (uitgebreide planning)](features/organization-pages.md)
 
 ---
 
@@ -88,23 +99,15 @@ De annotatie-editor is sterk verbeterd. [Rosanne feedback]
 
 [Documentatie](features/annotation-tool-improvements.md)
 
-### Flashcard Layout Verbetering
-De huidige flashcard-weergave maakt slecht gebruik van schermruimte vergeleken met Quizlet.
+### Flashcard Layout Verbetering ✅
+~~De huidige flashcard-weergave maakt slecht gebruik van schermruimte vergeleken met Quizlet.~~
 
-**Probleem:**
-- Kaart te klein in het midden van het scherm
-- Veel lege ruimte rondom
-- Afbeeldingen en annotaties zijn nauwelijks zichtbaar
-- Sidebar neemt ruimte in tijdens leermodus
+**Afgerond 3 feb 2026:**
+- [x] Mobile: Responsive aspect ratio (16/9 → 4/3), compactere buttons en gaps
+- [x] Desktop: Grotere container (max-w-lg → max-w-2xl/3xl), multi-line soortnamen
+- [x] Verwijderd: truncate class op antwoordopties
 
-**Gewenst:**
-- Grotere kaarten die meer schermruimte benutten
-- Media (afbeelding/audio) prominent weergegeven
-- Antwoordopties goed zichtbaar
-- Responsive: werkt op desktop en mobiel
-- Niet per se donkere achtergrond zoals Quizlet, maar wel immersief
-
-**Referentie:** Quizlet flashcard-modus als benchmark
+[Documentatie](features/flashcard-layout-improvement.md)
 
 ### Quiz Keyboard Shortcuts
 Snel antwoorden met toetsenbord.
@@ -197,6 +200,25 @@ Antwoord zien → vraag raden (geluid bij naam).
 ### Alleen Audio Modus
 Quiz zonder visuele hints, puur op gehoor.
 
+### Mobile App (iPhone/Android)
+Native app als "view-only" companion voor de web app.
+
+**Scope:**
+- ✅ Leersets bekijken en studeren
+- ✅ Alle leermodi uitvoeren (flashcards, quiz, audio)
+- ❌ Geen deck aanmaken/bewerken
+- ❌ Geen annotaties maken
+
+**Rationale:**
+- Aanmaken en annoteren is complexer en geschikter voor desktop
+- Mobile app focust op consumeren en leren
+- Vermindert ontwikkelcomplexiteit aanzienlijk
+
+**Technisch (later onderzoeken):**
+- React Native of Flutter
+- Shared API met web app
+- Offline support voor leersets?
+
 ---
 
 ## Milestones
@@ -216,6 +238,17 @@ Quiz zonder visuele hints, puur op gehoor.
 ## Afgerond ✅
 
 ### Februari 2026
+- [x] **Bulk Import Configuratie** - Import instellingen en handmatig soorten zoeken
+  - Foto positie: voorkant of achterkant
+  - Naam taal: Nederlands / Latijn / Engels / NL + Latijn
+  - Naam positie: voorkant / achterkant / beide
+  - Handmatige soort zoeken voor niet-herkende bestanden
+  - [Docs](features/bulk-import-configuration.md)
+- [x] **Bulk Media Import Verbeteringen** - Robuustere filename parsing, stop-knoppen, storage limit
+  - Parsing: underscores, hyphens, CamelCase, trailing metadata (male/female/adult/nummers)
+  - Stop-knoppen tijdens species matching en uploaden
+  - Storage limit check vóór upload start
+  - [Docs](features/bulk-media-import-improvements.md)
 - [x] **Bulk Tekst Import** - Copy/paste import vanuit Excel
   - Auto-detect separator (tab/komma/puntkomma)
   - Preview met "wissel kolommen" knop
@@ -307,6 +340,8 @@ Zie [Premium Features](features/premium-features.md) voor details.
 | [premium-features.md](features/premium-features.md) | Premium/AI features planning |
 | [organization-pages.md](features/organization-pages.md) | Organisatie features planning |
 | [bulk-text-import.md](features/bulk-text-import.md) | Copy/paste import feature |
+| [bulk-media-import-improvements.md](features/bulk-media-import-improvements.md) | Filename parsing, stop buttons, storage |
+| [bulk-import-configuration.md](features/bulk-import-configuration.md) | Import configuratie opties |
 | [knnv-feedback.md](research/knnv-feedback-jaap-graveland.md) | KNNV gesprek status |
 | [quiz-mode-plan.md](research/quiz-mode-implementation-plan.md) | Quiz features details |
 | [i18n-research.md](research/internationalisering-i18n.md) | Internationalisering |

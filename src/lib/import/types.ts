@@ -22,8 +22,9 @@ export interface SpeciesMatch {
   speciesId: string;
   scientificName: string;
   dutchName: string | null;
+  englishName?: string | null;
   gbifKey: number | null;
-  confidence: "exact" | "high" | "low";
+  confidence: "exact" | "high" | "low" | "manual";
 }
 
 export interface ImportCardPreview {
@@ -64,13 +65,34 @@ export interface ImportProgress {
 
 export interface ImportResult {
   position: number;
-  dutchName: string;
-  scientificName: string | null;
+  frontText: string;
+  backText: string;
+  frontImageUrl: string | null;
+  backImageUrl: string | null;
+  audioUrl: string | null;
+  // Species koppeling
+  speciesId: string | null;
+  // Metadata
   artist: string | null;
   copyright: string | null;
   sourceUrl: string | null;
-  audioUrl: string | null;
-  imageUrl: string | null;
-  // Species koppeling
-  speciesId: string | null;
 }
+
+/**
+ * Import Settings - Configuratie voor bulk import
+ */
+export type PhotoPosition = "front" | "back";
+export type NameLanguage = "nl" | "scientific" | "en" | "nl_scientific";
+export type NamePosition = "front" | "back" | "both";
+
+export interface ImportSettings {
+  photoPosition: PhotoPosition;
+  nameLanguage: NameLanguage;
+  namePosition: NamePosition;
+}
+
+export const DEFAULT_IMPORT_SETTINGS: ImportSettings = {
+  photoPosition: "front",
+  nameLanguage: "nl",
+  namePosition: "back",
+};
