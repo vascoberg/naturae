@@ -221,6 +221,58 @@ export async function deleteCard(cardId: string) {
     throw new Error("Geen toegang tot deze kaart");
   }
 
+  // Haal card_media op voor storage cleanup
+  const { data: media } = await supabase
+    .from("card_media")
+    .select("url")
+    .eq("card_id", cardId);
+
+  let totalDeletedBytes = 0;
+  const storagePaths: string[] = [];
+
+  if (media) {
+    for (const m of media) {
+      if (m.url && m.url.includes("/media/")) {
+        const pathMatch = m.url.match(/\/media\/(.+)$/);
+        if (pathMatch) {
+          const storagePath = pathMatch[1];
+          // Check of het een eigen upload is (in user's folder)
+          if (storagePath.startsWith(user.id)) {
+            storagePaths.push(storagePath);
+          }
+        }
+      }
+    }
+
+    // Haal bestandsgroottes op
+    for (const path of storagePaths) {
+      try {
+        const { data: files } = await supabase.storage
+          .from("media")
+          .list(path.substring(0, path.lastIndexOf("/")), {
+            search: path.substring(path.lastIndexOf("/") + 1),
+          });
+
+        if (files && files.length > 0 && files[0].metadata?.size) {
+          totalDeletedBytes += files[0].metadata.size;
+        }
+      } catch (e) {
+        console.error("Error getting file size:", e);
+      }
+    }
+
+    // Verwijder bestanden uit storage
+    if (storagePaths.length > 0) {
+      const { error: storageError } = await supabase.storage
+        .from("media")
+        .remove(storagePaths);
+
+      if (storageError) {
+        console.error("Storage delete error:", storageError);
+      }
+    }
+  }
+
   // Hard delete - CASCADE zal automatisch card_media verwijderen
   const { error } = await supabase
     .from("cards")
@@ -230,6 +282,11 @@ export async function deleteCard(cardId: string) {
   if (error) {
     console.error("Error deleting card:", error);
     throw new Error("Kon kaart niet verwijderen");
+  }
+
+  // Update storage tracking
+  if (totalDeletedBytes > 0) {
+    await recordDeletion(user.id, totalDeletedBytes);
   }
 
   revalidatePath(`/decks/${card.deck_id}`);
@@ -312,6 +369,71 @@ export async function deleteDeck(deckId: string) {
     throw new Error("Geen toegang tot deze leerset");
   }
 
+  // Haal alle card_media op voor storage cleanup
+  const { data: cards } = await supabase
+    .from("cards")
+    .select("id")
+    .eq("deck_id", deckId);
+
+  let totalDeletedBytes = 0;
+  const storagePaths: string[] = [];
+
+  if (cards && cards.length > 0) {
+    const cardIds = cards.map((c) => c.id);
+
+    const { data: media } = await supabase
+      .from("card_media")
+      .select("url")
+      .in("card_id", cardIds);
+
+    if (media) {
+      // Filter eigen uploads (URL bevat user ID path)
+      const userStoragePrefix = `${user.id}/${deckId}/`;
+
+      for (const m of media) {
+        if (m.url && m.url.includes("/media/")) {
+          const pathMatch = m.url.match(/\/media\/(.+)$/);
+          if (pathMatch) {
+            const storagePath = pathMatch[1];
+            // Check of het een eigen upload is (in user's folder)
+            if (storagePath.startsWith(user.id)) {
+              storagePaths.push(storagePath);
+            }
+          }
+        }
+      }
+
+      // Haal bestandsgroottes op en verwijder uit storage
+      for (const path of storagePaths) {
+        try {
+          const { data: files } = await supabase.storage
+            .from("media")
+            .list(path.substring(0, path.lastIndexOf("/")), {
+              search: path.substring(path.lastIndexOf("/") + 1),
+            });
+
+          if (files && files.length > 0 && files[0].metadata?.size) {
+            totalDeletedBytes += files[0].metadata.size;
+          }
+        } catch (e) {
+          console.error("Error getting file size:", e);
+        }
+      }
+
+      // Verwijder alle bestanden uit storage
+      if (storagePaths.length > 0) {
+        const { error: storageError } = await supabase.storage
+          .from("media")
+          .remove(storagePaths);
+
+        if (storageError) {
+          console.error("Storage delete error:", storageError);
+          // Ga door met database delete
+        }
+      }
+    }
+  }
+
   // Hard delete - CASCADE zal automatisch cards, card_media en user_progress verwijderen
   const { error } = await supabase
     .from("decks")
@@ -321,6 +443,11 @@ export async function deleteDeck(deckId: string) {
   if (error) {
     console.error("Error deleting deck:", error);
     throw new Error(`Kon leerset niet verwijderen: ${error.message} (${error.code})`);
+  }
+
+  // Update storage tracking
+  if (totalDeletedBytes > 0) {
+    await recordDeletion(user.id, totalDeletedBytes);
   }
 
   revalidatePath("/my-decks");
